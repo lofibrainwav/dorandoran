@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { TimeBlock, AppView } from '@/lib/types'
 import { planDay, replanRemaining } from '@/lib/mock-planner'
 import { BrainDumpInbox } from '@/components/brain-dump-inbox'
@@ -15,8 +15,8 @@ export default function Home() {
 
   const handlePlanDay = useCallback(async (input: string) => {
     setIsPlanning(true)
-    // Simulate AI processing time
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Simulate AI processing time with realistic delay
+    await new Promise(resolve => setTimeout(resolve, 1800))
     const plannedBlocks = planDay(input)
     setBlocks(plannedBlocks)
     setIsPlanning(false)
@@ -90,22 +90,34 @@ export default function Home() {
 
   const handleBackToInbox = useCallback(() => {
     setView('inbox')
+    setBlocks([])
   }, [])
 
   const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted)
+  const remainingCount = blocks.filter(b => !b.isCompleted).length
 
   return (
     <main className={cn(
       'min-h-screen flex flex-col',
-      'px-4 py-8 md:py-12',
-      view === 'focus' && 'bg-background/95'
+      'px-4 py-6 md:py-10',
+      // Subtle gradient background
+      view === 'inbox' && 'bg-gradient-to-b from-background via-background to-muted/30',
+      view === 'timeline' && 'bg-gradient-to-b from-background to-primary/5',
+      view === 'focus' && 'bg-gradient-to-b from-background via-card/50 to-background'
     )}>
-      <header className="text-center mb-8">
-        <h2 className="text-sm font-medium tracking-widest text-muted-foreground uppercase">
-          OneBlock Lite
+      {/* Logo */}
+      <header className="text-center mb-6">
+        <h2 className="text-sm font-semibold tracking-[0.2em] text-primary/80 uppercase">
+          OneBlock
         </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {view === 'inbox' && 'Calm planning for busy minds'}
+          {view === 'timeline' && 'Your organized day'}
+          {view === 'focus' && 'Deep focus mode'}
+        </p>
       </header>
 
+      {/* Main content */}
       <div className="flex-1 flex items-start justify-center">
         {view === 'inbox' && (
           <BrainDumpInbox 
@@ -127,6 +139,7 @@ export default function Home() {
         {view === 'focus' && currentBlock && (
           <FocusMode
             block={currentBlock}
+            totalRemaining={remainingCount}
             onComplete={handleCompleteCurrent}
             onSkip={handleSkipCurrent}
             onReplan={handleReplan}
@@ -135,11 +148,17 @@ export default function Home() {
         )}
       </div>
 
-      <footer className="text-center mt-8">
-        <p className="text-xs text-muted-foreground">
-          Take it one block at a time.
-        </p>
-      </footer>
+      {/* Footer */}
+      {view !== 'focus' && (
+        <footer className="text-center mt-8 space-y-1">
+          <p className="text-xs text-muted-foreground">
+            Take it one block at a time.
+          </p>
+          <p className="text-[10px] text-muted-foreground/50">
+            No account. No tracking. Just calm.
+          </p>
+        </footer>
+      )}
     </main>
   )
 }

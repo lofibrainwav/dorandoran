@@ -207,8 +207,8 @@ export function buildCalendarAwareTimeline(
     const duration = task.durationMinutes
     const bufferAfter = getBufferMinutes(task.energy)
     
-    // Find next available slot that fits this task
-    const startMinutes = findNextAvailableSlot(currentMinutes, duration, busySlots, endOfDay)
+    // Find next available slot that fits this task + buffer (prevent buffer from overlapping protected events)
+    const startMinutes = findNextAvailableSlot(currentMinutes, duration, busySlots, endOfDay, bufferAfter)
     const endMinutes = startMinutes + duration
     
     const startTime = formatMinutesToTime(startMinutes)
@@ -297,6 +297,110 @@ export function mergeWithCalendarEvents(
   })
   
   return blocks
+}
+
+// Calendar-aware replan: reschedules remaining OneBlock tasks around protected Google Calendar events
+export function replanCalendarAwareBlocks(
+  blocks: TimeBlock[],
+  googleEvents: GoogleCalendarEvent[]
+): TimeBlock[] {
+  // Separate completed tasks, incomplete OneBlock tasks, and Google Calendar events
+  const completedBlocks = blocks.filter(b => b.isCompleted && b.source === 'oneblock')
+  const incompleteOneBlockBlocks = blocks.filter(b => !b.isCompleted && b.source === 'oneblock')
+  const googleBlocks = blocks.filter(b => b.source === 'google_calendar')
+  
+  if (incompleteOneBlockBlocks.length === 0) {
+    // Nothing to replan
+    return blocks
+  }
+  
+  // Convert incomplete blocks back to PlannedTask format for replanning
+  const tasksToReplan: PlannedTask[] = incompleteOneBlockBlocks.map(block => ({
+    title: block.title,
+    durationMinutes: block.duration,
+    priority: block.priority,
+    energy: block.energy,
+    category: block.category || 'work',
+    reasoning: block.reasoning || '',
+  }))
+  
+  // Sort tasks optimally before replanning
+  const sortedTasks = sortTasksOptimally(tasksToReplan)
+  
+  // Get current time as starting point for replan (or 9 AM if before)
+  const now = new Date()
+  const currentHour = now.getHours()
+  const currentMinutes = now.getMinutes()
+  const startMinutes = Math.max(currentHour * 60 + currentMinutes, 9 * 60)
+  
+  // Build calendar-aware timeline starting from now
+  const busySlots = getBusySlots(googleEvents)
+  const endOfDay = 18 * 60 // 6 PM in minutes
+  
+  const newTimeline: TimelineSlot[] = []
+  let currentTime = startMinutes
+  
+  sortedTasks.forEach((task, index) => {
+    const duration = task.durationMinutes
+    const bufferAfter = getBufferMinutes(task.energy)
+    
+    // Find next available slot that fits task + buffer
+    const slotStart = findNextAvailableSlot(currentTime, duration, busySlots, endOfDay, bufferAfter)
+    const slotEnd = slotStart + duration
+    
+    newTimeline.push({
+      startTime: formatMinutesToTime(slotStart),
+      endTime: formatMinutesToTime(slotEnd),
+      taskIndex: index,
+      bufferAfter,
+    })
+    
+    currentTime = slotEnd + bufferAfter
+  })
+  
+  // Create new TimeBlock array from replanned tasks
+  const replannedBlocks: TimeBlock[] = newTimeline.map((slot, index) => {
+    const task = sortedTasks[slot.taskIndex]
+    return {
+      id: Math.random().toString(36).substring(2, 9),
+      title: task.title,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      duration: task.durationMinutes,
+      priority: task.priority,
+      energy: task.energy,
+      category: task.category,
+      reasoning: task.reasoning,
+      bufferAfter: slot.bufferAfter,
+      isCompleted: false,
+      isCurrent: false,
+      source: 'oneblock' as const,
+      isProtected: false,
+    }
+  })
+  
+  // Merge all blocks: completed OneBlock + Google Calendar + replanned
+  const allBlocks = [...completedBlocks, ...googleBlocks, ...replannedBlocks]
+  
+  // Sort by start time using parseTimeToMinutes for accurate sorting
+  allBlocks.sort((a, b) => {
+    const aMinutes = parseTimeToMinutes(a.startTime)
+    const bMinutes = parseTimeToMinutes(b.startTime)
+    return aMinutes - bMinutes
+  })
+  
+  // Set the first incomplete non-protected block as current
+  let foundCurrent = false
+  allBlocks.forEach(block => {
+    if (!block.isProtected && !block.isCompleted && !foundCurrent) {
+      block.isCurrent = true
+      foundCurrent = true
+    } else {
+      block.isCurrent = false
+    }
+  })
+  
+  return allBlocks
 }
 
 export function planFromBrainDump(brainDump: string): PlanResponse {

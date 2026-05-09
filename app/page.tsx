@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import type { TimeBlock, AppView } from '@/lib/types'
+import { useState, useCallback } from 'react'
+import type { TimeBlock, AppView, PlanResponse } from '@/lib/types'
 import { planDay, replanRemaining } from '@/lib/mock-planner'
+import { planFromBrainDump } from '@/lib/planner'
 import { BrainDumpInbox } from '@/components/brain-dump-inbox'
 import { TodayTimeline } from '@/components/today-timeline'
 import { FocusMode } from '@/components/focus-mode'
@@ -15,9 +16,47 @@ export default function Home() {
 
   const handlePlanDay = useCallback(async (input: string) => {
     setIsPlanning(true)
-    // Simulate AI processing time with realistic delay
-    await new Promise(resolve => setTimeout(resolve, 1800))
-    const plannedBlocks = planDay(input)
+    
+    let plannedBlocks: TimeBlock[] = []
+    
+    try {
+      // Try API route first
+      const response = await fetch('/api/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brainDump: input }),
+      })
+      
+      if (response.ok) {
+        const plan: PlanResponse = await response.json()
+        
+        // Convert PlanResponse to TimeBlock[]
+        plannedBlocks = plan.tasks.map((task, index) => {
+          const slot = plan.timeline[index]
+          return {
+            id: Math.random().toString(36).substring(2, 9),
+            title: task.title,
+            startTime: slot?.startTime ?? '9:00 AM',
+            endTime: slot?.endTime ?? '9:30 AM',
+            duration: task.durationMinutes,
+            priority: task.priority,
+            energy: task.energy,
+            category: task.category,
+            reasoning: task.reasoning,
+            bufferAfter: slot?.bufferAfter ?? 10,
+            isCompleted: false,
+            isCurrent: index === 0,
+          }
+        })
+      } else {
+        throw new Error('API request failed')
+      }
+    } catch (error) {
+      console.log('[v0] API failed, falling back to mock planner:', error)
+      // Fallback to mock planner
+      plannedBlocks = planDay(input)
+    }
+    
     setBlocks(plannedBlocks)
     setIsPlanning(false)
     setView('timeline')

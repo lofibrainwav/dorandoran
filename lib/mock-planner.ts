@@ -125,3 +125,63 @@ Review pull request from team
 Deep work: write blog post outline
 Team standup meeting at 11
 Organize desktop files - optional`
+
+export interface DayEnergy {
+  total: number
+  spent: number
+  remaining: number
+  highEnergy: number
+  mediumEnergy: number
+  lowEnergy: number
+}
+
+export function calculateDayEnergy(blocks: TimeBlock[]): DayEnergy {
+  const total = blocks.reduce((sum, b) => {
+    const energyValue = b.energy === 'high' ? 3 : b.energy === 'medium' ? 2 : 1
+    return sum + energyValue * (b.duration / 30)
+  }, 0)
+  
+  const spent = blocks
+    .filter(b => b.isCompleted)
+    .reduce((sum, b) => {
+      const energyValue = b.energy === 'high' ? 3 : b.energy === 'medium' ? 2 : 1
+      return sum + energyValue * (b.duration / 30)
+    }, 0)
+  
+  const highEnergy = blocks.filter(b => b.energy === 'high').length
+  const mediumEnergy = blocks.filter(b => b.energy === 'medium').length
+  const lowEnergy = blocks.filter(b => b.energy === 'low').length
+  
+  return {
+    total: Math.round(total),
+    spent: Math.round(spent),
+    remaining: Math.round(total - spent),
+    highEnergy,
+    mediumEnergy,
+    lowEnergy,
+  }
+}
+
+export function getTopThree(blocks: TimeBlock[]): TimeBlock[] {
+  const incomplete = blocks.filter(b => !b.isCompleted)
+  const priorityOrder = { high: 0, medium: 1, low: 2 }
+  
+  return [...incomplete]
+    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+    .slice(0, 3)
+}
+
+const encouragements = [
+  "You're doing great. One block at a time.",
+  "Progress, not perfection.",
+  "Every completed task is a small victory.",
+  "You've got this. Stay focused.",
+  "Small steps lead to big accomplishments.",
+  "Trust your plan. You made it for a reason.",
+  "Breathe. You're exactly where you need to be.",
+  "One thing at a time. That's all it takes.",
+]
+
+export function getEncouragement(): string {
+  return encouragements[Math.floor(Math.random() * encouragements.length)]
+}

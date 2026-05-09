@@ -12,6 +12,8 @@ import { CalendarContext } from '@/components/calendar-context'
 import { GoogleSyncPanel } from '@/components/google-sync-panel'
 import { DateSelector } from '@/components/date-selector'
 import { CarryoverPreview } from '@/components/carryover-preview'
+import { WeeklyInsightGarden } from '@/components/weekly-insight-garden'
+import { MonthlyMemoryMap } from '@/components/monthly-memory-map'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
@@ -264,6 +266,12 @@ export default function Home() {
                 isPlanning={isPlanning}
               />
             )}
+            
+            {/* Weekly Insight Garden */}
+            <WeeklyInsightGarden />
+            
+            {/* Monthly Memory Map */}
+            <MonthlyMemoryMap />
             
             {/* Google Sync Panel */}
             <GoogleSyncPanel blocks={blocks} />

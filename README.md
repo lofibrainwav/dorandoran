@@ -1,8 +1,14 @@
 # OneBlock for Google Workspace
 
-A calm AI-powered timeboxing assistant that integrates with Google Workspace. Turn mental chaos into a focused, organized day.
+OneBlock turns messy tasks into a protected Google Calendar-aware focus plan.
+
+## Live Demo
+
+https://v0-one-box.vercel.app
 
 ## Hackathon Demo
+
+> **Note:** Current Google Workspace integrations are mocked for the hackathon demo. Real OAuth + Calendar/Docs/Sheets APIs are the next step.
 
 ### What OneBlock Does
 

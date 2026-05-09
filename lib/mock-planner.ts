@@ -142,37 +142,38 @@ quick workout if there's time`
 
 export interface DayEnergy {
   total: number
-  spent: number
-  remaining: number
-  highEnergy: number
-  mediumEnergy: number
-  lowEnergy: number
+  used: number
+  breakdown: {
+    high: number
+    medium: number
+    low: number
+  }
 }
 
 export function calculateDayEnergy(blocks: TimeBlock[]): DayEnergy {
+  // Calculate total energy points (weighted by energy level)
   const total = blocks.reduce((sum, b) => {
     const energyValue = b.energy === 'high' ? 3 : b.energy === 'medium' ? 2 : 1
     return sum + energyValue * (b.duration / 30)
   }, 0)
   
-  const spent = blocks
+  // Calculate used energy (from completed tasks)
+  const used = blocks
     .filter(b => b.isCompleted)
     .reduce((sum, b) => {
       const energyValue = b.energy === 'high' ? 3 : b.energy === 'medium' ? 2 : 1
       return sum + energyValue * (b.duration / 30)
     }, 0)
   
-  const highEnergy = blocks.filter(b => b.energy === 'high').length
-  const mediumEnergy = blocks.filter(b => b.energy === 'medium').length
-  const lowEnergy = blocks.filter(b => b.energy === 'low').length
+  // Calculate breakdown by energy level (in minutes)
+  const high = blocks.filter(b => b.energy === 'high').reduce((sum, b) => sum + b.duration, 0)
+  const medium = blocks.filter(b => b.energy === 'medium').reduce((sum, b) => sum + b.duration, 0)
+  const low = blocks.filter(b => b.energy === 'low').reduce((sum, b) => sum + b.duration, 0)
   
   return {
     total: Math.round(total),
-    spent: Math.round(spent),
-    remaining: Math.round(total - spent),
-    highEnergy,
-    mediumEnergy,
-    lowEnergy,
+    used: Math.round(used),
+    breakdown: { high, medium, low },
   }
 }
 
@@ -185,17 +186,43 @@ export function getTopThree(blocks: TimeBlock[]): TimeBlock[] {
     .slice(0, 3)
 }
 
-const encouragements = [
-  "You're doing great. One block at a time.",
-  "Progress, not perfection.",
-  "Every completed task is a small victory.",
-  "You've got this. Stay focused.",
-  "Small steps lead to big accomplishments.",
-  "Trust your plan. You made it for a reason.",
-  "Breathe. You're exactly where you need to be.",
-  "One thing at a time. That's all it takes.",
+const encouragementsStart = [
+  "Fresh start. You've got this.",
+  "Ready to conquer the day.",
+  "One thing at a time.",
 ]
 
-export function getEncouragement(): string {
-  return encouragements[Math.floor(Math.random() * encouragements.length)]
+const encouragementsMid = [
+  "You're making progress. Keep going.",
+  "Nice work! Stay focused.",
+  "You're doing great. One block at a time.",
+  "Progress, not perfection.",
+]
+
+const encouragementsNearEnd = [
+  "Almost there! You can do this.",
+  "The finish line is in sight.",
+  "Just a few more to go.",
+]
+
+const encouragementsDone = [
+  "You did it! Time to rest.",
+  "All done. Well deserved break!",
+  "Mission accomplished.",
+]
+
+export function getEncouragement(completed: number, total: number): string {
+  if (total === 0) return "Let's plan your day."
+  
+  const progress = completed / total
+  
+  if (progress === 0) {
+    return encouragementsStart[Math.floor(Math.random() * encouragementsStart.length)]
+  } else if (progress >= 1) {
+    return encouragementsDone[Math.floor(Math.random() * encouragementsDone.length)]
+  } else if (progress >= 0.7) {
+    return encouragementsNearEnd[Math.floor(Math.random() * encouragementsNearEnd.length)]
+  } else {
+    return encouragementsMid[Math.floor(Math.random() * encouragementsMid.length)]
+  }
 }

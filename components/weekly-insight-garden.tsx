@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Lightbulb, TrendingUp, RotateCcw } from 'lucide-react'
+import { Lightbulb, TrendingUp, RotateCcw, CheckCircle2 } from 'lucide-react'
 
 interface InsightCard {
   id: string
@@ -109,6 +109,32 @@ export function WeeklyInsightGarden() {
           )
         })}
       </div>
+
+      {/* Applied to Next Plan section */}
+      <Card className="border-0 shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h4 className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              Applied to next plan
+            </h4>
+          </div>
+          <ul className="space-y-2 text-xs text-emerald-700/80 dark:text-emerald-300/80">
+            <li className="flex items-start gap-2">
+              <span className="text-emerald-500 mt-0.5">•</span>
+              <span>Admin work will be batched after lunch.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-emerald-500 mt-0.5">•</span>
+              <span>Creative work will be protected before meetings.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-emerald-500 mt-0.5">•</span>
+              <span>Repeated carryover will be split into starter blocks.</span>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   )
 }

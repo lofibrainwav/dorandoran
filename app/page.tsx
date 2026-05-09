@@ -14,6 +14,8 @@ import { DateSelector } from '@/components/date-selector'
 import { CarryoverPreview } from '@/components/carryover-preview'
 import { WeeklyInsightGarden } from '@/components/weekly-insight-garden'
 import { MonthlyMemoryMap } from '@/components/monthly-memory-map'
+import { ValuePropositionCard } from '@/components/value-proposition-card'
+import { AIPlanningReceipt } from '@/components/ai-planning-receipt'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
@@ -218,6 +220,9 @@ export default function Home() {
       <div className="flex-1 flex items-start justify-center">
         {view === 'inbox' && (
           <div className="w-full max-w-2xl mx-auto space-y-6">
+            {/* Before/After value proposition */}
+            <ValuePropositionCard />
+            
             {/* Date selector */}
             <DateSelector 
               selectedDate={selectedDate} 
@@ -241,6 +246,9 @@ export default function Home() {
 
         {view === 'timeline' && (
           <div className="w-full max-w-2xl mx-auto space-y-6">
+            {/* AI Planning Receipt */}
+            <AIPlanningReceipt blocks={blocks} />
+            
             {/* Replan confirmation message */}
             {replanMessage && (
               <div className="animate-fade-in bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-center">

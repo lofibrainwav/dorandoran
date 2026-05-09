@@ -126,6 +126,20 @@ Deep work: write blog post outline
 Team standup meeting at 11
 Organize desktop files - optional`
 
+// More realistic, messy brain dump for demo purposes
+export const demoBrainDump = `ugh that quarterly report is due TODAY
+call mom back, been putting this off for days
+sarah's email about the redesign project - urgent
+need groceries... milk eggs bread maybe some snacks
+that PR from jake has been sitting there forever
+deep work: finally write that blog post I've been avoiding
+team standup at 11 don't be late this time
+clean up desktop files maybe? low priority
+dentist appointment - need to reschedule
+reply to slack messages piling up
+prepare slides for thursday presentation
+quick workout if there's time`
+
 export interface DayEnergy {
   total: number
   spent: number

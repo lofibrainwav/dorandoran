@@ -36,6 +36,42 @@ export const mockGoogleCalendarEvents: GoogleCalendarEvent[] = [
   },
 ]
 
+// Mock tomorrow's Google Calendar events (protected blocks)
+export const mockTomorrowCalendarEvents: GoogleCalendarEvent[] = [
+  {
+    id: 'gcal-t1',
+    title: 'Morning standup',
+    startTime: '9:30 AM',
+    endTime: '10:00 AM',
+    duration: 30,
+    isProtected: true,
+  },
+  {
+    id: 'gcal-t2',
+    title: 'Client call',
+    startTime: '11:00 AM',
+    endTime: '12:00 PM',
+    duration: 60,
+    isProtected: true,
+  },
+  {
+    id: 'gcal-t3',
+    title: 'Lunch',
+    startTime: '12:30 PM',
+    endTime: '1:30 PM',
+    duration: 60,
+    isProtected: true,
+  },
+  {
+    id: 'gcal-t4',
+    title: 'Dentist appointment',
+    startTime: '4:00 PM',
+    endTime: '5:00 PM',
+    duration: 60,
+    isProtected: true,
+  },
+]
+
 // Convert Google Calendar events to TimeBlock format
 export function googleEventsToTimeBlocks(events: GoogleCalendarEvent[]): TimeBlock[] {
   return events.map(event => ({

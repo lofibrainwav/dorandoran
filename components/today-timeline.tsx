@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { TimeBlock } from '@/lib/types'
+import type { TimeBlock, SelectedDate } from '@/lib/types'
 import { TaskCard } from '@/components/task-card'
 import { GentleReplanButton } from '@/components/gentle-replan-button'
 import { TopThree } from '@/components/top-three'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Play, CheckCircle2, ListChecks, Sparkles, Shield, Calendar, CheckCheck } from 'lucide-react'
+import { ArrowLeft, Play, CheckCircle2, ListChecks, Sparkles, Shield, Calendar, CheckCheck, RotateCcw, Sun } from 'lucide-react'
 import { calculateDayEnergy, getTopThree, getEncouragement } from '@/lib/mock-planner'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +21,7 @@ interface TodayTimelineProps {
   onReplan: () => void
   onStartFocus: () => void
   onBack: () => void
+  selectedDate?: SelectedDate
 }
 
 export function TodayTimeline({ 
@@ -28,7 +29,8 @@ export function TodayTimeline({
   onToggleComplete, 
   onReplan, 
   onStartFocus,
-  onBack 
+  onBack,
+  selectedDate = 'today'
 }: TodayTimelineProps) {
   // Filter out protected Google Calendar events for progress tracking
   const oneBlockTasks = blocks.filter(b => !b.isProtected && b.source !== 'google_calendar')
@@ -53,11 +55,18 @@ export function TodayTimeline({
   const googleEventsCount = blocks.filter(b => b.source === 'google_calendar').length
   const focusBlocksCount = oneBlockTasks.length
   const conflictCount = 0 // Always 0 since we schedule around protected events
+  const carriedOverCount = oneBlockTasks.filter(b => b.carriedFromDate).length
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
       {/* Proof strip */}
-      <div className="flex items-center justify-center gap-4 py-2 px-4 rounded-lg bg-muted/30 text-xs text-muted-foreground">
+      <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-2 py-2 px-4 rounded-lg bg-muted/30 text-xs text-muted-foreground">
+        {/* Selected day */}
+        <div className="flex items-center gap-1.5 font-medium text-foreground">
+          <Sun className="h-3 w-3 text-amber-500" />
+          <span className="capitalize">{selectedDate}</span>
+        </div>
+        <div className="w-px h-3 bg-border" />
         <div className="flex items-center gap-1.5">
           <Shield className="h-3 w-3 text-amber-500" />
           <span>{googleEventsCount} protected</span>
@@ -72,6 +81,15 @@ export function TodayTimeline({
           <CheckCheck className="h-3 w-3 text-emerald-500" />
           <span>{conflictCount} conflicts</span>
         </div>
+        {carriedOverCount > 0 && (
+          <>
+            <div className="w-px h-3 bg-border" />
+            <div className="flex items-center gap-1.5">
+              <RotateCcw className="h-3 w-3 text-amber-600" />
+              <span>{carriedOverCount} carried over</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Header */}

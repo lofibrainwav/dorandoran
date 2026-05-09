@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import type { TimeBlock } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Circle, Clock, Zap, Battery, BatteryLow, Sparkles, Shield, Calendar } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Zap, Battery, BatteryLow, Sparkles, Shield, Calendar, RotateCcw } from 'lucide-react'
 
 interface TaskCardProps {
   block: TimeBlock
@@ -102,6 +102,16 @@ export function TaskCard({ block, onToggleComplete, onClick, variant = 'default'
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Shield className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                 <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Google Calendar</span>
+              </div>
+            )}
+            
+            {/* Carryover indicator */}
+            {block.carriedFromDate && (
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <RotateCcw className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                  Carried from {block.carriedFromDate === 'yesterday' ? 'yesterday' : block.carriedFromDate}
+                </span>
               </div>
             )}
             

@@ -27,7 +27,12 @@ export interface TimeBlock {
   isCurrent: boolean
   source?: BlockSource
   isProtected?: boolean
+  date?: 'today' | 'tomorrow'
+  carriedFromDate?: 'today' | 'yesterday'
+  rolloverCount?: number
 }
+
+export type SelectedDate = 'today' | 'tomorrow'
 
 // Google Calendar event type
 export interface GoogleCalendarEvent {

@@ -1,13 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Sparkles } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 interface GentleReplanButtonProps {
   onReplan: () => void
@@ -15,11 +17,33 @@ interface GentleReplanButtonProps {
   variant?: 'default' | 'ghost' | 'outline'
 }
 
+const replanMessages = [
+  "Plans change. That's okay.",
+  "Adjusting to your rhythm.",
+  "Flexibility is a superpower.",
+  "Let's reorganize from now.",
+]
+
 export function GentleReplanButton({ 
   onReplan, 
   disabled = false,
   variant = 'outline' 
 }: GentleReplanButtonProps) {
+  const [isReplanning, setIsReplanning] = useState(false)
+  const [message] = useState(() => 
+    replanMessages[Math.floor(Math.random() * replanMessages.length)]
+  )
+
+  const handleReplan = async () => {
+    setIsReplanning(true)
+    
+    // Brief animation delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    onReplan()
+    setIsReplanning(false)
+  }
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -27,16 +51,27 @@ export function GentleReplanButton({
           <Button
             variant={variant}
             size="sm"
-            onClick={onReplan}
-            disabled={disabled}
-            className="gap-2"
+            onClick={handleReplan}
+            disabled={disabled || isReplanning}
+            className={cn(
+              'gap-2 transition-all',
+              isReplanning && 'text-primary'
+            )}
           >
-            <RefreshCw className="h-4 w-4" />
-            Gentle Replan
+            <RefreshCw className={cn(
+              'h-4 w-4',
+              isReplanning && 'animate-spin'
+            )} />
+            <span className="hidden sm:inline">
+              {isReplanning ? 'Adjusting...' : 'Replan'}
+            </span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-[200px] text-center">
-          <p>Life happens. This will reorganize your remaining tasks from now - no guilt attached.</p>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-3 w-3 text-primary flex-shrink-0" />
+            <p className="text-xs">{message}</p>
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

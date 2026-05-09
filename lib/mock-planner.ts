@@ -125,3 +125,104 @@ Review pull request from team
 Deep work: write blog post outline
 Team standup meeting at 11
 Organize desktop files - optional`
+
+// More realistic, messy brain dump for demo purposes
+export const demoBrainDump = `ugh that quarterly report is due TODAY
+call mom back, been putting this off for days
+sarah's email about the redesign project - urgent
+need groceries... milk eggs bread maybe some snacks
+that PR from jake has been sitting there forever
+deep work: finally write that blog post I've been avoiding
+team standup at 11 don't be late this time
+clean up desktop files maybe? low priority
+dentist appointment - need to reschedule
+reply to slack messages piling up
+prepare slides for thursday presentation
+quick workout if there's time`
+
+export interface DayEnergy {
+  total: number
+  used: number
+  breakdown: {
+    high: number
+    medium: number
+    low: number
+  }
+}
+
+export function calculateDayEnergy(blocks: TimeBlock[]): DayEnergy {
+  // Calculate total energy points (weighted by energy level)
+  const total = blocks.reduce((sum, b) => {
+    const energyValue = b.energy === 'high' ? 3 : b.energy === 'medium' ? 2 : 1
+    return sum + energyValue * (b.duration / 30)
+  }, 0)
+  
+  // Calculate used energy (from completed tasks)
+  const used = blocks
+    .filter(b => b.isCompleted)
+    .reduce((sum, b) => {
+      const energyValue = b.energy === 'high' ? 3 : b.energy === 'medium' ? 2 : 1
+      return sum + energyValue * (b.duration / 30)
+    }, 0)
+  
+  // Calculate breakdown by energy level (in minutes)
+  const high = blocks.filter(b => b.energy === 'high').reduce((sum, b) => sum + b.duration, 0)
+  const medium = blocks.filter(b => b.energy === 'medium').reduce((sum, b) => sum + b.duration, 0)
+  const low = blocks.filter(b => b.energy === 'low').reduce((sum, b) => sum + b.duration, 0)
+  
+  return {
+    total: Math.round(total),
+    used: Math.round(used),
+    breakdown: { high, medium, low },
+  }
+}
+
+export function getTopThree(blocks: TimeBlock[]): TimeBlock[] {
+  const incomplete = blocks.filter(b => !b.isCompleted)
+  const priorityOrder = { high: 0, medium: 1, low: 2 }
+  
+  return [...incomplete]
+    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+    .slice(0, 3)
+}
+
+const encouragementsStart = [
+  "Fresh start. You've got this.",
+  "Ready to conquer the day.",
+  "One thing at a time.",
+]
+
+const encouragementsMid = [
+  "You're making progress. Keep going.",
+  "Nice work! Stay focused.",
+  "You're doing great. One block at a time.",
+  "Progress, not perfection.",
+]
+
+const encouragementsNearEnd = [
+  "Almost there! You can do this.",
+  "The finish line is in sight.",
+  "Just a few more to go.",
+]
+
+const encouragementsDone = [
+  "You did it! Time to rest.",
+  "All done. Well deserved break!",
+  "Mission accomplished.",
+]
+
+export function getEncouragement(completed: number, total: number): string {
+  if (total === 0) return "Let's plan your day."
+  
+  const progress = completed / total
+  
+  if (progress === 0) {
+    return encouragementsStart[Math.floor(Math.random() * encouragementsStart.length)]
+  } else if (progress >= 1) {
+    return encouragementsDone[Math.floor(Math.random() * encouragementsDone.length)]
+  } else if (progress >= 0.7) {
+    return encouragementsNearEnd[Math.floor(Math.random() * encouragementsNearEnd.length)]
+  } else {
+    return encouragementsMid[Math.floor(Math.random() * encouragementsMid.length)]
+  }
+}

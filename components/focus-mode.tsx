@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { TimeBlock } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { GentleReplanButton } from '@/components/gentle-replan-button'
-import { CheckCircle2, Pause, Play, X, SkipForward, Zap, Battery, BatteryLow } from 'lucide-react'
+import { CheckCircle2, Pause, Play, X, SkipForward, Zap, Battery, BatteryLow, Sparkles, Coffee } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface FocusModeProps {
   block: TimeBlock
+  totalRemaining: number
   onComplete: () => void
   onSkip: () => void
   onReplan: () => void
@@ -23,15 +24,43 @@ const energyIcons = {
 }
 
 const energyMessages = {
-  high: 'High energy task - give it your best!',
+  high: 'High energy - give it your all!',
   medium: 'Steady pace - you got this.',
-  low: 'Easy does it - gentle focus.',
+  low: 'Easy mode - gentle focus.',
 }
 
-export function FocusMode({ block, onComplete, onSkip, onReplan, onExit }: FocusModeProps) {
-  const [timeRemaining, setTimeRemaining] = useState(block.duration * 60) // seconds
+const energyColors = {
+  high: 'from-emerald-500/20 to-emerald-500/5 text-emerald-600 dark:text-emerald-400',
+  medium: 'from-amber-500/20 to-amber-500/5 text-amber-600 dark:text-amber-400',
+  low: 'from-sky-500/20 to-sky-500/5 text-sky-600 dark:text-sky-400',
+}
+
+const focusQuotes = [
+  "One thing at a time. That's your only job right now.",
+  "The world can wait. This moment is yours.",
+  "Progress over perfection. Just keep going.",
+  "You're exactly where you need to be.",
+  "Small steps still move you forward.",
+  "This task deserves your attention. Give it space.",
+]
+
+export function FocusMode({ 
+  block, 
+  totalRemaining,
+  onComplete, 
+  onSkip, 
+  onReplan, 
+  onExit 
+}: FocusModeProps) {
+  const [timeRemaining, setTimeRemaining] = useState(block.duration * 60)
   const [isRunning, setIsRunning] = useState(true)
   const [showComplete, setShowComplete] = useState(false)
+  const [pulseRing, setPulseRing] = useState(false)
+
+  const quote = useMemo(() => 
+    focusQuotes[Math.floor(Math.random() * focusQuotes.length)], 
+    []
+  )
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -46,6 +75,7 @@ export function FocusMode({ block, onComplete, onSkip, onReplan, onExit }: Focus
       setTimeRemaining(prev => {
         if (prev <= 1) {
           setShowComplete(true)
+          setPulseRing(true)
           return 0
         }
         return prev - 1
@@ -55,121 +85,164 @@ export function FocusMode({ block, onComplete, onSkip, onReplan, onExit }: Focus
     return () => clearInterval(interval)
   }, [isRunning, timeRemaining])
 
+  // Reset timer when block changes
+  useEffect(() => {
+    setTimeRemaining(block.duration * 60)
+    setShowComplete(false)
+    setPulseRing(false)
+    setIsRunning(true)
+  }, [block.id, block.duration])
+
   const progress = ((block.duration * 60 - timeRemaining) / (block.duration * 60)) * 100
   const EnergyIcon = energyIcons[block.energy]
 
-  const handleComplete = () => {
-    onComplete()
-  }
-
   return (
-    <div className="w-full max-w-xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onExit} className="gap-2">
+    <div className="w-full max-w-xl mx-auto min-h-[80vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <Button variant="ghost" size="sm" onClick={onExit} className="gap-2 text-muted-foreground">
           <X className="h-4 w-4" />
-          Exit Focus
+          Exit
         </Button>
+        <span className="text-sm text-muted-foreground">
+          {totalRemaining} {totalRemaining === 1 ? 'task' : 'tasks'} remaining
+        </span>
         <GentleReplanButton onReplan={onReplan} variant="ghost" />
       </div>
 
-      <div className="text-center space-y-4">
+      {/* Main focus area */}
+      <div className="flex-1 flex flex-col items-center justify-center py-8 space-y-8">
+        
+        {/* Energy badge */}
         <div className={cn(
-          'inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm',
-          block.energy === 'high' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-          block.energy === 'medium' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-          block.energy === 'low' && 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+          'inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium',
+          'bg-gradient-to-r',
+          energyColors[block.energy]
         )}>
           <EnergyIcon className="h-4 w-4" />
           {energyMessages[block.energy]}
         </div>
 
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-balance px-4">
+        {/* Task title */}
+        <h1 className="text-2xl md:text-4xl font-semibold tracking-tight text-center text-balance px-4 leading-snug">
           {block.title}
         </h1>
-      </div>
 
-      <Card className="border-0 shadow-xl bg-card/90 backdrop-blur-sm">
-        <CardContent className="p-8 md:p-12">
-          <div className="text-center space-y-6">
-            {/* Timer Circle */}
-            <div className="relative w-48 h-48 mx-auto">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  className="text-muted/30"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray={`${progress * 2.83} 283`}
-                  className="text-primary transition-all duration-1000 ease-linear"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-4xl md:text-5xl font-mono font-semibold tabular-nums">
-                  {formatTime(timeRemaining)}
-                </span>
+        {/* Giant timer */}
+        <Card className={cn(
+          'border-0 shadow-2xl bg-card/95 backdrop-blur-sm',
+          pulseRing && 'animate-pulse ring-4 ring-primary/50'
+        )}>
+          <CardContent className="p-8 md:p-12">
+            <div className="text-center space-y-8">
+              {/* Timer Circle */}
+              <div className="relative w-56 h-56 md:w-72 md:h-72 mx-auto">
+                {/* Background glow */}
+                <div className={cn(
+                  'absolute inset-0 rounded-full blur-2xl opacity-30',
+                  block.energy === 'high' && 'bg-emerald-500',
+                  block.energy === 'medium' && 'bg-amber-500',
+                  block.energy === 'low' && 'bg-sky-500',
+                )} />
+                
+                {/* SVG ring */}
+                <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    className="text-muted/20"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progress * 2.83} 283`}
+                    className="text-primary transition-all duration-1000 ease-linear"
+                  />
+                </svg>
+                
+                {/* Time display */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                  <span className="text-5xl md:text-7xl font-mono font-bold tabular-nums tracking-tight">
+                    {formatTime(timeRemaining)}
+                  </span>
+                  <span className="text-sm text-muted-foreground mt-2">
+                    {block.startTime} - {block.endTime}
+                  </span>
+                </div>
+              </div>
+
+              {/* Play/Pause */}
+              <div className="flex items-center justify-center">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setIsRunning(!isRunning)}
+                  className="h-14 w-14 rounded-full p-0 shadow-md"
+                >
+                  {isRunning ? (
+                    <Pause className="h-6 w-6" />
+                  ) : (
+                    <Play className="h-6 w-6 ml-0.5" />
+                  )}
+                </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Timer Controls */}
-            <div className="flex items-center justify-center gap-4">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setIsRunning(!isRunning)}
-                className="h-12 w-12 rounded-full p-0"
-              >
-                {isRunning ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              {block.startTime} - {block.endTime} ({block.duration} min)
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button 
-          onClick={handleComplete}
-          className="flex-1 h-14 text-base font-medium gap-2"
-          size="lg"
-        >
-          <CheckCircle2 className="h-5 w-5" />
-          {showComplete ? 'Time\'s Up! Complete Task' : 'Mark Complete'}
-        </Button>
-        
-        <Button 
-          variant="outline"
-          onClick={onSkip}
-          className="h-14 gap-2"
-        >
-          <SkipForward className="h-5 w-5" />
-          Skip
-        </Button>
+        {/* Inspirational quote */}
+        <div className="flex items-start gap-3 max-w-md px-6">
+          <Sparkles className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-muted-foreground italic text-balance">
+            {quote}
+          </p>
+        </div>
       </div>
 
-      {block.bufferAfter > 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          After this, you have a {block.bufferAfter}-minute buffer to breathe.
-        </p>
-      )}
+      {/* Action buttons */}
+      <div className="space-y-4 pb-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button 
+            onClick={onComplete}
+            className={cn(
+              'flex-1 h-16 text-lg font-medium gap-3',
+              'shadow-lg shadow-primary/25 hover:shadow-xl',
+              'transition-all duration-300',
+              showComplete && 'animate-pulse'
+            )}
+            size="lg"
+          >
+            <CheckCircle2 className="h-6 w-6" />
+            {showComplete ? "Time's Up! Mark Complete" : 'Done with this'}
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={onSkip}
+            className="h-16 gap-2 px-6"
+          >
+            <SkipForward className="h-5 w-5" />
+            Skip
+          </Button>
+        </div>
+
+        {/* Buffer message */}
+        {block.bufferAfter > 0 && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Coffee className="h-4 w-4" />
+            <span>{block.bufferAfter}-minute break after this</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

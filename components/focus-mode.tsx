@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { TimeBlock } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { GentleReplanButton } from '@/components/gentle-replan-button'
 import { CheckCircle2, Pause, Play, X, SkipForward, Zap, Battery, BatteryLow, Sparkles, Coffee } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AnalogFocusClock } from '@/components/analog-focus-clock'
 
 interface FocusModeProps {
   block: TimeBlock
@@ -62,11 +63,7 @@ export function FocusMode({
     []
   )
 
-  const formatTime = useCallback((seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }, [])
+
 
   useEffect(() => {
     if (!isRunning || timeRemaining <= 0) return
@@ -93,7 +90,6 @@ export function FocusMode({
     setIsRunning(true)
   }, [block.id, block.duration])
 
-  const progress = ((block.duration * 60 - timeRemaining) / (block.duration * 60)) * 100
   const EnergyIcon = energyIcons[block.energy]
 
   return (
@@ -134,51 +130,29 @@ export function FocusMode({
           pulseRing && 'animate-pulse ring-4 ring-primary/50'
         )}>
           <CardContent className="p-8 md:p-12">
-            <div className="text-center space-y-8">
-              {/* Timer Circle */}
+            <div className="text-center space-y-6">
+              {/* Analog Focus Clock */}
               <div className="relative w-56 h-56 md:w-72 md:h-72 mx-auto">
-                {/* Background glow */}
+                {/* Background glow based on energy */}
                 <div className={cn(
-                  'absolute inset-0 rounded-full blur-2xl opacity-30',
+                  'absolute inset-0 rounded-full blur-2xl opacity-20',
                   block.energy === 'high' && 'bg-emerald-500',
                   block.energy === 'medium' && 'bg-amber-500',
                   block.energy === 'low' && 'bg-sky-500',
                 )} />
                 
-                {/* SVG ring */}
-                <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    className="text-muted/20"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeDasharray={`${progress * 2.83} 283`}
-                    className="text-primary transition-all duration-1000 ease-linear"
-                  />
-                </svg>
-                
-                {/* Time display */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-                  <span className="text-5xl md:text-7xl font-mono font-bold tabular-nums tracking-tight">
-                    {formatTime(timeRemaining)}
-                  </span>
-                  <span className="text-sm text-muted-foreground mt-2">
-                    {block.startTime} - {block.endTime}
-                  </span>
-                </div>
+                <AnalogFocusClock
+                  durationSeconds={block.duration * 60}
+                  timeRemaining={timeRemaining}
+                  isRunning={isRunning}
+                  className="w-full h-full"
+                />
               </div>
+              
+              {/* Time range display */}
+              <p className="text-sm text-muted-foreground">
+                {block.startTime} - {block.endTime}
+              </p>
 
               {/* Play/Pause */}
               <div className="flex items-center justify-center">
@@ -186,7 +160,7 @@ export function FocusMode({
                   variant="outline"
                   size="lg"
                   onClick={() => setIsRunning(!isRunning)}
-                  className="h-14 w-14 rounded-full p-0 shadow-md"
+                  className="h-14 w-14 rounded-full p-0 shadow-md hover:shadow-lg transition-shadow"
                 >
                   {isRunning ? (
                     <Pause className="h-6 w-6" />

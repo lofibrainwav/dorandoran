@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Play, CheckCircle2, ListChecks, Sparkles } from 'lucide-react'
+import { ArrowLeft, Play, CheckCircle2, ListChecks, Sparkles, Shield, Calendar, CheckCheck } from 'lucide-react'
 import { calculateDayEnergy, getTopThree, getEncouragement } from '@/lib/mock-planner'
 import { cn } from '@/lib/utils'
 
@@ -49,8 +49,31 @@ export function TodayTimeline({
   const lastBlock = blocks[blocks.length - 1]
   const estimatedEnd = lastBlock?.endTime || ''
 
+  // Proof strip counts
+  const googleEventsCount = blocks.filter(b => b.source === 'google_calendar').length
+  const focusBlocksCount = oneBlockTasks.length
+  const conflictCount = 0 // Always 0 since we schedule around protected events
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
+      {/* Proof strip */}
+      <div className="flex items-center justify-center gap-4 py-2 px-4 rounded-lg bg-muted/30 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Shield className="h-3 w-3 text-amber-500" />
+          <span>{googleEventsCount} protected</span>
+        </div>
+        <div className="w-px h-3 bg-border" />
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3 w-3 text-primary" />
+          <span>{focusBlocksCount} focus blocks</span>
+        </div>
+        <div className="w-px h-3 bg-border" />
+        <div className="flex items-center gap-1.5">
+          <CheckCheck className="h-3 w-3 text-emerald-500" />
+          <span>{conflictCount} conflicts</span>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">

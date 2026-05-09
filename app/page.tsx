@@ -71,6 +71,9 @@ export default function Home() {
       return replanned
     })
     
+    // Return to timeline so user can see the updated schedule
+    setView('timeline')
+    
     // Show replan confirmation message
     setReplanMessage('Your remaining focus blocks were gently rescheduled around your calendar.')
     

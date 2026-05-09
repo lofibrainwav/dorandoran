@@ -149,10 +149,15 @@ export function FocusMode({
                 />
               </div>
               
-              {/* Time range display */}
-              <p className="text-sm text-muted-foreground">
-                {block.startTime} - {block.endTime}
-              </p>
+              {/* Focus clock label */}
+              <div className="text-center">
+                <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wider">
+                  Focus Clock
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {block.startTime} - {block.endTime}
+                </p>
+              </div>
 
               {/* Play/Pause */}
               <div className="flex items-center justify-center">

@@ -38,6 +38,7 @@ const syncActions = [
     key: 'calendar' as const,
     label: 'Sync to Calendar',
     description: 'Add focus blocks to Google Calendar',
+    successReceipt: 'Focus blocks added',
     icon: Calendar,
     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
   },
@@ -45,6 +46,7 @@ const syncActions = [
     key: 'docs' as const,
     label: 'Create Doc Plan',
     description: 'Generate a Google Doc with your plan',
+    successReceipt: 'Daily plan created',
     icon: FileText,
     color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   },
@@ -52,6 +54,7 @@ const syncActions = [
     key: 'sheets' as const,
     label: 'Log to Sheets',
     description: 'Track completed tasks in a spreadsheet',
+    successReceipt: 'Task log updated',
     icon: Table2,
     color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   },
@@ -145,9 +148,11 @@ export function GoogleSyncPanel({ blocks }: GoogleSyncPanelProps) {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{action.label}</p>
+                  <p className="font-medium text-sm">
+                    {isCompleted ? action.successReceipt : action.label}
+                  </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {isCompleted && message ? message : action.description}
+                    {isCompleted ? 'Synced successfully' : action.description}
                   </p>
                 </div>
                 

@@ -1,4 +1,5 @@
-import type { PlannedTask, TimelineSlot, PlanResponse, Priority, EnergyLevel, TaskCategory } from './types'
+import type { PlannedTask, TimelineSlot, PlanResponse, Priority, EnergyLevel, TaskCategory, GoogleCalendarEvent, TimeBlock } from './types'
+import { getBusySlots, findNextAvailableSlot, formatMinutesToTime, parseTimeToMinutes } from './mock-google'
 
 // Keywords for classification
 const CATEGORY_KEYWORDS: Record<TaskCategory, string[]> = {
@@ -188,6 +189,114 @@ export function buildTimeline(tasks: PlannedTask[], startHour = 9): TimelineSlot
   })
   
   return timeline
+}
+
+// Calendar-aware timeline building - schedules tasks around Google Calendar events
+export function buildCalendarAwareTimeline(
+  tasks: PlannedTask[], 
+  googleEvents: GoogleCalendarEvent[],
+  startHour = 9
+): TimelineSlot[] {
+  const timeline: TimelineSlot[] = []
+  const busySlots = getBusySlots(googleEvents)
+  const endOfDay = 18 * 60 // 6 PM in minutes
+  
+  let currentMinutes = startHour * 60
+  
+  tasks.forEach((task, index) => {
+    const duration = task.durationMinutes
+    const bufferAfter = getBufferMinutes(task.energy)
+    
+    // Find next available slot that fits this task
+    const startMinutes = findNextAvailableSlot(currentMinutes, duration, busySlots, endOfDay)
+    const endMinutes = startMinutes + duration
+    
+    const startTime = formatMinutesToTime(startMinutes)
+    const endTime = formatMinutesToTime(endMinutes)
+    
+    timeline.push({
+      startTime,
+      endTime,
+      taskIndex: index,
+      bufferAfter,
+    })
+    
+    // Move current time past this task + buffer
+    currentMinutes = endMinutes + bufferAfter
+  })
+  
+  return timeline
+}
+
+// Merge Google Calendar events with OneBlock tasks into a unified timeline
+export function mergeWithCalendarEvents(
+  tasks: PlannedTask[],
+  timeline: TimelineSlot[],
+  googleEvents: GoogleCalendarEvent[]
+): TimeBlock[] {
+  const blocks: TimeBlock[] = []
+  
+  // First, add all Google Calendar events as protected blocks
+  googleEvents.forEach(event => {
+    blocks.push({
+      id: event.id,
+      title: event.title,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      duration: event.duration,
+      priority: 'medium',
+      energy: 'medium',
+      category: 'personal',
+      bufferAfter: 0,
+      isCompleted: false,
+      isCurrent: false,
+      source: 'google_calendar',
+      isProtected: true,
+    })
+  })
+  
+  // Then add OneBlock tasks
+  timeline.forEach((slot, index) => {
+    const task = tasks[slot.taskIndex]
+    if (!task) return
+    
+    blocks.push({
+      id: Math.random().toString(36).substring(2, 9),
+      title: task.title,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      duration: task.durationMinutes,
+      priority: task.priority,
+      energy: task.energy,
+      category: task.category,
+      reasoning: task.reasoning,
+      bufferAfter: slot.bufferAfter,
+      isCompleted: false,
+      isCurrent: index === 0,
+      source: 'oneblock',
+      isProtected: false,
+    })
+  })
+  
+  // Sort all blocks by start time
+  blocks.sort((a, b) => {
+    const aMinutes = parseTimeToMinutes(a.startTime)
+    const bMinutes = parseTimeToMinutes(b.startTime)
+    return aMinutes - bMinutes
+  })
+  
+  // Set the first non-protected block as current
+  let foundCurrent = false
+  blocks.forEach(block => {
+    if (!block.isProtected && !foundCurrent) {
+      block.isCurrent = true
+      foundCurrent = true
+    } else {
+      block.isCurrent = false
+    }
+  })
+  
+  return blocks
 }
 
 export function planFromBrainDump(brainDump: string): PlanResponse {

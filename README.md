@@ -1,4 +1,52 @@
-# one-box-mk
+# OneBlock for Google Workspace
+
+A calm AI-powered timeboxing assistant that integrates with Google Workspace. Turn mental chaos into a focused, organized day.
+
+## Hackathon Demo
+
+### What OneBlock Does
+
+OneBlock is a timeboxing planner designed for overwhelmed people. It takes your messy brain dump of tasks and transforms them into a structured daily timeline with focus blocks, respecting your existing Google Calendar commitments.
+
+**Key Features:**
+- Brain Dump Inbox: Type all your tasks in natural language, no formatting needed
+- Calendar-Aware Planning: Automatically schedules around your protected Google Calendar events
+- Energy-Based Scheduling: Tasks are prioritized by energy level and urgency
+- Focus Mode: Immersive timer with encouraging messages for deep work
+- Google Workspace Sync: Export your plan to Calendar, Docs, and Sheets
+
+### Current Mock Google Workspace Integrations
+
+This demo uses mock data to simulate Google Workspace connectivity:
+
+- **Google Calendar**: Shows today's events (Team sync, Lunch, Family pickup) as protected blocks
+- **Google Docs**: Simulates creating a daily plan document
+- **Google Sheets**: Simulates logging completed tasks to a spreadsheet
+- **Google Drive**: Status indicator for backup storage
+
+All sync actions show success states with realistic delays.
+
+### Future Real Google API Integrations
+
+When connected to real Google APIs:
+
+1. **OAuth 2.0 Authentication** - Secure sign-in with Google
+2. **Calendar API** - Read actual calendar events, create focus blocks
+3. **Docs API** - Generate formatted daily plan documents
+4. **Sheets API** - Append task completion data for tracking
+5. **Drive API** - Store plan history and backups
+
+### Demo Flow
+
+1. **Inbox View**: See connected Google Workspace services and today's calendar
+2. **Brain Dump**: Enter your messy list of tasks
+3. **Plan My Day**: AI organizes tasks around your protected calendar events
+4. **Timeline View**: See your unified day with Google events and focus blocks
+5. **Sync to Google**: Export focus blocks to Calendar, Docs, or Sheets
+6. **Focus Mode**: Enter deep work with a calming timer interface
+7. **Gentle Replan**: Adjust the plan anytime without guilt
+
+---
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
 

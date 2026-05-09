@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import type { TimeBlock } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Circle, Clock, Zap, Battery, BatteryLow, Sparkles } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Zap, Battery, BatteryLow, Sparkles, Shield, Calendar } from 'lucide-react'
 
 interface TaskCardProps {
   block: TimeBlock
@@ -52,9 +52,12 @@ const priorityConfig = {
 export function TaskCard({ block, onToggleComplete, onClick, variant = 'default' }: TaskCardProps) {
   const EnergyIcon = energyIcons[block.energy]
   const priorityStyle = priorityConfig[block.priority]
+  const isGoogleEvent = block.source === 'google_calendar'
+  const isProtected = block.isProtected || isGoogleEvent
   
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (isProtected) return // Don't allow toggling protected events
     onToggleComplete?.(block.id)
   }
 
@@ -63,32 +66,47 @@ export function TaskCard({ block, onToggleComplete, onClick, variant = 'default'
       className={cn(
         'transition-all duration-300 border-0 shadow-sm hover:shadow-md',
         block.isCompleted && 'opacity-50 bg-muted/50',
-        block.isCurrent && !block.isCompleted && 'ring-2 ring-primary/40 shadow-lg bg-primary/5',
+        block.isCurrent && !block.isCompleted && !isProtected && 'ring-2 ring-primary/40 shadow-lg bg-primary/5',
+        isProtected && 'bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30',
         variant === 'compact' && 'shadow-none'
       )}
       onClick={onClick}
     >
       <CardContent className={cn('p-4', variant === 'compact' && 'p-3')}>
         <div className="flex items-start gap-3">
-          {/* Checkbox */}
-          <button 
-            onClick={handleToggle}
-            className={cn(
-              'mt-0.5 flex-shrink-0 transition-all duration-200',
-              'hover:scale-110 active:scale-95',
-              block.isCompleted ? 'text-primary' : 'text-muted-foreground hover:text-primary'
-            )}
-          >
-            {block.isCompleted ? (
-              <CheckCircle2 className="h-5 w-5" />
-            ) : (
-              <Circle className="h-5 w-5" />
-            )}
-          </button>
+          {/* Checkbox or Protected indicator */}
+          {isProtected ? (
+            <div className="mt-0.5 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/40">
+              <Calendar className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+            </div>
+          ) : (
+            <button 
+              onClick={handleToggle}
+              className={cn(
+                'mt-0.5 flex-shrink-0 transition-all duration-200',
+                'hover:scale-110 active:scale-95',
+                block.isCompleted ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+              )}
+            >
+              {block.isCompleted ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <Circle className="h-5 w-5" />
+              )}
+            </button>
+          )}
           
           <div className="flex-1 min-w-0">
+            {/* Protected event indicator */}
+            {isProtected && (
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Shield className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Google Calendar</span>
+              </div>
+            )}
+            
             {/* Current task indicator */}
-            {block.isCurrent && !block.isCompleted && (
+            {block.isCurrent && !block.isCompleted && !isProtected && (
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Sparkles className="h-3 w-3 text-primary" />
                 <span className="text-xs font-medium text-primary">Up next</span>
@@ -113,27 +131,29 @@ export function TaskCard({ block, onToggleComplete, onClick, variant = 'default'
                 <span>{block.duration}m</span>
               </div>
               
-              {/* Energy */}
-              <div className={cn(
-                'flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs',
-                energyBgColors[block.energy]
-              )}>
-                <EnergyIcon className={cn('h-3 w-3', energyColors[block.energy])} />
-                <span className={energyColors[block.energy]}>
-                  {block.energy}
-                </span>
-              </div>
+              {/* Energy - only for OneBlock tasks */}
+              {!isProtected && (
+                <div className={cn(
+                  'flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs',
+                  energyBgColors[block.energy]
+                )}>
+                  <EnergyIcon className={cn('h-3 w-3', energyColors[block.energy])} />
+                  <span className={energyColors[block.energy]}>
+                    {block.energy}
+                  </span>
+                </div>
+              )}
               
-              {/* Priority */}
-              {block.priority === 'high' && (
+              {/* Priority - only for OneBlock tasks */}
+              {!isProtected && block.priority === 'high' && (
                 <Badge variant="secondary" className={cn('text-xs', priorityStyle.bg, priorityStyle.text)}>
                   {priorityStyle.label}
                 </Badge>
               )}
             </div>
             
-            {/* Buffer */}
-            {block.bufferAfter > 0 && !block.isCompleted && (
+            {/* Buffer - only for OneBlock tasks */}
+            {!isProtected && block.bufferAfter > 0 && !block.isCompleted && (
               <p className="text-xs text-muted-foreground/70 mt-2">
                 +{block.bufferAfter}min break after
               </p>

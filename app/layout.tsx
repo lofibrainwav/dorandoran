@@ -7,7 +7,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'OneBlock - Calm AI Timeboxing',
+  title: 'One-Box - Calm AI Timeboxing',
   description: 'Turn mental chaos into a calm, focused day. AI-powered timeboxing that respects your energy and never shames you.',
   generator: 'v0.app',
   icons: {

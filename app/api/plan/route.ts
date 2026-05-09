@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 // Health check / info endpoint
 export async function GET() {
   return NextResponse.json({
-    name: 'OneBlock Planner API',
+    name: 'One-Box Planner API',
     version: '1.0.0',
     endpoints: {
       POST: {

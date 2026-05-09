@@ -85,7 +85,7 @@ export function CalendarContext({ events }: CalendarContextProps) {
         {/* Explanation */}
         <p className="text-xs text-muted-foreground text-center leading-relaxed">
           These events won&apos;t be moved or replaced. 
-          OneBlock will schedule focus blocks around them.
+          One-Box will schedule focus blocks around them.
         </p>
       </CardContent>
     </Card>

@@ -100,7 +100,7 @@ export function GoogleConnectionPanel({ connection }: GoogleConnectionPanelProps
 
         {/* Calm messaging */}
         <p className="text-xs text-muted-foreground text-center">
-          Your existing calendar is protected. OneBlock only schedules into open space.
+          Your existing calendar is protected. One-Box only schedules into open space.
         </p>
       </CardContent>
     </Card>

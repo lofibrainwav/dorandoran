@@ -1,6 +1,6 @@
-# OneBlock for Google Workspace
+# One-Box for Google Workspace
 
-OneBlock turns messy tasks into a protected Google Calendar-aware focus plan.
+One-Box turns messy tasks into a protected Google Calendar-aware focus plan.
 
 ## Live Demo
 
@@ -10,9 +10,9 @@ https://v0-one-box.vercel.app
 
 > **Note:** Current Google Workspace integrations are mocked for the hackathon demo. Real OAuth + Calendar/Docs/Sheets APIs are the next step.
 
-### What OneBlock Does
+### What One-Box Does
 
-OneBlock is a timeboxing planner designed for overwhelmed people. It takes your messy brain dump of tasks and transforms them into a structured daily timeline with focus blocks, respecting your existing Google Calendar commitments.
+One-Box is a timeboxing planner designed for overwhelmed people. It takes your messy brain dump of tasks and transforms them into a structured daily timeline with focus blocks, respecting your existing Google Calendar commitments.
 
 **Key Features:**
 - Brain Dump Inbox: Type all your tasks in natural language, no formatting needed

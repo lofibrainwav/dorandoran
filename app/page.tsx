@@ -207,7 +207,7 @@ export default function Home() {
       {/* Logo */}
       <header className="text-center mb-6">
         <h2 className="text-sm font-semibold tracking-[0.2em] text-primary/80 uppercase">
-          OneBlock
+          One-Box
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           {view === 'inbox' && 'for Google Workspace'}

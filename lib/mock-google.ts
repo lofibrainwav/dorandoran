@@ -109,8 +109,7 @@ export function findNextAvailableSlot(
   let currentStart = desiredStart
   const totalDuration = duration + bufferAfter // Check task + buffer fits
   
-  // Ensure task + buffer must fit before end of day
-  while (currentStart + duration + bufferAfter <= endOfDay) {
+  while (currentStart + duration <= endOfDay) {
     const currentEnd = currentStart + totalDuration
     
     // Check if task + buffer would overlap with any busy slot

@@ -110,7 +110,7 @@ export function TaskCard({ block, onToggleComplete, onClick, variant = 'default'
               <div className="flex items-center gap-1.5 mb-1.5">
                 <RotateCcw className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                 <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                  Carried from {block.carriedFromDate === 'yesterday' ? 'yesterday' : block.carriedFromDate}
+                  Carried into tomorrow
                 </span>
               </div>
             )}

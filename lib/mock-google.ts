@@ -98,18 +98,21 @@ export function isSlotAvailable(
   )
 }
 
-// Find next available time slot
+// Find next available time slot (includes buffer time in conflict checking)
 export function findNextAvailableSlot(
   desiredStart: number,
   duration: number,
   busySlots: Array<{ start: number; end: number }>,
-  endOfDay: number = 18 * 60 // 6 PM
+  endOfDay: number = 18 * 60, // 6 PM
+  bufferAfter: number = 0 // Include buffer in slot calculation
 ): number {
   let currentStart = desiredStart
+  const totalDuration = duration + bufferAfter // Check task + buffer fits
   
   while (currentStart + duration <= endOfDay) {
-    const currentEnd = currentStart + duration
+    const currentEnd = currentStart + totalDuration
     
+    // Check if task + buffer would overlap with any busy slot
     if (isSlotAvailable(currentStart, currentEnd, busySlots)) {
       return currentStart
     }

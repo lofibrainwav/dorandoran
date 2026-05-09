@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { TimeBlock, AppView } from '@/lib/types'
-import { replanRemaining } from '@/lib/mock-planner'
-import { buildCalendarAwareTimeline, sortTasksOptimally, parseTask, mergeWithCalendarEvents } from '@/lib/planner'
+import { buildCalendarAwareTimeline, sortTasksOptimally, parseTask, mergeWithCalendarEvents, replanCalendarAwareBlocks } from '@/lib/planner'
 import { mockGoogleConnection, mockGoogleCalendarEvents } from '@/lib/mock-google'
 import { BrainDumpInbox } from '@/components/brain-dump-inbox'
 import { TodayTimeline } from '@/components/today-timeline'
@@ -17,6 +16,7 @@ export default function Home() {
   const [view, setView] = useState<AppView>('inbox')
   const [blocks, setBlocks] = useState<TimeBlock[]>([])
   const [isPlanning, setIsPlanning] = useState(false)
+  const [replanMessage, setReplanMessage] = useState<string | null>(null)
 
   const handlePlanDay = useCallback(async (input: string) => {
     setIsPlanning(true)
@@ -66,22 +66,18 @@ export default function Home() {
 
   const handleReplan = useCallback(() => {
     setBlocks(prev => {
-      // Only replan OneBlock tasks, keep Google Calendar events in place
-      const googleEvents = prev.filter(b => b.source === 'google_calendar')
-      const oneBlockTasks = prev.filter(b => b.source !== 'google_calendar')
-      const replanned = replanRemaining(oneBlockTasks)
-      
-      // Merge back together
-      const merged = [...googleEvents, ...replanned].sort((a, b) => {
-        const aTime = a.startTime.includes('AM') ? 
-          parseInt(a.startTime) : parseInt(a.startTime) + 12
-        const bTime = b.startTime.includes('AM') ? 
-          parseInt(b.startTime) : parseInt(b.startTime) + 12
-        return aTime - bTime
-      })
-      
-      return merged
+      // Use calendar-aware replan to keep Google Calendar events protected
+      const replanned = replanCalendarAwareBlocks(prev, mockGoogleCalendarEvents)
+      return replanned
     })
+    
+    // Show replan confirmation message
+    setReplanMessage('Your remaining focus blocks were gently rescheduled around your calendar.')
+    
+    // Clear message after 4 seconds
+    setTimeout(() => {
+      setReplanMessage(null)
+    }, 4000)
   }, [])
 
   const handleStartFocus = useCallback(() => {
@@ -174,6 +170,14 @@ export default function Home() {
 
         {view === 'timeline' && (
           <div className="w-full max-w-2xl mx-auto space-y-6">
+            {/* Replan confirmation message */}
+            {replanMessage && (
+              <div className="animate-fade-in bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-center">
+                <p className="text-sm text-primary font-medium">{replanMessage}</p>
+                <p className="text-xs text-primary/70 mt-1">Your existing calendar is protected.</p>
+              </div>
+            )}
+            
             <TodayTimeline
               blocks={blocks}
               onToggleComplete={handleToggleComplete}

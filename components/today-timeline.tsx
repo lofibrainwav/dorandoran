@@ -30,14 +30,16 @@ export function TodayTimeline({
   onStartFocus,
   onBack 
 }: TodayTimelineProps) {
-  const completedCount = blocks.filter(b => b.isCompleted).length
-  const totalCount = blocks.length
+  // Filter out protected Google Calendar events for progress tracking
+  const oneBlockTasks = blocks.filter(b => !b.isProtected && b.source !== 'google_calendar')
+  const completedCount = oneBlockTasks.filter(b => b.isCompleted).length
+  const totalCount = oneBlockTasks.length
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
-  const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted)
+  const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted && !b.isProtected)
   const allDone = completedCount === totalCount && totalCount > 0
   
-  const energyData = useMemo(() => calculateDayEnergy(blocks), [blocks])
-  const topThree = useMemo(() => getTopThree(blocks), [blocks])
+  const energyData = useMemo(() => calculateDayEnergy(oneBlockTasks), [oneBlockTasks])
+  const topThree = useMemo(() => getTopThree(oneBlockTasks), [oneBlockTasks])
   const encouragement = useMemo(
     () => getEncouragement(completedCount, totalCount), 
     [completedCount, totalCount]

@@ -1,12 +1,16 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { TimeBlock, AppView, PlanResponse } from '@/lib/types'
-import { planDay, replanRemaining } from '@/lib/mock-planner'
-import { planFromBrainDump } from '@/lib/planner'
+import type { TimeBlock, AppView } from '@/lib/types'
+import { replanRemaining } from '@/lib/mock-planner'
+import { buildCalendarAwareTimeline, sortTasksOptimally, parseTask, mergeWithCalendarEvents } from '@/lib/planner'
+import { mockGoogleConnection, mockGoogleCalendarEvents } from '@/lib/mock-google'
 import { BrainDumpInbox } from '@/components/brain-dump-inbox'
 import { TodayTimeline } from '@/components/today-timeline'
 import { FocusMode } from '@/components/focus-mode'
+import { GoogleConnectionPanel } from '@/components/google-connection-panel'
+import { CalendarContext } from '@/components/calendar-context'
+import { GoogleSyncPanel } from '@/components/google-sync-panel'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
@@ -17,61 +21,39 @@ export default function Home() {
   const handlePlanDay = useCallback(async (input: string) => {
     setIsPlanning(true)
     
-    let plannedBlocks: TimeBlock[] = []
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 1500))
     
-    try {
-      // Try API route first
-      const response = await fetch('/api/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brainDump: input }),
-      })
-      
-      if (response.ok) {
-        const plan: PlanResponse = await response.json()
-        
-        // Convert PlanResponse to TimeBlock[]
-        plannedBlocks = plan.tasks.map((task, index) => {
-          const slot = plan.timeline[index]
-          return {
-            id: Math.random().toString(36).substring(2, 9),
-            title: task.title,
-            startTime: slot?.startTime ?? '9:00 AM',
-            endTime: slot?.endTime ?? '9:30 AM',
-            duration: task.durationMinutes,
-            priority: task.priority,
-            energy: task.energy,
-            category: task.category,
-            reasoning: task.reasoning,
-            bufferAfter: slot?.bufferAfter ?? 10,
-            isCompleted: false,
-            isCurrent: index === 0,
-          }
-        })
-      } else {
-        throw new Error('API request failed')
-      }
-    } catch (error) {
-      console.log('[v0] API failed, falling back to mock planner:', error)
-      // Fallback to mock planner
-      plannedBlocks = planDay(input)
-    }
+    // Parse tasks from brain dump
+    const lines = input.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+    const parsedTasks = lines.map(parseTask)
+    const sortedTasks = sortTasksOptimally(parsedTasks)
     
-    setBlocks(plannedBlocks)
+    // Build calendar-aware timeline (schedules around Google Calendar events)
+    const timeline = buildCalendarAwareTimeline(sortedTasks, mockGoogleCalendarEvents)
+    
+    // Merge with Google Calendar events for unified view
+    const mergedBlocks = mergeWithCalendarEvents(sortedTasks, timeline, mockGoogleCalendarEvents)
+    
+    setBlocks(mergedBlocks)
     setIsPlanning(false)
     setView('timeline')
   }, [])
 
   const handleToggleComplete = useCallback((id: string) => {
     setBlocks(prev => {
+      // Don't allow toggling protected events
+      const block = prev.find(b => b.id === id)
+      if (block?.isProtected) return prev
+      
       const updated = prev.map(block => 
         block.id === id ? { ...block, isCompleted: !block.isCompleted } : block
       )
       
-      // If the current block is completed, move current to next incomplete
+      // If the current block is completed, move current to next incomplete non-protected
       const justCompleted = updated.find(b => b.id === id)
       if (justCompleted?.isCompleted) {
-        const nextIncomplete = updated.find(b => !b.isCompleted)
+        const nextIncomplete = updated.find(b => !b.isCompleted && !b.isProtected)
         return updated.map(block => ({
           ...block,
           isCurrent: block.id === nextIncomplete?.id
@@ -83,7 +65,23 @@ export default function Home() {
   }, [])
 
   const handleReplan = useCallback(() => {
-    setBlocks(prev => replanRemaining(prev))
+    setBlocks(prev => {
+      // Only replan OneBlock tasks, keep Google Calendar events in place
+      const googleEvents = prev.filter(b => b.source === 'google_calendar')
+      const oneBlockTasks = prev.filter(b => b.source !== 'google_calendar')
+      const replanned = replanRemaining(oneBlockTasks)
+      
+      // Merge back together
+      const merged = [...googleEvents, ...replanned].sort((a, b) => {
+        const aTime = a.startTime.includes('AM') ? 
+          parseInt(a.startTime) : parseInt(a.startTime) + 12
+        const bTime = b.startTime.includes('AM') ? 
+          parseInt(b.startTime) : parseInt(b.startTime) + 12
+        return aTime - bTime
+      })
+      
+      return merged
+    })
   }, [])
 
   const handleStartFocus = useCallback(() => {
@@ -91,13 +89,13 @@ export default function Home() {
   }, [])
 
   const handleCompleteCurrent = useCallback(() => {
-    const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted)
+    const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted && !b.isProtected)
     if (currentBlock) {
       handleToggleComplete(currentBlock.id)
     }
     
-    // Check if there are more tasks
-    const remainingAfter = blocks.filter(b => !b.isCompleted && b.id !== currentBlock?.id)
+    // Check if there are more non-protected tasks
+    const remainingAfter = blocks.filter(b => !b.isCompleted && b.id !== currentBlock?.id && !b.isProtected)
     if (remainingAfter.length === 0) {
       setView('timeline')
     }
@@ -108,8 +106,8 @@ export default function Home() {
       const currentIndex = prev.findIndex(b => b.isCurrent)
       if (currentIndex === -1) return prev
       
-      // Find next incomplete task
-      const nextIncomplete = prev.find((b, i) => i > currentIndex && !b.isCompleted)
+      // Find next incomplete non-protected task
+      const nextIncomplete = prev.find((b, i) => i > currentIndex && !b.isCompleted && !b.isProtected)
       if (!nextIncomplete) {
         // No more tasks, go back to timeline
         setView('timeline')
@@ -132,8 +130,8 @@ export default function Home() {
     setBlocks([])
   }, [])
 
-  const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted)
-  const remainingCount = blocks.filter(b => !b.isCompleted).length
+  const currentBlock = blocks.find(b => b.isCurrent && !b.isCompleted && !b.isProtected)
+  const remainingCount = blocks.filter(b => !b.isCompleted && !b.isProtected).length
 
   return (
     <main className={cn(
@@ -150,7 +148,7 @@ export default function Home() {
           OneBlock
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {view === 'inbox' && 'Calm planning for busy minds'}
+          {view === 'inbox' && 'for Google Workspace'}
           {view === 'timeline' && 'Your organized day'}
           {view === 'focus' && 'Deep focus mode'}
         </p>
@@ -159,20 +157,34 @@ export default function Home() {
       {/* Main content */}
       <div className="flex-1 flex items-start justify-center">
         {view === 'inbox' && (
-          <BrainDumpInbox 
-            onPlanDay={handlePlanDay} 
-            isPlanning={isPlanning} 
-          />
+          <div className="w-full max-w-2xl mx-auto space-y-6">
+            {/* Google Workspace connection */}
+            <GoogleConnectionPanel connection={mockGoogleConnection} />
+            
+            {/* Calendar context */}
+            <CalendarContext events={mockGoogleCalendarEvents} />
+            
+            {/* Brain dump inbox */}
+            <BrainDumpInbox 
+              onPlanDay={handlePlanDay} 
+              isPlanning={isPlanning} 
+            />
+          </div>
         )}
 
         {view === 'timeline' && (
-          <TodayTimeline
-            blocks={blocks}
-            onToggleComplete={handleToggleComplete}
-            onReplan={handleReplan}
-            onStartFocus={handleStartFocus}
-            onBack={handleBackToInbox}
-          />
+          <div className="w-full max-w-2xl mx-auto space-y-6">
+            <TodayTimeline
+              blocks={blocks}
+              onToggleComplete={handleToggleComplete}
+              onReplan={handleReplan}
+              onStartFocus={handleStartFocus}
+              onBack={handleBackToInbox}
+            />
+            
+            {/* Google Sync Panel */}
+            <GoogleSyncPanel blocks={blocks} />
+          </div>
         )}
 
         {view === 'focus' && currentBlock && (
@@ -191,10 +203,14 @@ export default function Home() {
       {view !== 'focus' && (
         <footer className="text-center mt-8 space-y-1">
           <p className="text-xs text-muted-foreground">
-            Take it one block at a time.
+            {view === 'inbox' 
+              ? 'Plans change. We\'ll gently adjust.' 
+              : 'Take it one block at a time.'}
           </p>
           <p className="text-[10px] text-muted-foreground/50">
-            No account. No tracking. Just calm.
+            {view === 'inbox' 
+              ? 'Your existing calendar is protected.' 
+              : 'Sync your focus blocks when the plan feels right.'}
           </p>
         </footer>
       )}

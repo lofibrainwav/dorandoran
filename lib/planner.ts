@@ -327,11 +327,21 @@ export function replanCalendarAwareBlocks(
   // Sort tasks optimally before replanning
   const sortedTasks = sortTasksOptimally(tasksToReplan)
   
-  // Get current time as starting point for replan (or 9 AM if before)
-  const now = new Date()
-  const currentHour = now.getHours()
-  const currentMinutes = now.getMinutes()
-  const startMinutes = Math.max(currentHour * 60 + currentMinutes, 9 * 60)
+  // Use deterministic demo-friendly start time:
+  // 1. If there's an active (current) OneBlock task, start after it ends
+  // 2. Otherwise, default to 9:00 AM for predictable demo behavior
+  const activeBlock = blocks.find(
+    b => b.isCurrent && b.source === 'oneblock' && !b.isCompleted
+  )
+  
+  let startMinutes: number
+  
+  if (activeBlock) {
+    const activeEndMinutes = parseTimeToMinutes(activeBlock.endTime)
+    startMinutes = activeEndMinutes + (activeBlock.bufferAfter || 0)
+  } else {
+    startMinutes = 9 * 60
+  }
   
   // Build calendar-aware timeline starting from now
   const busySlots = getBusySlots(googleEvents)

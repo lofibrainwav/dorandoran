@@ -5,7 +5,7 @@ Active feature spec: `context/feature-specs/01-deterministic-calendar-decomposit
 
 Reality now:
 - Family OS core contracts/engines exist in `lib/family-os/`.
-- Family OS core tests: 13 passing.
+- Family OS core + calendar decomposition tests: 17 passing.
 - lint/typecheck/build/security audit are GREEN locally.
 - JDK private learning runtime is separately GREEN and must not be rebuilt here.
 - No Family OS database is selected or required for this unit.
@@ -16,5 +16,6 @@ Technical decisions:
 - UI wiring third.
 - Trigger.dev only for later genuinely long-running work.
 
-Next focused step: implement deterministic calendar-event decomposition as a pure function plus tests.
-Done when: new tests pass and all existing verification commands stay GREEN.
+Completed unit: deterministic calendar-event decomposition is GREEN.
+Next focused step: build the external Google Calendar payload normalizer as an isolated adapter with mock-payload tests.
+Done when: adapter tests pass and all existing verification commands stay GREEN.

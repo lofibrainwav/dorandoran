@@ -1,6 +1,7 @@
 export type EvidenceState = 'confirmed' | 'unknown' | 'stale' | 'contradicted' | 'inferred'
 export type AuthorityState = 'auto' | 'recover' | 'gate_required' | 'blocked'
 export type JobMode = 'digital' | 'physical' | 'together'
+export type WorkState = 'hold' | 'open' | 'in_progress' | 'risk' | 'done'
 export type RoutineState = 'proven_tight_fit' | 'normal_fit' | 'watch' | 'friction' | 'unknown'
 
 export interface EvidenceRef {
@@ -124,4 +125,102 @@ export interface LearningPracticeOutcomeV1 {
   verifierPassed: boolean
   observedAt: string
   evidenceRefs: string[]
+}
+
+export interface ChadJobRef {
+  jobId: string
+}
+
+export interface LanguageBridgeState {
+  sourceLanguage: string
+  preferredLanguage: string
+  sourceTextRef: string
+  translatedMeaning?: string
+  extractedActions?: string[]
+  extractedDeadlines?: string[]
+  uncertainties?: string[]
+  communicationProfileRef?: string
+  generatedReply?: string
+}
+
+export interface PhysicalReality {
+  mapNodeId?: string
+  routeEdgeId?: string
+  scheduledGapMinutes?: number
+  travelEstimateMinutes?: number
+  familyObservedMinutes?: number[]
+  preferredGapMinutes?: number
+  routineConfidence?: 'low' | 'medium' | 'high'
+}
+
+export interface FamilyBlock {
+  id: string
+  type: 'event' | 'action' | 'reminder' | 'decision' | 'auth'
+  parentBlockId?: string
+  reality: {
+    title: string
+    start?: string
+    end?: string
+    durationMinutes?: number
+    location?: string
+    recurrence?: string
+  }
+  evidenceRefs: string[]
+  evidenceState: EvidenceState
+  people: {
+    subjectIds: string[]
+    physicalOwnerIds: string[]
+    approverIds: string[]
+    recipientIds: string[]
+  }
+  digital: { executor?: 'chad'; jobs: ChadJobRef[] }
+  authorityRef?: string
+  language?: LanguageBridgeState
+  physicalReality?: PhysicalReality
+  timeEngine: {
+    protected: boolean
+    bufferAfterMinutes?: number
+    priority?: 'low' | 'medium' | 'high'
+    energy?: 'low' | 'medium' | 'high'
+    carryover?: boolean
+    rolloverCount?: number
+  }
+  dependencyIds: string[]
+  childBlockIds: string[]
+  workState: WorkState
+  closure?: {
+    executedAt?: string
+    readbackEvidenceRefs: string[]
+    receiptRef?: string
+    lessonRef?: string
+  }
+}
+
+export interface ExplicitCalendarAction {
+  id: string
+  title: string
+  mode: JobMode
+  physicalOwnerIds?: string[]
+  approverIds?: string[]
+  recipientIds?: string[]
+  jobId?: string
+  priority?: 'low' | 'medium' | 'high'
+}
+
+export interface NormalizedCalendarEvent {
+  id: string
+  title: string
+  description?: string
+  start?: string
+  end?: string
+  durationMinutes?: number
+  location?: string
+  recurrence?: string
+  protected?: boolean
+  evidence: EvidenceRef[]
+  subjectIds?: string[]
+  physicalOwnerIds?: string[]
+  approverIds?: string[]
+  recipientIds?: string[]
+  explicitActions?: ExplicitCalendarAction[]
 }

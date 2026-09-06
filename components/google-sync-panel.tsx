@@ -123,7 +123,6 @@ export function GoogleSyncPanel({ blocks }: GoogleSyncPanelProps) {
           {syncActions.map((action) => {
             const isLoading = state.loading === action.key
             const isCompleted = state.completed.includes(action.key)
-            const message = state.messages[action.key]
             const Icon = action.icon
             
             return (

@@ -179,6 +179,7 @@ export async function syncToGoogleCalendar(blocks: TimeBlock[]): Promise<{ succe
 }
 
 export async function createGoogleDoc(blocks: TimeBlock[]): Promise<{ success: boolean; message: string }> {
+  void blocks
   await new Promise(resolve => setTimeout(resolve, 1000))
   return {
     success: true,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import type { TimeBlock } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -58,10 +58,8 @@ export function FocusMode({
   const [showComplete, setShowComplete] = useState(false)
   const [pulseRing, setPulseRing] = useState(false)
 
-  const quote = useMemo(() => 
-    focusQuotes[Math.floor(Math.random() * focusQuotes.length)], 
-    []
-  )
+  const quoteIndex = [...block.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % focusQuotes.length
+  const quote = focusQuotes[quoteIndex]
 
 
 
@@ -81,14 +79,6 @@ export function FocusMode({
 
     return () => clearInterval(interval)
   }, [isRunning, timeRemaining])
-
-  // Reset timer when block changes
-  useEffect(() => {
-    setTimeRemaining(block.duration * 60)
-    setShowComplete(false)
-    setPulseRing(false)
-    setIsRunning(true)
-  }, [block.id, block.duration])
 
   const EnergyIcon = energyIcons[block.energy]
 

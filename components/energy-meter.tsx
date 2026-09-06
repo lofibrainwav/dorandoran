@@ -1,6 +1,5 @@
 'use client'
 
-import { cn } from '@/lib/utils'
 import { Zap, Battery, BatteryLow, Sparkles } from 'lucide-react'
 
 interface EnergyMeterProps {
@@ -12,9 +11,6 @@ interface EnergyMeterProps {
 export function EnergyMeter({ total, used, breakdown }: EnergyMeterProps) {
   const percentage = total > 0 ? Math.round((used / total) * 100) : 0
   const remaining = total - used
-  
-  // Calculate total minutes
-  const totalMinutes = breakdown.high + breakdown.medium + breakdown.low
   
   return (
     <div className="space-y-3">

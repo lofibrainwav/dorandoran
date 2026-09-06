@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Play, CheckCircle2, ListChecks, Sparkles, Shield, Calendar, CheckCheck, RotateCcw, Sun } from 'lucide-react'
+import { ArrowLeft, Play, ListChecks, Sparkles, Shield, Calendar, CheckCheck, RotateCcw, Sun } from 'lucide-react'
 import { calculateDayEnergy, getTopThree, getEncouragement } from '@/lib/mock-planner'
 import { cn } from '@/lib/utils'
 

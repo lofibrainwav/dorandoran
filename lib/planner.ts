@@ -369,7 +369,7 @@ export function replanCalendarAwareBlocks(
   })
   
   // Create new TimeBlock array from replanned tasks
-  const replannedBlocks: TimeBlock[] = newTimeline.map((slot, index) => {
+  const replannedBlocks: TimeBlock[] = newTimeline.map((slot) => {
     const task = sortedTasks[slot.taskIndex]
     return {
       id: Math.random().toString(36).substring(2, 9),

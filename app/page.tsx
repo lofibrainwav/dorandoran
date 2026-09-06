@@ -288,6 +288,7 @@ export default function Home() {
 
         {view === 'focus' && currentBlock && (
           <FocusMode
+            key={currentBlock.id}
             block={currentBlock}
             totalRemaining={remainingCount}
             onComplete={handleCompleteCurrent}

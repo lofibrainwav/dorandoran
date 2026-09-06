@@ -7,6 +7,8 @@ export type RoutineState = 'proven_tight_fit' | 'normal_fit' | 'watch' | 'fricti
 export interface EvidenceRef {
   id: string
   sourceType: 'calendar' | 'email' | 'contact' | 'file' | 'map' | 'web' | 'human' | 'photo' | 'system'
+  sourceId?: string
+  uri?: string
   observedAt: string
   state: EvidenceState
   interpretation?: string

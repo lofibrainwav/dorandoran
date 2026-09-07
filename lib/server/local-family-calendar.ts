@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { google } from 'googleapis'
 import type { FamilyBlock } from '@/lib/family-os/contracts'
+import type { WeekEventInsight } from '@/lib/family-os/week-insight'
 import type { LocalCalendarSourceConfig } from '@/lib/family-os/live-family-week-source'
 import {
   calendarSourceHealth,
@@ -19,6 +20,7 @@ export interface LocalFamilyWeekResult {
   sourceHealth: 'green' | 'partial' | 'failure'
   loadedSourceKeys: string[]
   failedSourceKeys: string[]
+  insights: WeekEventInsight[]
 }
 
 async function loadSource(
@@ -103,5 +105,6 @@ export async function loadLocalFamilyWeek(
     sourceHealth,
     loadedSourceKeys,
     failedSourceKeys,
+    insights: [],
   }
 }

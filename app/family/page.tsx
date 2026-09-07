@@ -60,7 +60,7 @@ export default async function FamilyWeekPage() {
         </header>
 
         <p className="text-xs text-muted-foreground md:hidden">Swipe the calendar sideways to see the full week.</p>
-        <FamilyWeekGrid blocks={blocks} weekStartDate={weekStartDate} />
+        <FamilyWeekGrid blocks={blocks} weekStartDate={weekStartDate} insights={live?.insights ?? []} />
         <footer className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span>● Confirmed / protected calendar truth</span>
           <span>○ Unknown stays unknown</span>

@@ -1,14 +1,35 @@
 import type { FamilyBlock } from '@/lib/family-os/contracts'
+import type { WeekEventInsight } from '@/lib/family-os/week-insight'
+import { weekInsightBadge, weekInsightBlockId } from '@/lib/family-os/week-insight-ui'
 import { projectAllDayWeekBlocks, projectWeekBlocks, weekDayLabels } from '@/lib/family-os/week-projection'
 
 interface FamilyWeekGridProps {
   blocks: FamilyBlock[]
   weekStartDate: string
+  insights?: WeekEventInsight[]
 }
 
 const START_MINUTE = 6 * 60
 const END_MINUTE = 21 * 60
 const HOUR_HEIGHT = 64
+
+const BADGE_CLASS = {
+  info: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  danger: 'border-destructive/30 bg-destructive/10 text-destructive',
+  muted: 'border-muted-foreground/20 bg-muted text-muted-foreground',
+  warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+} as const
+
+function InsightBadge({ insight }: { insight?: WeekEventInsight }) {
+  if (!insight) return null
+  const badge = weekInsightBadge(insight)
+  if (!badge) return null
+  return (
+    <span className={`mt-1 inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${BADGE_CLASS[badge.tone]}`}>
+      {badge.label}
+    </span>
+  )
+}
 
 function clockLabel(totalMinutes: number) {
   const hour24 = Math.floor(totalMinutes / 60)
@@ -18,10 +39,16 @@ function clockLabel(totalMinutes: number) {
   return `${hour12}:${String(minute).padStart(2, '0')} ${period}`
 }
 
-export function FamilyWeekGrid({ blocks, weekStartDate }: FamilyWeekGridProps) {
+export function FamilyWeekGrid({ blocks, weekStartDate, insights = [] }: FamilyWeekGridProps) {
   const projected = projectWeekBlocks(blocks, weekStartDate)
   const allDayProjected = projectAllDayWeekBlocks(blocks, weekStartDate)
   const byId = new Map(blocks.map((block) => [block.id, block]))
+  const insightByBlockId = new Map(
+    insights.flatMap((insight) => {
+      const blockId = weekInsightBlockId(insight)
+      return blockId ? [[blockId, insight] as const] : []
+    }),
+  )
   const hours = Array.from({ length: (END_MINUTE - START_MINUTE) / 60 + 1 }, (_, i) => START_MINUTE + i * 60)
   const canvasHeight = ((END_MINUTE - START_MINUTE) / 60) * HOUR_HEIGHT
 
@@ -52,6 +79,7 @@ export function FamilyWeekGrid({ blocks, weekStartDate }: FamilyWeekGridProps) {
                     style={{ gridColumn: `${item.startDayIndex + 1} / ${item.endDayIndexExclusive + 1}` }}
                   >
                     <div className="truncate">{block.reality.title}</div>
+                    <InsightBadge insight={insightByBlockId.get(block.id)} />
                   </article>
                 )
               })}
@@ -103,6 +131,7 @@ export function FamilyWeekGrid({ blocks, weekStartDate }: FamilyWeekGridProps) {
                         {clockLabel(item.startMinute)}–{clockLabel(item.endMinute)}
                       </div>
                       {block.timeEngine.protected && <div className="mt-1 text-[9px] font-medium text-primary">Protected</div>}
+                      <InsightBadge insight={insightByBlockId.get(block.id)} />
                     </article>
                   )
                 })}

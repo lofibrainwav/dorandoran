@@ -13,6 +13,7 @@ export type WeekInsightHint =
 
 export interface WeekEventInsight {
   eventId: string
+  targetEventId: string
   title: string
   protected: boolean
   state: 'confirmed' | 'changed' | 'cancelled' | 'recover' | 'action'
@@ -70,6 +71,7 @@ export function projectWeekEventInsight(input: {
 
   return {
     eventId: reality.eventId,
+    targetEventId: reality.targetEventId,
     title: reality.title,
     protected: reality.protected,
     state,

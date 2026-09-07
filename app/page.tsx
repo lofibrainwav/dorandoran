@@ -1,17 +1,36 @@
-import { FamilyGravityHero } from '@/components/family-gravity-hero'
+import { FamilyOperatingHero } from '@/components/family-operating-hero'
+
+const publicDemo = {
+  id: 'person-demo-anchor',
+  label: 'Jayden',
+  placeLabel: 'Los Angeles area',
+  placeState: 'Scheduled' as const,
+  longitude: -118.2437,
+  latitude: 34.0522,
+  now: 'School day',
+  next: 'Afternoon activity at 3:00 PM',
+  watch: 'Pickup handoff is visible only when coordination is needed',
+  outcome: 'No live-location claim is made from a calendar schedule',
+  modules: [
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'school', label: 'School' },
+    { id: 'activities', label: 'Activities' },
+    { id: 'learning', label: 'Learning' },
+  ],
+}
 
 export default function HomePage() {
   return (
     <main>
-      <FamilyGravityHero />
-      <section className="home-explainer" id="how-chad-knows" aria-labelledby="how-title">
-        <p className="hero-kicker">How Chad knows</p>
-        <h2 id="how-title">Quiet when nothing changed. Specific when something did.</h2>
+      <FamilyOperatingHero person={publicDemo} />
+      <section className="home-explainer" aria-labelledby="grammar-title">
+        <p className="hero-kicker">Universal context grammar</p>
+        <h2 id="grammar-title">Any source can plug in. Family truth stays provider-neutral.</h2>
         <div className="evidence-steps">
-          <article><strong>Observe</strong><span>Calendar, email, and family context stay separate.</span></article>
-          <article><strong>Reconcile</strong><span>Only matching facts are compared. Unknown stays unknown.</span></article>
-          <article><strong>Coordinate</strong><span>Jay or Julie connect only when a real handoff needs them.</span></article>
-          <article><strong>Explain</strong><span>Every important change can expose the evidence behind it.</span></article>
+          <article><strong>Observe</strong><span>Provider adapters emit only what they actually know.</span></article>
+          <article><strong>6W1H</strong><span>Who, what, when, where, why, and how stay explicit or unknown.</span></article>
+          <article><strong>眞善美仁孝</strong><span>Evidence, safety, clarity, human context, and consent stay separate.</span></article>
+          <article><strong>永</strong><span>Past → Year → Month → Week → Today → Now stays one continuity axis.</span></article>
         </div>
       </section>
     </main>

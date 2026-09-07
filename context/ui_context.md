@@ -10,10 +10,11 @@ Information hierarchy:
 5. optional deeper detail
 
 Hero direction:
-- Family Gravity Grid
-- Jayden is the coordination anchor
-- Jay and Julie connect only when a real handoff/constraint exists
-- WebGPU is presentation only; the DOM contains the actual product meaning
+- one continuous spatial/time zoom: Past Journey → Year → Month → This Week → Today → Now
+- Today/Now zoom into Los Angeles family operations; Past Journey widens back to world/memory context
+- person focus can reveal declared specialist modules such as Schedule, School, Activities, and Learning without duplicating those runtimes
+- Jayden is the coordination anchor; Jay and Julie connect only when a real handoff/constraint exists
+- MapLibre/WebGPU are presentation only; the DOM contains the actual product meaning
 - mobile/reduced-motion fall back to a static/CSS composition
 
 Avoid:

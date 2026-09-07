@@ -44,7 +44,7 @@ jobs:
     continue-on-error: true
     runs-on: ubuntu-latest
     env:
-      HYODO_415_SHA: 6e0e25a413b30580280051d609a439b1547a24a0
+      HYODO_415_SHA: 34d024df891a5cd0ea2437537d4fdd4178d512b8
     steps:
       - name: Checkout
         uses: actions/checkout@v4

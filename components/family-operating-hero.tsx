@@ -1,0 +1,101 @@
+"use client"
+
+import { useMemo, useState } from 'react'
+import { FamilyGlobe } from './family-globe'
+import type { TimeScale } from '@/lib/family-os/zoom-contract'
+
+type PersonPreview = {
+  id: string
+  label: string
+  placeLabel: string
+  placeState: 'Live' | 'Scheduled' | 'Last known' | 'Unknown'
+  longitude: number
+  latitude: number
+  now: string
+  next: string
+  watch?: string
+  outcome?: string
+  modules?: Array<{ id: string; label: string }>
+}
+
+const scales: Array<{ id: TimeScale; label: string }> = [
+  { id: 'past', label: 'Past Journey' },
+  { id: 'year', label: 'Year' },
+  { id: 'month', label: 'Month' },
+  { id: 'week', label: 'This Week' },
+  { id: 'today', label: 'Today' },
+  { id: 'now', label: 'Now' },
+]
+
+export function FamilyOperatingHero({ person }: { person: PersonPreview }) {
+  const [timeScale, setTimeScale] = useState<TimeScale>('today')
+  const [personFocused, setPersonFocused] = useState(false)
+  const summary = useMemo(() => {
+    if (timeScale === 'past') return 'Past Journey shows memory and travel history without changing today’s operational truth.'
+    if (timeScale === 'year') return 'Zoomed out to the year: large milestones stay visible, small details fold away.'
+    if (timeScale === 'month') return 'Month view favors patterns and preparation over individual minute-by-minute blocks.'
+    if (timeScale === 'week') return 'The family rhythm widens into a Sunday-first week.'
+    return `${person.label}: ${person.now}. Next: ${person.next}.`
+  }, [person, timeScale])
+
+  return (
+    <section className="operating-hero" aria-labelledby="hero-title">
+      <div className="operating-topbar">
+        <div>
+          <p className="hero-kicker">Chad Family OS</p>
+          <h1 id="hero-title">One family. One living timeline.</h1>
+        </div>
+        <nav className="time-zoom" aria-label="Time zoom">
+          {scales.map((scale) => (
+            <button key={scale.id} type="button" aria-pressed={timeScale === scale.id} onClick={() => setTimeScale(scale.id)}>
+              {scale.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="operating-stage">
+        <FamilyGlobe
+          timeScale={timeScale}
+          focusPoint={{ longitude: person.longitude, latitude: person.latitude, label: person.placeLabel }}
+        />
+        <div className="globe-vignette" aria-hidden="true" />
+        <div className="globe-label">
+          <span>{timeScale === 'past' ? 'World · Past Journey' : timeScale === 'year' ? 'Year · Wide view' : 'Los Angeles · Family context'}</span>
+          <strong>永</strong>
+          <small>Past → Now</small>
+        </div>
+
+        <aside className="now-panel" aria-label="Current family context">
+          <div className="person-row">
+            <button className="person-focus" type="button" onClick={() => setPersonFocused((value) => !value)} aria-expanded={personFocused}>
+              <span>{person.label}</span>
+              <small>{personFocused ? 'Close person view' : 'Focus person'}</small>
+            </button>
+            <span className={`presence-pill presence-pill--${person.placeState.toLowerCase().replace(' ', '-')}`}>{person.placeState}</span>
+          </div>
+
+          <div className="story-rail">
+            <article><small>NOW</small><strong>{person.now}</strong></article>
+            <article><small>NEXT</small><strong>{person.next}</strong></article>
+            {person.watch ? <article><small>CHANGE / WATCH</small><strong>{person.watch}</strong></article> : null}
+            {person.outcome ? <article><small>OUTCOME</small><strong>{person.outcome}</strong></article> : null}
+          </div>
+
+          {personFocused && person.modules?.length ? (
+            <div className="person-modules">
+              {person.modules.map((module) => <span key={module.id}>{module.label}</span>)}
+            </div>
+          ) : null}
+        </aside>
+      </div>
+
+      <footer className="operating-summary">
+        <p>{summary}</p>
+        <div className="virtue-rail" aria-label="Context integrity lenses">
+          <span>眞 Truth</span><span>善 Safety</span><span>美 Clarity</span><span>仁 Human</span><span>孝 Consent</span>
+        </div>
+      </footer>
+    </section>
+  )
+}

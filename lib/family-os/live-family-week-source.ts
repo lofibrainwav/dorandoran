@@ -6,6 +6,7 @@ export interface LocalCalendarRuntimeConfig {
 
 export interface LocalCalendarSourceConfig extends LocalCalendarRuntimeConfig {
   sourceKey: string
+  subjectIds: string[]
 }
 
 export interface LocalCalendarSourceRegistry {
@@ -19,6 +20,10 @@ function clean(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
+function cleanList(value: string | undefined): string[] {
+  return (clean(value) ?? '').split(',').map((item) => item.trim()).filter(Boolean)
+}
+
 function sourceConfig(
   env: Record<string, string | undefined>,
   sourceKey: string,
@@ -28,8 +33,9 @@ function sourceConfig(
   const clientPath = clean(env[`${prefix}_CLIENT_SECRET_PATH`])
   const tokenPath = clean(env[`${prefix}_TOKEN_PATH`])
   const calendarId = clean(env[`${prefix}_TARGET_ID`])
+  const subjectIds = cleanList(env[`${prefix}_SUBJECT_IDS`])
   if (!clientPath || !tokenPath || !calendarId) return null
-  return { sourceKey, clientPath, tokenPath, calendarId }
+  return { sourceKey, clientPath, tokenPath, calendarId, subjectIds }
 }
 
 export function resolveLocalCalendarRuntimeConfig(
@@ -62,7 +68,7 @@ export function resolveLocalCalendarSourceRegistry(
   const legacy = resolveLocalCalendarRuntimeConfig(env)
   if (legacy) {
     return {
-      sources: [{ sourceKey: 'family', ...legacy }],
+      sources: [{ sourceKey: 'family', subjectIds: cleanList(env.GOOGLE_CALENDAR_SUBJECT_IDS), ...legacy }],
       incompleteSourceKeys: [],
       mode: 'legacy',
     }

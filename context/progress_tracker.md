@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 116/116 PASS.
+- Family OS regression: 119/119 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -33,7 +33,9 @@
 - Today/Now keeps WHAT separate from structured WHEN; the hero renders the next local clock time only from an explicit source time zone.
 - WATCH now comes only from a structured WeekEventInsight projection; confirmed stays quiet and arbitrary free-text WATCH was removed from the operating person model.
 - HANDOFF now projects only id/state/work modes/evidence refs; raw descriptions do not enter the client projection.
-- Regression count is 116 tests.
+- Private Calendar Operating Source now maps source keys to explicit person ids and projects authorized timed events through the same ContextObservation → Family Operating Read Model boundary.
+- Local Google Calendar transport is server-only and uses pinned `googleapis@178.0.0`; OAuth/token contents never enter projection results.
+- Regression count is 119 tests.
 
 ## Next unit
-Connect real private calendar reads behind the same operating projection boundary, then bridge Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time.
+Wire the private operating source into a protected/dynamic family surface with graceful unavailable state, then bridge Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time.

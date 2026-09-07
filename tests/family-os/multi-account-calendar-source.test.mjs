@@ -11,13 +11,17 @@ test('multi-account registry keeps token paths and calendar ids isolated', () =>
     GOOGLE_CALENDAR_SOURCE_FAMILY_CLIENT_SECRET_PATH: '/private/client.json',
     GOOGLE_CALENDAR_SOURCE_FAMILY_TOKEN_PATH: '/private/family-token.json',
     GOOGLE_CALENDAR_SOURCE_FAMILY_TARGET_ID: 'family-calendar',
+    GOOGLE_CALENDAR_SOURCE_FAMILY_SUBJECT_IDS: 'person-a, person-b',
     GOOGLE_CALENDAR_SOURCE_JAYDEN_CLIENT_SECRET_PATH: '/private/client.json',
     GOOGLE_CALENDAR_SOURCE_JAYDEN_TOKEN_PATH: '/private/jayden-token.json',
     GOOGLE_CALENDAR_SOURCE_JAYDEN_TARGET_ID: 'primary',
+    GOOGLE_CALENDAR_SOURCE_JAYDEN_SUBJECT_IDS: 'person-child',
   })
 
   assert.equal(registry.sources.length, 2)
   assert.notEqual(registry.sources[0].tokenPath, registry.sources[1].tokenPath)
+  assert.deepEqual(registry.sources[0].subjectIds, ['person-a', 'person-b'])
+  assert.deepEqual(registry.sources[1].subjectIds, ['person-child'])
   assert.deepEqual(registry.incompleteSourceKeys, [])
 })
 test('incomplete source is reported instead of silently invented', () => {

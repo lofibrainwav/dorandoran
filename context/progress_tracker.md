@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 119/119 PASS.
+- Family OS regression: 122/122 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -35,7 +35,9 @@
 - HANDOFF now projects only id/state/work modes/evidence refs; raw descriptions do not enter the client projection.
 - Private Calendar Operating Source now maps source keys to explicit person ids and projects authorized timed events through the same ContextObservation → Family Operating Read Model boundary.
 - Local Google Calendar transport is server-only and uses pinned `googleapis@178.0.0`; OAuth/token contents never enter projection results.
-- Regression count is 119 tests.
+- `/family` now has an explicit local-only private surface gate; Vercel/public runtime blocks that private path by construction.
+- Private local readback is GREEN and the public production simulation renders Family Week with no private source badge or secret-bearing fields.
+- Regression count is 122 tests.
 
 ## Next unit
-Wire the private operating source into a protected/dynamic family surface with graceful unavailable state, then bridge Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time.
+Bridge Jayden specialist modules without duplicating the learning runtime, then add route/presence/photo adapters one capability at a time. Keep public deployment privacy-safe while private local operating data remains evidence-backed.

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { FamilyGlobe } from './family-globe'
 import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-operating-read-model'
 import type { OperatingHandoffProjection, OperatingWatchProjection } from '@/lib/family-os/operating-coordination-read-model'
+import type { OperatingPresenceProjection, OperatingRouteProjection } from '@/lib/family-os/operating-route-presence-read-model'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
 function formatClock(start?: string, timeZone?: string): string | null {
@@ -28,15 +29,24 @@ export function FamilyOperatingHero({
   person,
   watch,
   handoff,
+  presence,
+  route,
 }: {
   person: FamilyOperatingPersonReadModel
   watch?: OperatingWatchProjection | null
   handoff?: OperatingHandoffProjection | null
+  presence?: OperatingPresenceProjection | null
+  route?: OperatingRouteProjection | null
 }) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
   const nextClock = formatClock(person.nextWhen?.start, person.nextWhen?.timeZone)
   const nextLabel = nextClock ? `${person.next} · ${nextClock}` : person.next
+  const routeLabel = route
+    ? route.state === 'clear' && route.routineState === 'proven_tight_fit'
+      ? 'Clear · proven tight fit'
+      : `${route.state} · ${route.routineState}`
+    : null
   const summary = useMemo(() => {
     if (timeScale === 'past') return 'Past Journey shows memory and travel history without changing today’s operational truth.'
     if (timeScale === 'year') return 'Zoomed out to the year: large milestones stay visible, small details fold away.'
@@ -89,6 +99,8 @@ export function FamilyOperatingHero({
           <div className="story-rail">
             <article><small>NOW</small><strong>{person.now}</strong></article>
             <article><small>NEXT</small><strong>{nextLabel}</strong></article>
+            {presence ? <article><small>PRESENCE</small><strong>{presence.label}</strong></article> : null}
+            {routeLabel ? <article><small>ROUTE</small><strong>{routeLabel}</strong></article> : null}
             {watch ? <article><small>WATCH</small><strong>{watch.label}</strong></article> : null}
             {handoff ? <article><small>HANDOFF</small><strong>{handoff.state} · {handoff.fromMode} → {handoff.toMode}</strong></article> : null}
             {person.outcome ? <article><small>OUTCOME</small><strong>{person.outcome}</strong></article> : null}

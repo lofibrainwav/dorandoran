@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 124/124 PASS.
+- Family OS regression: 130/130 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -40,7 +40,10 @@
 - Jayden Learning is now a specialist module projection, not duplicated Family OS logic.
 - Current verified JDK release transport is parent-session/capsule/same-origin bound with no delegated bridge, so the Learning module truthfully renders `Bridge pending` locally instead of pretending it is connected.
 - Local private readback contains the Learning bridge status; public/Vercel simulation contains no private module projection.
-- Regression count is 124 tests.
+- Route and Presence now project as separate physical-world evidence channels; Calendar `Scheduled` never becomes `Live` by implication.
+- Presence requires explicit timestamped evidence for `Live`; last-known and missing evidence fail closed without promotion.
+- Route keeps proven tight fits clear, watch distinct, and real friction explicit.
+- Regression count is 130 tests.
 
 ## Next unit
-Add route/presence capability projections to Today/Now, then build Month/Year aggregation and the Past Journey memory socket. Keep JDK delegated transport as a separate future bridge task instead of bypassing its parent-security boundary.
+Build Month/Year aggregation from the same canonical observations, then add the Past Journey memory socket. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.

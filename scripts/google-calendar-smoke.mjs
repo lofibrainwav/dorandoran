@@ -31,7 +31,7 @@ const start = new Date()
 start.setHours(0, 0, 0, 0)
 start.setDate(start.getDate() - start.getDay())
 const end = new Date(start)
-end.setDate(end.getDate() + 8)
+end.setDate(end.getDate() + 7)
 
 const response = await calendar.events.list({
   calendarId,

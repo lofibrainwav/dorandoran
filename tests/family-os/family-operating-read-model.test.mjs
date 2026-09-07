@@ -61,3 +61,17 @@ test('specialist modules are passed through by declared id, not inferred from a 
     { id: 'schedule', label: 'Schedule' },
   ])
 })
+
+test('operating read model keeps WHAT separate from explicit WHEN projections', () => {
+  const result = projectFamilyOperatingPerson({
+    personId: 'person-1', label: 'Person One', now: '2026-09-07T19:00:00Z',
+    observations: [
+      observation({ id: 'current-time', personId: 'person-1', label: 'School day', start: '2026-09-07T16:00:00Z', end: '2026-09-07T21:00:00Z' }),
+      observation({ id: 'next-time', personId: 'person-1', label: 'Practice', start: '2026-09-07T22:00:00Z', end: '2026-09-07T23:00:00Z' }),
+    ],
+  })
+  assert.equal(result.now, 'School day')
+  assert.equal(result.next, 'Practice')
+  assert.deepEqual(result.nowWhen, { start: '2026-09-07T16:00:00Z', end: '2026-09-07T21:00:00Z', timeZone: 'America/Los_Angeles' })
+  assert.deepEqual(result.nextWhen, { start: '2026-09-07T22:00:00Z', end: '2026-09-07T23:00:00Z', timeZone: 'America/Los_Angeles' })
+})

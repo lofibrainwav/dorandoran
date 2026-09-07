@@ -5,6 +5,15 @@ import { FamilyGlobe } from './family-globe'
 import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-operating-read-model'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
+function formatClock(start?: string, timeZone?: string): string | null {
+  if (!start || !timeZone) return null
+  try {
+    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone }).format(new Date(start))
+  } catch {
+    return null
+  }
+}
+
 const scales: Array<{ id: TimeScale; label: string }> = [
   { id: 'past', label: 'Past Journey' },
   { id: 'year', label: 'Year' },
@@ -17,13 +26,15 @@ const scales: Array<{ id: TimeScale; label: string }> = [
 export function FamilyOperatingHero({ person }: { person: FamilyOperatingPersonReadModel }) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
+  const nextClock = formatClock(person.nextWhen?.start, person.nextWhen?.timeZone)
+  const nextLabel = nextClock ? `${person.next} · ${nextClock}` : person.next
   const summary = useMemo(() => {
     if (timeScale === 'past') return 'Past Journey shows memory and travel history without changing today’s operational truth.'
     if (timeScale === 'year') return 'Zoomed out to the year: large milestones stay visible, small details fold away.'
     if (timeScale === 'month') return 'Month view favors patterns and preparation over individual minute-by-minute blocks.'
     if (timeScale === 'week') return 'The family rhythm widens into a Sunday-first week.'
-    return `${person.label}: ${person.now}. Next: ${person.next}.`
-  }, [person, timeScale])
+    return `${person.label}: ${person.now}. Next: ${nextLabel}.`
+  }, [nextLabel, person, timeScale])
 
   return (
     <section className="operating-hero" aria-labelledby="hero-title">
@@ -68,7 +79,7 @@ export function FamilyOperatingHero({ person }: { person: FamilyOperatingPersonR
 
           <div className="story-rail">
             <article><small>NOW</small><strong>{person.now}</strong></article>
-            <article><small>NEXT</small><strong>{person.next}</strong></article>
+            <article><small>NEXT</small><strong>{nextLabel}</strong></article>
             {person.watch ? <article><small>CHANGE / WATCH</small><strong>{person.watch}</strong></article> : null}
             {person.outcome ? <article><small>OUTCOME</small><strong>{person.outcome}</strong></article> : null}
           </div>

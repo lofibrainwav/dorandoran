@@ -13,11 +13,19 @@ export interface OperatingPlaceProjection {
   evidenceRefs: string[]
 }
 
+export interface OperatingTimeProjection {
+  start?: string
+  end?: string
+  timeZone?: string
+}
+
 export interface FamilyOperatingPersonReadModel {
   id: string
   label: string
   now: string
   next: string
+  nowWhen?: OperatingTimeProjection
+  nextWhen?: OperatingTimeProjection
   watch?: string
   outcome?: string
   place: OperatingPlaceProjection
@@ -44,6 +52,16 @@ function startMs(observation: ContextObservation): number {
 
 function endMs(observation: ContextObservation): number {
   return observation.sixW1H.when?.end ? Date.parse(observation.sixW1H.when.end) : Number.NaN
+}
+
+function timeProjection(observation?: ContextObservation): OperatingTimeProjection | undefined {
+  const when = observation?.sixW1H.when
+  if (!when || (!when.start && !when.end && !when.timeZone)) return undefined
+  return {
+    ...(when.start ? { start: when.start } : {}),
+    ...(when.end ? { end: when.end } : {}),
+    ...(when.timeZone ? { timeZone: when.timeZone } : {}),
+  }
 }
 
 function scheduledPlace(observation?: ContextObservation): OperatingPlaceProjection {
@@ -79,6 +97,8 @@ export function projectFamilyOperatingPerson(input: ProjectFamilyOperatingPerson
     label: input.label,
     now: current?.sixW1H.what?.label ?? 'Unknown',
     next: next?.sixW1H.what?.label ?? 'Unknown',
+    ...(timeProjection(current) ? { nowWhen: timeProjection(current) } : {}),
+    ...(timeProjection(next) ? { nextWhen: timeProjection(next) } : {}),
     ...(input.watch ? { watch: input.watch } : {}),
     ...(input.outcome ? { outcome: input.outcome } : {}),
     place: scheduledPlace(current),

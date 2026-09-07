@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 135/135 PASS.
+- Family OS regression: 139/139 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -46,7 +46,10 @@
 - Month projection is a fixed 42-cell Sunday-first grid; Year projection is 12 months from the same canonical observation stream.
 - Temporal display projections strip evidence refs before client rendering, so aggregation can drive the UI without leaking private evidence ids.
 - Month/Year now overlay the same operating stage instead of becoming separate apps, preserving the zoom grammar.
-- Regression count is 135 tests.
+- Past Journey now projects confirmed canonical memory observations into privacy-safe place clusters for the world globe.
+- Unlocated memories remain countable but never become invented map points; schedule/future planning does not become past memory.
+- Public demo markers are explicitly labeled as demo memories; private photo/file evidence refs are stripped from the client display projection.
+- Regression count is 139 tests.
 
 ## Next unit
-Add the Past Journey memory socket with photo/location evidence contracts, then connect longer-range private calendar windows to Month/Year. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.
+Connect longer-range private calendar windows to Month/Year, then define the photo metadata adapter that can feed Past Journey without exposing raw pixels or file paths. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.

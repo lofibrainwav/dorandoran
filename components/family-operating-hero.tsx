@@ -7,6 +7,7 @@ import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-oper
 import type { OperatingHandoffProjection, OperatingWatchProjection } from '@/lib/family-os/operating-coordination-read-model'
 import type { OperatingPresenceProjection, OperatingRouteProjection } from '@/lib/family-os/operating-route-presence-read-model'
 import type { TemporalGridDisplayProjection } from '@/lib/family-os/temporal-grid'
+import type { PastJourneyDisplayProjection } from '@/lib/family-os/past-journey'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
 function formatClock(start?: string, timeZone?: string): string | null {
@@ -35,6 +36,7 @@ export function FamilyOperatingHero({
   route,
   monthGrid,
   yearGrid,
+  journey,
 }: {
   person: FamilyOperatingPersonReadModel
   watch?: OperatingWatchProjection | null
@@ -43,6 +45,7 @@ export function FamilyOperatingHero({
   route?: OperatingRouteProjection | null
   monthGrid?: TemporalGridDisplayProjection | null
   yearGrid?: TemporalGridDisplayProjection | null
+  journey?: PastJourneyDisplayProjection | null
 }) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
@@ -54,6 +57,11 @@ export function FamilyOperatingHero({
       : `${route.state} · ${route.routineState}`
     : null
   const selectedGrid = timeScale === 'month' ? monthGrid : timeScale === 'year' ? yearGrid : null
+  const journeyPoints = useMemo(() => (journey?.clusters ?? []).map((cluster) => ({
+    longitude: cluster.coordinates.longitude,
+    latitude: cluster.coordinates.latitude,
+    label: `${cluster.label} · ${cluster.memoryCount} memories`,
+  })), [journey])
   const summary = useMemo(() => {
     if (timeScale === 'past') return 'Past Journey shows memory and travel history without changing today’s operational truth.'
     if (timeScale === 'year') return 'Zoomed out to the year: large milestones stay visible, small details fold away.'
@@ -86,6 +94,7 @@ export function FamilyOperatingHero({
             latitude: person.place.coordinates.latitude,
             label: person.place.label ?? 'Scheduled place',
           } : undefined}
+          journeyPoints={journeyPoints}
         />
         <div className="globe-vignette" aria-hidden="true" />
         {selectedGrid ? <TemporalZoomGrid grid={selectedGrid} /> : null}
@@ -95,6 +104,23 @@ export function FamilyOperatingHero({
           <small>Past → Now</small>
         </div>
 
+        {timeScale === 'past' ? (
+          <aside className="past-journey-panel" aria-label="Past Journey memories">
+            <div className="person-row">
+              <div><span>Past Journey</span><small>Photo + place memory socket</small></div>
+              <span className="presence-pill">{journey?.clusters.length ?? 0} places</span>
+            </div>
+            <div className="journey-memory-list">
+              {(journey?.clusters ?? []).map((cluster) => (
+                <article key={cluster.id}>
+                  <strong>{cluster.label}</strong>
+                  <span>{cluster.memoryCount} memories</span>
+                </article>
+              ))}
+              {!journey?.clusters.length ? <p>No verified place memories yet.</p> : null}
+            </div>
+          </aside>
+        ) : (
         <aside className="now-panel" aria-label="Current family context">
           <div className="person-row">
             <button className="person-focus" type="button" onClick={() => setPersonFocused((value) => !value)} aria-expanded={personFocused}>
@@ -125,6 +151,7 @@ export function FamilyOperatingHero({
             </div>
           ) : null}
         </aside>
+        )}
       </div>
 
       <footer className="operating-summary">

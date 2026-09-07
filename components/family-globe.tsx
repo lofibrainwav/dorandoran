@@ -15,10 +15,19 @@ const cameraByTime: Record<TimeScale, { center: [number, number]; zoom: number }
   past: { center: [0, 22], zoom: 1.25 },
 }
 
-export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; focusPoint?: GlobePoint }) {
+export function FamilyGlobe({
+  timeScale,
+  focusPoint,
+  journeyPoints = [],
+}: {
+  timeScale: TimeScale
+  focusPoint?: GlobePoint
+  journeyPoints?: GlobePoint[]
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const markerRef = useRef<Marker | null>(null)
+  const journeyMarkerRefs = useRef<Marker[]>([])
   const initialTimeScale = useRef(timeScale)
   const initialFocusPoint = useRef(focusPoint)
 
@@ -42,6 +51,8 @@ export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; f
     mapRef.current = map
     return () => {
       markerRef.current?.remove()
+      journeyMarkerRefs.current.forEach((marker) => marker.remove())
+      journeyMarkerRefs.current = []
       map.remove()
       markerRef.current = null
       mapRef.current = null
@@ -55,6 +66,9 @@ export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; f
     const showFocusMarker = timeScale === 'now' || timeScale === 'today' || timeScale === 'week'
     const markerElement = markerRef.current?.getElement()
     if (markerElement) markerElement.style.display = showFocusMarker ? '' : 'none'
+    journeyMarkerRefs.current.forEach((marker) => {
+      marker.getElement().style.display = timeScale === 'past' ? '' : 'none'
+    })
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduced) map.jumpTo(target)
     else map.easeTo({ ...target, duration: 650 })
@@ -78,6 +92,21 @@ export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; f
     markerRef.current.setLngLat([focusPoint.longitude, focusPoint.latitude])
     markerRef.current.getPopup()?.setText(focusPoint.label)
   }, [focusPoint])
+
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    journeyMarkerRefs.current.forEach((marker) => marker.remove())
+    journeyMarkerRefs.current = journeyPoints.map((point) => {
+      const marker = new Marker({ color: '#8aa4d6' })
+        .setLngLat([point.longitude, point.latitude])
+        .setPopup(new Popup({ closeButton: false }).setText(point.label))
+        .addTo(map)
+      marker.getElement().style.display = timeScale === 'past' ? '' : 'none'
+      return marker
+    })
+  }, [journeyPoints, timeScale])
 
   return <div ref={hostRef} className="family-globe" aria-hidden="true" />
 }

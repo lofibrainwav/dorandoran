@@ -3,6 +3,8 @@ import {
   normalizeAdapterOutput,
   projectFamilyOperatingPerson,
   projectOperatingWatch,
+  projectPastJourney,
+  pastJourneyForDisplay,
   projectTemporalGrid,
   temporalGridForDisplay,
 } from '@/lib/family-os'
@@ -24,6 +26,28 @@ const demoObservations = normalizeAdapterOutput('public-demo-calendar', [
       who: { personIds: ['person-demo-anchor'] }, what: { label: 'Afternoon activity' },
       when: { start: '2026-09-07T22:00:00Z', end: '2026-09-07T23:00:00Z', timeZone: 'America/Los_Angeles' },
     }, continuity: { recordedAt: '2026-09-07T18:00:00Z' },
+  },
+])
+
+
+const demoJourneyObservations = normalizeAdapterOutput('public-demo-memory', [
+  {
+    id: 'demo-memory-seoul', kind: 'memory', sourceRef: 'public-demo-memory-1', observedAt: '2026-09-07T18:00:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['public-demo-memory-evidence-1'],
+    sixW1H: {
+      who: { personIds: ['person-demo-anchor'] }, what: { label: 'Demo travel memory' },
+      when: { start: '2025-06-10T10:00:00Z' },
+      where: { placeRef: 'demo:seoul', label: 'Demo · Seoul', coordinates: { latitude: 37.5665, longitude: 126.978 } },
+    }, continuity: { recordedAt: '2026-09-07T18:00:00Z' },
+  },
+  {
+    id: 'demo-memory-paris', kind: 'memory', sourceRef: 'public-demo-memory-2', observedAt: '2026-09-07T18:01:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['public-demo-memory-evidence-2'],
+    sixW1H: {
+      who: { personIds: ['person-demo-anchor'] }, what: { label: 'Demo travel memory' },
+      when: { start: '2024-07-15T10:00:00Z' },
+      where: { placeRef: 'demo:paris', label: 'Demo · Paris', coordinates: { latitude: 48.8566, longitude: 2.3522 } },
+    }, continuity: { recordedAt: '2026-09-07T18:01:00Z' },
   },
 ])
 
@@ -51,6 +75,9 @@ const publicYearGrid = temporalGridForDisplay(projectTemporalGrid({
   scale: 'year', anchorLocalDate: '2026-09-07', timeZone: 'America/Los_Angeles',
   observations: demoObservations, subjectId: 'person-demo-anchor',
 }))
+const publicJourney = pastJourneyForDisplay(projectPastJourney({
+  observations: demoJourneyObservations, subjectId: 'person-demo-anchor',
+}))
 
 export default function HomePage() {
   return (
@@ -60,6 +87,7 @@ export default function HomePage() {
         watch={publicDemoWatch}
         monthGrid={publicMonthGrid}
         yearGrid={publicYearGrid}
+        journey={publicJourney}
       />
       <section className="home-explainer" aria-labelledby="grammar-title">
         <p className="hero-kicker">Universal context grammar</p>

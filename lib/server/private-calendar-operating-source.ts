@@ -9,14 +9,13 @@ import {
   type FamilyOperatingPersonReadModel,
   type GoogleCalendarApiEventPayload,
   type LocalCalendarSourceConfig,
-  type LocalWeekWindow,
   type SpecialistModuleSummary,
 } from '../family-os/index.ts'
-import { readGoogleCalendarSource } from './google-calendar-local-transport.ts'
+import { readGoogleCalendarSource, type GoogleCalendarReadWindow } from './google-calendar-local-transport.ts'
 
 export type PrivateCalendarReadEvents = (
   config: LocalCalendarSourceConfig,
-  window: LocalWeekWindow,
+  window: GoogleCalendarReadWindow,
 ) => Promise<GoogleCalendarApiEventPayload[]>
 
 export interface PrivateCalendarOperatingResult {
@@ -27,7 +26,7 @@ export interface PrivateCalendarOperatingResult {
   failedSourceKeys: string[]
   eventCount: number
 }
-function eventObservations(
+export function calendarPayloadsToObservations(
   config: LocalCalendarSourceConfig,
   payloads: GoogleCalendarApiEventPayload[],
   observedAt: string,
@@ -81,7 +80,7 @@ export async function loadPrivateCalendarOperatingPerson(input: {
     try {
       const payloads = await readEvents(source, window)
       const observedAt = new Date().toISOString()
-      observations.push(...eventObservations(source, payloads, observedAt, input.timeZone))
+      observations.push(...calendarPayloadsToObservations(source, payloads, observedAt, input.timeZone))
       eventCount += payloads.filter((item) => item.start?.dateTime && item.end?.dateTime).length
       loadedSourceKeys.push(source.sourceKey)
     } catch {

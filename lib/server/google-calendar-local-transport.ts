@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { google } from 'googleapis'
 import type { GoogleCalendarApiEventPayload } from '../family-os/google-calendar-rest-adapter.ts'
-import type { LocalCalendarSourceConfig, LocalWeekWindow } from '../family-os/live-family-week-source.ts'
+import type { LocalCalendarSourceConfig } from '../family-os/live-family-week-source.ts'
 
 type ClientMeta = { client_id?: string; client_secret?: string }
 type ClientFile = { installed?: ClientMeta; web?: ClientMeta }
@@ -13,6 +13,17 @@ type TokenCredentials = {
   expiry_date?: number | null
 }
 type TokenRecord = { clientId?: string; credentials?: TokenCredentials }
+
+export interface GoogleCalendarReadWindow {
+  start: Date
+  end: Date
+}
+
+export function assertGoogleCalendarPageComplete(nextPageToken: unknown): void {
+  if (typeof nextPageToken === 'string' && nextPageToken.trim()) {
+    throw new Error('GOOGLE_CALENDAR_RANGE_TRUNCATED')
+  }
+}
 
 function apiPayload(item: {
   id?: string | null; summary?: string | null; location?: string | null; description?: string | null
@@ -29,7 +40,7 @@ function apiPayload(item: {
 }
 export async function readGoogleCalendarSource(
   config: LocalCalendarSourceConfig,
-  window: LocalWeekWindow,
+  window: GoogleCalendarReadWindow,
 ): Promise<GoogleCalendarApiEventPayload[]> {
   const rawClient = JSON.parse(await readFile(config.clientPath, 'utf8')) as ClientFile
   const tokenRecord = JSON.parse(await readFile(config.tokenPath, 'utf8')) as TokenRecord
@@ -46,8 +57,9 @@ export async function readGoogleCalendarSource(
     timeMax: window.end.toISOString(),
     singleEvents: true,
     orderBy: 'startTime',
-    maxResults: 100,
+    maxResults: 2500,
   })
 
+  assertGoogleCalendarPageComplete(response.data.nextPageToken)
   return (response.data.items ?? []).map(apiPayload)
 }

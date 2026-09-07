@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 139/139 PASS.
+- Family OS regression: 145/145 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -49,7 +49,11 @@
 - Past Journey now projects confirmed canonical memory observations into privacy-safe place clusters for the world globe.
 - Unlocated memories remain countable but never become invented map points; schedule/future planning does not become past memory.
 - Public demo markers are explicitly labeled as demo memories; private photo/file evidence refs are stripped from the client display projection.
-- Regression count is 139 tests.
+- Private Month/Year now reads one exact LA-local calendar year and projects both grids from the same server-only observation set.
+- Real private readback is GREEN: 46 timed events across 9 active months, with 4 active cells in the current month; no titles/locations/ids were printed.
+- Calendar range transport now fails closed when a next-page token indicates truncation.
+- Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
+- Regression count is 145 tests.
 
 ## Next unit
-Connect longer-range private calendar windows to Month/Year, then define the photo metadata adapter that can feed Past Journey without exposing raw pixels or file paths. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.
+Define the photo metadata adapter that can feed Past Journey without exposing raw pixels or file paths, then add trip grouping/story projection. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.

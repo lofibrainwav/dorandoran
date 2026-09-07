@@ -159,6 +159,7 @@ export interface FamilyBlock {
   id: string
   type: 'event' | 'action' | 'reminder' | 'decision' | 'auth'
   parentBlockId?: string
+  workMode?: JobMode
   reality: {
     title: string
     start?: string

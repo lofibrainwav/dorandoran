@@ -34,6 +34,7 @@ function childBlock(
     id,
     type: 'action',
     parentBlockId: primaryId,
+    workMode: action.mode,
     reality: { title: cleanString(action.title) ?? 'Untitled action' },
     evidenceRefs: event.evidence.map((ref) => ref.id),
     evidenceState: reconcileEvidence(event.evidence),

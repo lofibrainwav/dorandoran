@@ -1,23 +1,35 @@
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
+import { normalizeAdapterOutput, projectFamilyOperatingPerson } from '@/lib/family-os'
 
-const publicDemo = {
-  id: 'person-demo-anchor',
-  label: 'Jayden',
-  placeLabel: 'Los Angeles area',
-  placeState: 'Scheduled' as const,
-  longitude: -118.2437,
-  latitude: 34.0522,
-  now: 'School day',
-  next: 'Afternoon activity at 3:00 PM',
+const demoObservations = normalizeAdapterOutput('public-demo-calendar', [
+  {
+    id: 'demo-current', kind: 'schedule', sourceRef: 'public-demo', observedAt: '2026-09-07T16:00:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['demo-current-evidence'],
+    sixW1H: {
+      who: { personIds: ['person-demo-anchor'] }, what: { label: 'School day' },
+      when: { start: '2026-09-07T16:00:00Z', end: '2026-09-07T21:00:00Z', timeZone: 'America/Los_Angeles' },
+      where: { label: 'Los Angeles area', coordinates: { latitude: 34.0522, longitude: -118.2437 } },
+    }, continuity: { recordedAt: '2026-09-07T16:00:00Z' },
+  },
+  {
+    id: 'demo-next', kind: 'schedule', sourceRef: 'public-demo', observedAt: '2026-09-07T18:00:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['demo-next-evidence'],
+    sixW1H: {
+      who: { personIds: ['person-demo-anchor'] }, what: { label: 'Afternoon activity' },
+      when: { start: '2026-09-07T22:00:00Z', end: '2026-09-07T23:00:00Z', timeZone: 'America/Los_Angeles' },
+    }, continuity: { recordedAt: '2026-09-07T18:00:00Z' },
+  },
+])
+
+const publicDemo = projectFamilyOperatingPerson({
+  personId: 'person-demo-anchor', label: 'Jayden', now: '2026-09-07T19:00:00Z', observations: demoObservations,
   watch: 'Pickup handoff is visible only when coordination is needed',
   outcome: 'No live-location claim is made from a calendar schedule',
   modules: [
-    { id: 'schedule', label: 'Schedule' },
-    { id: 'school', label: 'School' },
-    { id: 'activities', label: 'Activities' },
-    { id: 'learning', label: 'Learning' },
+    { id: 'schedule', label: 'Schedule' }, { id: 'school', label: 'School' },
+    { id: 'activities', label: 'Activities' }, { id: 'learning', label: 'Learning' },
   ],
-}
+})
 
 export default function HomePage() {
   return (

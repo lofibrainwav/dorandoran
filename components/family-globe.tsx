@@ -15,7 +15,7 @@ const cameraByTime: Record<TimeScale, { center: [number, number]; zoom: number }
   past: { center: [0, 22], zoom: 1.25 },
 }
 
-export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; focusPoint: GlobePoint }) {
+export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; focusPoint?: GlobePoint }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const markerRef = useRef<Marker | null>(null)
@@ -33,10 +33,12 @@ export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; f
       interactive: false,
     })
     map.setProjection({ type: 'globe' })
-    markerRef.current = new Marker({ color: '#f0d68a' })
-      .setLngLat([initialFocusPoint.current.longitude, initialFocusPoint.current.latitude])
-      .setPopup(new Popup({ closeButton: false }).setText(initialFocusPoint.current.label))
-      .addTo(map)
+    if (initialFocusPoint.current) {
+      markerRef.current = new Marker({ color: '#f0d68a' })
+        .setLngLat([initialFocusPoint.current.longitude, initialFocusPoint.current.latitude])
+        .setPopup(new Popup({ closeButton: false }).setText(initialFocusPoint.current.label))
+        .addTo(map)
+    }
     mapRef.current = map
     return () => {
       markerRef.current?.remove()
@@ -59,8 +61,22 @@ export function FamilyGlobe({ timeScale, focusPoint }: { timeScale: TimeScale; f
   }, [timeScale])
 
   useEffect(() => {
-    markerRef.current?.setLngLat([focusPoint.longitude, focusPoint.latitude])
-    markerRef.current?.getPopup()?.setText(focusPoint.label)
+    const map = mapRef.current
+    if (!map) return
+    if (!focusPoint) {
+      markerRef.current?.remove()
+      markerRef.current = null
+      return
+    }
+    if (!markerRef.current) {
+      markerRef.current = new Marker({ color: '#f0d68a' })
+        .setLngLat([focusPoint.longitude, focusPoint.latitude])
+        .setPopup(new Popup({ closeButton: false }).setText(focusPoint.label))
+        .addTo(map)
+      return
+    }
+    markerRef.current.setLngLat([focusPoint.longitude, focusPoint.latitude])
+    markerRef.current.getPopup()?.setText(focusPoint.label)
   }, [focusPoint])
 
   return <div ref={hostRef} className="family-globe" aria-hidden="true" />

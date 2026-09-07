@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 109/109 PASS.
+- Family OS regression: 112/112 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -28,7 +28,9 @@
 - Product time labels are Past Journey → Year → Month → This Week → Today → Now.
 - Person focus uses ids and declared specialist modules; core contains no Jayden/Julie/Apple/Google hardcoding.
 - Calendar place remains Scheduled unless explicit live-presence evidence exists.
-- Regression count is 109 tests.
+- Family Operating Read Model now derives privacy-safe NOW/NEXT and Scheduled/Unknown place from canonical observations.
+- The hero public demo now flows Adapter → ContextObservation → Family Operating Read Model → UI.
+- Regression count is 112 tests.
 
 ## Next unit
-Connect canonical read models to the zoom shell, then bridge declared Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time. Three.js/WebGPU remains optional presentation enhancement after map/zoom usability is accepted.
+Enrich Today/Now with explicit WHEN plus coordination WATCH/HANDOFF read models, then connect real private calendar reads behind the same projection boundary. Bridge Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time.

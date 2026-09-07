@@ -2,21 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { FamilyGlobe } from './family-globe'
+import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-operating-read-model'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
-
-type PersonPreview = {
-  id: string
-  label: string
-  placeLabel: string
-  placeState: 'Live' | 'Scheduled' | 'Last known' | 'Unknown'
-  longitude: number
-  latitude: number
-  now: string
-  next: string
-  watch?: string
-  outcome?: string
-  modules?: Array<{ id: string; label: string }>
-}
 
 const scales: Array<{ id: TimeScale; label: string }> = [
   { id: 'past', label: 'Past Journey' },
@@ -27,7 +14,7 @@ const scales: Array<{ id: TimeScale; label: string }> = [
   { id: 'now', label: 'Now' },
 ]
 
-export function FamilyOperatingHero({ person }: { person: PersonPreview }) {
+export function FamilyOperatingHero({ person }: { person: FamilyOperatingPersonReadModel }) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
   const summary = useMemo(() => {
@@ -57,7 +44,11 @@ export function FamilyOperatingHero({ person }: { person: PersonPreview }) {
       <div className="operating-stage">
         <FamilyGlobe
           timeScale={timeScale}
-          focusPoint={{ longitude: person.longitude, latitude: person.latitude, label: person.placeLabel }}
+          focusPoint={person.place.coordinates ? {
+            longitude: person.place.coordinates.longitude,
+            latitude: person.place.coordinates.latitude,
+            label: person.place.label ?? 'Scheduled place',
+          } : undefined}
         />
         <div className="globe-vignette" aria-hidden="true" />
         <div className="globe-label">
@@ -72,7 +63,7 @@ export function FamilyOperatingHero({ person }: { person: PersonPreview }) {
               <span>{person.label}</span>
               <small>{personFocused ? 'Close person view' : 'Focus person'}</small>
             </button>
-            <span className={`presence-pill presence-pill--${person.placeState.toLowerCase().replace(' ', '-')}`}>{person.placeState}</span>
+            <span className={`presence-pill presence-pill--${person.place.state.toLowerCase().replace(' ', '-')}`}>{person.place.state}</span>
           </div>
 
           <div className="story-rail">

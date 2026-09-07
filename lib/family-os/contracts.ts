@@ -42,6 +42,17 @@ export interface GoalContract {
   desiredOutcome: string
   successCriteria: SuccessCriterion[]
   closureEvidenceRefs: string[]
+  requiredHandoffIds?: string[]
+}
+
+export interface HandoffContract {
+  id: string
+  goalId: string
+  fromMode: JobMode
+  toMode: JobMode
+  description: string
+  state: 'pending' | 'completed' | 'verified'
+  evidenceRefs: string[]
 }
 
 export interface RecoveryAttempt {

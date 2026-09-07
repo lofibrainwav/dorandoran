@@ -66,3 +66,21 @@ export function materializeProviderFactClaim(input: {
     observedAt: source.observedAt,
   }
 }
+export interface TargetedProviderObservation extends ProviderObservation {
+  targetEventId: string
+}
+
+export interface TargetedProviderFactClaim extends FactClaim {
+  targetEventId: string
+}
+
+export function materializeProviderEventFactClaim(input: {
+  source: PrivateGmailEnvelope
+  provider: ProviderIdentity
+  observation: TargetedProviderObservation
+}): TargetedProviderFactClaim | null {
+  const targetEventId = input.observation.targetEventId?.trim()
+  if (!targetEventId) throw new Error('PROVIDER_TARGET_EVENT_MISSING')
+  const claim = materializeProviderFactClaim(input)
+  return claim ? { ...claim, targetEventId } : null
+}

@@ -1,12 +1,13 @@
 # Progress Tracker
 
-Active subsystem: Calendar ingestion, live Family Week, and source reconciliation.
-Active feature spec: `context/feature-specs/06-all-day-and-calendar-reconciliation.md`.
+Active subsystem: Calendar source registry and reconciliation.
+Active feature spec: `context/feature-specs/07-multi-account-calendar-sources.md`.
 
 Reality now:
-- Units 1–5 are GREEN: decomposition, Google adapters, Sunday-first UI, read-only OAuth smoke, live-local `/family`.
-- Google all-day `date` events are now first-class truth with exclusive-end semantics.
-- Week UI has a dedicated all-day lane; timed and all-day projections stay separate.
-- Calendar-derived FamilyBlock IDs are namespaced by source evidence to avoid cross-calendar collisions.
-- Multi-source merge preserves both records; matching title/time never causes guessed deduplication.
-- Local Family Calendar token remains repo-external with mode 0600.
+- Units 1–6 are GREEN and Unit 6 is pushed remotely.
+- Family Calendar live read works through isolated read-only local OAuth.
+- Multi-account source registry is implemented with per-source token paths.
+- Local `/family` degrades honestly to PARTIAL when one configured source is unavailable.
+- Family source remains live while Jayden source awaits its own token.
+- Matching titles/times are never auto-deduplicated; source evidence stays namespaced.
+- Public preview remains credential-free and uses generic fallback only when no live config exists.

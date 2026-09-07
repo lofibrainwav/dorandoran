@@ -3,13 +3,28 @@ import { mkdir, readFile, writeFile, chmod } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 const scope = 'https://www.googleapis.com/auth/calendar.readonly'
-const clientPath = process.env.GOOGLE_CALENDAR_CLIENT_SECRET_PATH
-const tokenPath = process.env.GOOGLE_CALENDAR_TOKEN_PATH
+const sourceArg = process.argv.find((arg) => arg.startsWith('--source='))
+const sourceKey = sourceArg?.split('=')[1]?.trim().toLowerCase()
 
+function sourceEnv(name) {
+  if (!name) {
+    return {
+      clientPath: process.env.GOOGLE_CALENDAR_CLIENT_SECRET_PATH,
+      tokenPath: process.env.GOOGLE_CALENDAR_TOKEN_PATH,
+    }
+  }
+  const key = name.toUpperCase().replace(/[^A-Z0-9_]/g, '_')
+  const prefix = `GOOGLE_CALENDAR_SOURCE_${key}`
+  return {
+    clientPath: process.env[`${prefix}_CLIENT_SECRET_PATH`],
+    tokenPath: process.env[`${prefix}_TOKEN_PATH`],
+  }
+}
+
+const { clientPath, tokenPath } = sourceEnv(sourceKey)
 if (!clientPath || !tokenPath) {
   throw new Error('GOOGLE_CALENDAR_LOCAL_AUTH_ENV_MISSING')
 }
-
 const rawClient = JSON.parse(await readFile(clientPath, 'utf8'))
 const clientMeta = rawClient.installed ?? rawClient.web
 if (!clientMeta?.client_id || !clientMeta?.client_secret) {
@@ -19,12 +34,11 @@ if (!clientMeta?.client_id || !clientMeta?.client_secret) {
 console.log('Opening Google authorization for Calendar read-only access...')
 const auth = await authenticate({ keyfilePath: clientPath, scopes: [scope] })
 const credentials = auth.credentials
-
 if (!credentials?.access_token && !credentials?.refresh_token) {
   throw new Error('GOOGLE_CALENDAR_AUTH_RETURNED_NO_CREDENTIALS')
 }
-await mkdir(dirname(tokenPath), { recursive: true, mode: 0o700 })
 
+await mkdir(dirname(tokenPath), { recursive: true, mode: 0o700 })
 const tokenRecord = {
   version: 1,
   scope,
@@ -33,12 +47,10 @@ const tokenRecord = {
   credentials,
 }
 
-await writeFile(tokenPath, `${JSON.stringify(tokenRecord, null, 2)}\n`, {
-  mode: 0o600,
-})
+await writeFile(tokenPath, `${JSON.stringify(tokenRecord, null, 2)}\n`, { mode: 0o600 })
 await chmod(tokenPath, 0o600)
 
 console.log('AUTH_OK')
-console.log(`TOKEN_PATH=${tokenPath}`)
+console.log(`SOURCE=${sourceKey ?? 'legacy'}`)
 console.log(`REFRESH_TOKEN=${credentials.refresh_token ? 'present' : 'missing'}`)
 console.log('No calendar event contents were read by this step.')

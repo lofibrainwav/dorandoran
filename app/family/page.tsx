@@ -37,7 +37,7 @@ export default async function FamilyWeekPage() {
   const blocks = live?.blocks ?? demoBlocks
   const weekStartDate = live?.weekStartDate ?? demoWeekStartDate
   const sourceLabel = live
-    ? `Live Family Calendar · ${live.eventCount} events`
+    ? `Live Calendars · ${live.sourceHealth.toUpperCase()} · ${live.eventCount} events`
     : liveUnavailable
       ? 'Live source unavailable · demo fallback'
       : 'Demo data only'
@@ -64,7 +64,7 @@ export default async function FamilyWeekPage() {
         <footer className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span>● Confirmed / protected calendar truth</span>
           <span>○ Unknown stays unknown</span>
-          <span>{live ? 'Live local READ active.' : 'Public-safe demo fallback active.'}</span>
+          <span>{live ? `Sources: ${live.loadedSourceKeys.length} loaded / ${live.failedSourceKeys.length} unavailable` : 'Public-safe demo fallback active.'}</span>
         </footer>
       </div>
     </main>

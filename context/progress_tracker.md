@@ -1,13 +1,13 @@
 # Progress Tracker
 
-Active subsystem: Calendar source registry and reconciliation.
-Active feature spec: `context/feature-specs/07-multi-account-calendar-sources.md`.
+Active subsystem: Calendar + fact reconciliation.
+Active feature spec: `context/feature-specs/08-fact-level-reconciliation.md`.
 
 Reality now:
-- Units 1–6 are GREEN and Unit 6 is pushed remotely.
-- Family Calendar live read works through isolated read-only local OAuth.
-- Multi-account source registry is implemented with per-source token paths.
-- Local `/family` degrades honestly to PARTIAL when one configured source is unavailable.
-- Family source remains live while Jayden source awaits its own token.
-- Matching titles/times are never auto-deduplicated; source evidence stays namespaced.
-- Public preview remains credential-free and uses generic fallback only when no live config exists.
+- Units 1–6 are remote GREEN.
+- Unit 7 multi-account registry is pushed; local Family source is live and Jayden source is awaiting a separate read-only token.
+- Unit 8 fact reconciliation core is GREEN: direct official evidence can override only the specific fact it addresses.
+- Calendar time can remain authoritative while provider evidence replaces location.
+- Direct closure/cancellation can override a protected occurrence.
+- Equal-authority unresolved contradictions remain CONFLICT.
+- No personal provider names, addresses, or message bodies are stored in public fixtures.

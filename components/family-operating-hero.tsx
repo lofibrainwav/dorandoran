@@ -96,7 +96,12 @@ export function FamilyOperatingHero({
 
           {personFocused && person.modules?.length ? (
             <div className="person-modules">
-              {person.modules.map((module) => <span key={module.id}>{module.label}</span>)}
+              {person.modules.map((module) => (
+                <span key={module.id} data-state={module.state ?? 'unknown'}>
+                  <strong>{module.label}</strong>
+                  {module.statusLabel ? <small>{module.statusLabel}</small> : null}
+                </span>
+              ))}
             </div>
           ) : null}
         </aside>

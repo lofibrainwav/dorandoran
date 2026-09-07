@@ -1,6 +1,7 @@
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
 import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface'
 import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calendar-operating-source'
+import { projectJaydenLearningModule } from '@/lib/server/jayden-specialist-bridge'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,12 @@ const jaydenModules = [
   { id: 'schedule', label: 'Schedule' },
   { id: 'school', label: 'School' },
   { id: 'activities', label: 'Activities' },
-  { id: 'learning', label: 'Learning' },
+  projectJaydenLearningModule({
+    parentSessionBound: true,
+    capsuleBound: true,
+    sameOriginBound: true,
+    delegatedBridgeConfigured: false,
+  }),
 ]
 
 export default async function FamilyWeekPage() {
@@ -23,7 +29,6 @@ export default async function FamilyWeekPage() {
         modules: jaydenModules,
       })
     : null
-
   return (
     <main className="min-h-dvh px-4 py-6 md:px-8">
       <header className="mx-auto mb-6 max-w-7xl">

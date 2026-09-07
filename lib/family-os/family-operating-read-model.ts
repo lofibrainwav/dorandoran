@@ -3,6 +3,9 @@ import type { ContextObservation } from './universal-context.ts'
 export interface SpecialistModuleSummary {
   id: string
   label: string
+  state?: 'ready' | 'blocked' | 'unknown'
+  statusLabel?: string
+  reasonCodes?: string[]
 }
 
 export interface OperatingPlaceProjection {

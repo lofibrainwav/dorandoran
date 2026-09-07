@@ -279,7 +279,11 @@ a { color: inherit; }
 .story-rail small { color: #68717d; font-size: 9px; letter-spacing: .12em; }
 .story-rail strong { font-size: 13px; line-height: 1.35; }
 .person-modules { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
-.person-modules span { padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 11px; }
+.person-modules span { display: grid; gap: 2px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 11px; }
+.person-modules strong { color: inherit; font-size: 11px; font-weight: 600; }
+.person-modules small { color: #68717d; font-size: 9px; }
+.person-modules span[data-state="ready"] { color: var(--green); }
+.person-modules span[data-state="blocked"] { color: #b5a67a; }
 .operating-summary { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 18px 4px 0; }
 .operating-summary p { margin: 0; max-width: 760px; color: var(--muted); font-size: 14px; }
 .virtue-rail { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }

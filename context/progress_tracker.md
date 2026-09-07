@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 122/122 PASS.
+- Family OS regression: 124/124 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -37,7 +37,10 @@
 - Local Google Calendar transport is server-only and uses pinned `googleapis@178.0.0`; OAuth/token contents never enter projection results.
 - `/family` now has an explicit local-only private surface gate; Vercel/public runtime blocks that private path by construction.
 - Private local readback is GREEN and the public production simulation renders Family Week with no private source badge or secret-bearing fields.
-- Regression count is 122 tests.
+- Jayden Learning is now a specialist module projection, not duplicated Family OS logic.
+- Current verified JDK release transport is parent-session/capsule/same-origin bound with no delegated bridge, so the Learning module truthfully renders `Bridge pending` locally instead of pretending it is connected.
+- Local private readback contains the Learning bridge status; public/Vercel simulation contains no private module projection.
+- Regression count is 124 tests.
 
 ## Next unit
-Bridge Jayden specialist modules without duplicating the learning runtime, then add route/presence/photo adapters one capability at a time. Keep public deployment privacy-safe while private local operating data remains evidence-backed.
+Add route/presence capability projections to Today/Now, then build Month/Year aggregation and the Past Journey memory socket. Keep JDK delegated transport as a separate future bridge task instead of bypassing its parent-security boundary.

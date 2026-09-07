@@ -10,7 +10,8 @@
     "test": "node --test tests/family-os/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "google:calendar:auth": "node --env-file=.env.local scripts/google-calendar-auth.mjs",
-    "google:calendar:smoke": "node --env-file=.env.local scripts/google-calendar-smoke.mjs"
+    "google:calendar:smoke": "node --env-file=.env.local scripts/google-calendar-smoke.mjs",
+    "google:gmail:smoke": "node --env-file=.env.local scripts/google-gmail-smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

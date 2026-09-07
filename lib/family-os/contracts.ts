@@ -84,7 +84,12 @@ export interface Opportunity {
   ownerId: string
   title: string
   mode: JobMode
+  kind?: 'task' | 'rest'
   estimatedMinutes?: number
+  setupMinutes?: number
+  transitionMinutes?: number
+  requiredEnergy?: 'low' | 'medium' | 'high'
+  tags?: string[]
   priority?: 'low' | 'medium' | 'high'
   interest?: 'low' | 'medium' | 'high'
   growthValue?: 'low' | 'medium' | 'high'
@@ -93,12 +98,20 @@ export interface Opportunity {
   evidenceRefs: string[]
 }
 
+export interface CapacityObservation {
+  id: string
+  tags: string[]
+  effect: 'supports' | 'cautions'
+  evidenceRef: string
+}
+
 export interface CapacitySnapshot {
   personId: string
   availableMinutes: number
   currentLocation?: string
   energy?: 'low' | 'medium' | 'high'
   availableTools?: string[]
+  observations?: CapacityObservation[]
   evidenceRefs: string[]
 }
 

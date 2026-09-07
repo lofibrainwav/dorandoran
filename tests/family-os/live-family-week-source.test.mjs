@@ -19,7 +19,7 @@ test('complete local live config resolves without exposing secret contents', () 
   })
 })
 test('family week ends at next Sunday boundary, not eight days later', () => {
-  const window = weekWindowFromLocalDate(new Date('2026-09-09T12:00:00-07:00'))
+  const window = weekWindowFromLocalDate(new Date('2026-09-09T12:00:00-07:00'), 'America/Los_Angeles')
   assert.equal(window.weekStartDate, '2026-09-06')
   assert.equal(window.start.toISOString(), '2026-09-06T07:00:00.000Z')
   assert.equal(window.end.toISOString(), '2026-09-13T07:00:00.000Z')

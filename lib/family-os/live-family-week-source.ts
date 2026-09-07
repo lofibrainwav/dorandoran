@@ -86,24 +86,84 @@ export interface LocalWeekWindow {
   end: Date
   weekStartDate: string
 }
-function localDateKey(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+interface CalendarDateParts {
+  year: number
+  month: number
+  day: number
 }
 
-export function weekWindowFromLocalDate(now: Date): LocalWeekWindow {
-  const start = new Date(now)
-  start.setHours(0, 0, 0, 0)
-  start.setDate(start.getDate() - start.getDay())
+function zonedDateParts(date: Date, timeZone: string): CalendarDateParts {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).map((part) => [part.type, part.value]),
+  )
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) }
+}
 
-  const end = new Date(start)
-  end.setDate(end.getDate() + 7)
+function localDateKey(parts: CalendarDateParts): string {
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`
+}
+
+function timeZoneOffsetMs(date: Date, timeZone: string): number {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).map((part) => [part.type, part.value]),
+  )
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  )
+  return asUtc - date.getTime()
+}
+
+function zonedMidnightUtc(parts: CalendarDateParts, timeZone: string): Date {
+  const wallClockUtc = Date.UTC(parts.year, parts.month - 1, parts.day)
+  let candidate = new Date(wallClockUtc)
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    candidate = new Date(wallClockUtc - timeZoneOffsetMs(candidate, timeZone))
+  }
+  return candidate
+}
+
+export function weekWindowFromLocalDate(now: Date, timeZone: string): LocalWeekWindow {
+  const local = zonedDateParts(now, timeZone)
+  const localDay = new Date(Date.UTC(local.year, local.month - 1, local.day))
+  const weekday = localDay.getUTCDay()
+  localDay.setUTCDate(localDay.getUTCDate() - weekday)
+
+  const weekStart = {
+    year: localDay.getUTCFullYear(),
+    month: localDay.getUTCMonth() + 1,
+    day: localDay.getUTCDate(),
+  }
+  const endDay = new Date(Date.UTC(weekStart.year, weekStart.month - 1, weekStart.day + 7))
+  const weekEnd = {
+    year: endDay.getUTCFullYear(),
+    month: endDay.getUTCMonth() + 1,
+    day: endDay.getUTCDate(),
+  }
 
   return {
-    start,
-    end,
-    weekStartDate: localDateKey(start),
+    start: zonedMidnightUtc(weekStart, timeZone),
+    end: zonedMidnightUtc(weekEnd, timeZone),
+    weekStartDate: localDateKey(weekStart),
   }
 }

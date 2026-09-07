@@ -1,5 +1,5 @@
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
-import { normalizeAdapterOutput, projectFamilyOperatingPerson } from '@/lib/family-os'
+import { normalizeAdapterOutput, projectFamilyOperatingPerson, projectOperatingWatch } from '@/lib/family-os'
 
 const demoObservations = normalizeAdapterOutput('public-demo-calendar', [
   {
@@ -23,7 +23,6 @@ const demoObservations = normalizeAdapterOutput('public-demo-calendar', [
 
 const publicDemo = projectFamilyOperatingPerson({
   personId: 'person-demo-anchor', label: 'Jayden', now: '2026-09-07T19:00:00Z', observations: demoObservations,
-  watch: 'Pickup handoff is visible only when coordination is needed',
   outcome: 'No live-location claim is made from a calendar schedule',
   modules: [
     { id: 'schedule', label: 'Schedule' }, { id: 'school', label: 'School' },
@@ -31,10 +30,17 @@ const publicDemo = projectFamilyOperatingPerson({
   ],
 })
 
+const publicDemoWatch = projectOperatingWatch({
+  eventId: 'demo-next', targetEventId: 'calendar:public-demo/demo-next', title: 'Demo schedule item', protected: true,
+  state: 'changed', nextStep: 'prepare', needsHumanAttention: false,
+  changeKinds: ['start'], hints: ['review_transition'],
+  reality: { start: '2026-09-07T22:00:00Z' }, evidenceRefs: ['demo-watch-evidence'],
+})
+
 export default function HomePage() {
   return (
     <main>
-      <FamilyOperatingHero person={publicDemo} />
+      <FamilyOperatingHero person={publicDemo} watch={publicDemoWatch} />
       <section className="home-explainer" aria-labelledby="grammar-title">
         <p className="hero-kicker">Universal context grammar</p>
         <h2 id="grammar-title">Any source can plug in. Family truth stays provider-neutral.</h2>

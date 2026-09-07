@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { FamilyGlobe } from './family-globe'
 import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-operating-read-model'
+import type { OperatingHandoffProjection, OperatingWatchProjection } from '@/lib/family-os/operating-coordination-read-model'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
 function formatClock(start?: string, timeZone?: string): string | null {
@@ -23,7 +24,15 @@ const scales: Array<{ id: TimeScale; label: string }> = [
   { id: 'now', label: 'Now' },
 ]
 
-export function FamilyOperatingHero({ person }: { person: FamilyOperatingPersonReadModel }) {
+export function FamilyOperatingHero({
+  person,
+  watch,
+  handoff,
+}: {
+  person: FamilyOperatingPersonReadModel
+  watch?: OperatingWatchProjection | null
+  handoff?: OperatingHandoffProjection | null
+}) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
   const nextClock = formatClock(person.nextWhen?.start, person.nextWhen?.timeZone)
@@ -80,7 +89,8 @@ export function FamilyOperatingHero({ person }: { person: FamilyOperatingPersonR
           <div className="story-rail">
             <article><small>NOW</small><strong>{person.now}</strong></article>
             <article><small>NEXT</small><strong>{nextLabel}</strong></article>
-            {person.watch ? <article><small>CHANGE / WATCH</small><strong>{person.watch}</strong></article> : null}
+            {watch ? <article><small>WATCH</small><strong>{watch.label}</strong></article> : null}
+            {handoff ? <article><small>HANDOFF</small><strong>{handoff.state} · {handoff.fromMode} → {handoff.toMode}</strong></article> : null}
             {person.outcome ? <article><small>OUTCOME</small><strong>{person.outcome}</strong></article> : null}
           </div>
 

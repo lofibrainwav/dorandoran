@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 113/113 PASS.
+- Family OS regression: 116/116 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -31,7 +31,9 @@
 - Family Operating Read Model now derives privacy-safe NOW/NEXT and Scheduled/Unknown place from canonical observations.
 - The hero public demo now flows Adapter → ContextObservation → Family Operating Read Model → UI.
 - Today/Now keeps WHAT separate from structured WHEN; the hero renders the next local clock time only from an explicit source time zone.
-- Regression count is 113 tests.
+- WATCH now comes only from a structured WeekEventInsight projection; confirmed stays quiet and arbitrary free-text WATCH was removed from the operating person model.
+- HANDOFF now projects only id/state/work modes/evidence refs; raw descriptions do not enter the client projection.
+- Regression count is 116 tests.
 
 ## Next unit
-Add coordination WATCH/HANDOFF structure, then connect real private calendar reads behind the same projection boundary. Bridge Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time.
+Connect real private calendar reads behind the same operating projection boundary, then bridge Jayden specialist modules without duplicating the learning runtime. Add route/presence/photo adapters one capability at a time.

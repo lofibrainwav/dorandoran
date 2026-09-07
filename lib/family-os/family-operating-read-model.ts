@@ -26,7 +26,6 @@ export interface FamilyOperatingPersonReadModel {
   next: string
   nowWhen?: OperatingTimeProjection
   nextWhen?: OperatingTimeProjection
-  watch?: string
   outcome?: string
   place: OperatingPlaceProjection
   modules: SpecialistModuleSummary[]
@@ -38,7 +37,6 @@ export interface ProjectFamilyOperatingPersonInput {
   now: string
   observations: ContextObservation[]
   modules?: SpecialistModuleSummary[]
-  watch?: string
   outcome?: string
 }
 
@@ -99,7 +97,6 @@ export function projectFamilyOperatingPerson(input: ProjectFamilyOperatingPerson
     next: next?.sixW1H.what?.label ?? 'Unknown',
     ...(timeProjection(current) ? { nowWhen: timeProjection(current) } : {}),
     ...(timeProjection(next) ? { nextWhen: timeProjection(next) } : {}),
-    ...(input.watch ? { watch: input.watch } : {}),
     ...(input.outcome ? { outcome: input.outcome } : {}),
     place: scheduledPlace(current),
     modules: (input.modules ?? []).map((module) => ({ ...module })),

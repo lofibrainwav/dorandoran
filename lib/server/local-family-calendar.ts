@@ -46,22 +46,24 @@ export async function loadLocalFamilyWeek(
   })
   const observedAt = new Date().toISOString()
   const blocks: FamilyBlock[] = []
-  let timedEventCount = 0
+  let normalizedEventCount = 0
 
   for (const item of response.data.items ?? []) {
-    if (!item.start?.dateTime || !item.end?.dateTime) continue
+    const isTimed = Boolean(item.start?.dateTime && item.end?.dateTime)
+    const isAllDay = Boolean(item.start?.date && item.end?.date)
+    if (!isTimed && !isAllDay) continue
     const normalized = normalizeGoogleCalendarApiEvent(item, {
       calendarId: config.calendarId,
       observedAt,
     })
     blocks.push(...decomposeCalendarEvent(normalized))
-    timedEventCount += 1
+    normalizedEventCount += 1
   }
 
   return {
     source: 'live-local',
     blocks,
     weekStartDate: window.weekStartDate,
-    eventCount: timedEventCount,
+    eventCount: normalizedEventCount,
   }
 }

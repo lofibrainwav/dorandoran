@@ -15,7 +15,7 @@ export interface GoogleCalendarApiEventPayload {
   recurringEventId?: unknown
 }
 
-function timedValue(value: unknown): string | null {
+function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
@@ -23,12 +23,19 @@ export function normalizeGoogleCalendarApiEvent(
   payload: GoogleCalendarApiEventPayload,
   context: GoogleCalendarNormalizationContext,
 ): NormalizedCalendarEvent {
-  const start = timedValue(payload.start?.dateTime)
-  const end = timedValue(payload.end?.dateTime)
-  if (!start || !end) throw new Error('INVALID_GOOGLE_CALENDAR_API_EVENT')
+  const timedStart = stringValue(payload.start?.dateTime)
+  const timedEnd = stringValue(payload.end?.dateTime)
+  const dateStart = stringValue(payload.start?.date)
+  const dateEnd = stringValue(payload.end?.date)
+  const isTimed = Boolean(timedStart && timedEnd)
+  const isAllDay = Boolean(dateStart && dateEnd)
+  if (!isTimed && !isAllDay) throw new Error('INVALID_GOOGLE_CALENDAR_API_EVENT')
+
+  const start = isTimed ? timedStart : dateStart
+  const end = isTimed ? timedEnd : dateEnd
 
   try {
-    return normalizeGoogleCalendarEvent({
+    const normalized = normalizeGoogleCalendarEvent({
       id: payload.id,
       summary: payload.summary,
       start,
@@ -38,6 +45,7 @@ export function normalizeGoogleCalendarApiEvent(
       url: payload.htmlLink,
       recurring_event_id: payload.recurringEventId,
     }, context)
+    return isAllDay ? { ...normalized, allDay: true } : normalized
   } catch {
     throw new Error('INVALID_GOOGLE_CALENDAR_API_EVENT')
   }

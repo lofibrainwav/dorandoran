@@ -166,6 +166,7 @@ export interface FamilyBlock {
     durationMinutes?: number
     location?: string
     recurrence?: string
+    allDay?: boolean
   }
   evidenceRefs: string[]
   evidenceState: EvidenceState
@@ -218,6 +219,7 @@ export interface NormalizedCalendarEvent {
   durationMinutes?: number
   location?: string
   recurrence?: string
+  allDay?: boolean
   protected?: boolean
   evidence: EvidenceRef[]
   subjectIds?: string[]

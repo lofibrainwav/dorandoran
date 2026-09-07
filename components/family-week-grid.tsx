@@ -1,5 +1,5 @@
 import type { FamilyBlock } from '@/lib/family-os/contracts'
-import { projectWeekBlocks, weekDayLabels } from '@/lib/family-os/week-projection'
+import { projectAllDayWeekBlocks, projectWeekBlocks, weekDayLabels } from '@/lib/family-os/week-projection'
 
 interface FamilyWeekGridProps {
   blocks: FamilyBlock[]
@@ -20,6 +20,7 @@ function clockLabel(totalMinutes: number) {
 
 export function FamilyWeekGrid({ blocks, weekStartDate }: FamilyWeekGridProps) {
   const projected = projectWeekBlocks(blocks, weekStartDate)
+  const allDayProjected = projectAllDayWeekBlocks(blocks, weekStartDate)
   const byId = new Map(blocks.map((block) => [block.id, block]))
   const hours = Array.from({ length: (END_MINUTE - START_MINUTE) / 60 + 1 }, (_, i) => START_MINUTE + i * 60)
   const canvasHeight = ((END_MINUTE - START_MINUTE) / 60) * HOUR_HEIGHT
@@ -36,6 +37,27 @@ export function FamilyWeekGrid({ blocks, weekStartDate }: FamilyWeekGridProps) {
             </div>
           ))}
         </div>
+
+        {allDayProjected.length > 0 && (
+          <div className="grid grid-cols-[4.5rem_1fr] border-b bg-muted/10">
+            <div className="border-r p-2 text-[10px] font-medium text-muted-foreground">All day</div>
+            <div className="grid grid-cols-7 gap-y-1 p-1">
+              {allDayProjected.map((item) => {
+                const block = byId.get(item.blockId)
+                if (!block) return null
+                return (
+                  <article
+                    key={block.id}
+                    className="rounded-md border border-primary/25 bg-primary/10 px-2 py-1 text-[10px] font-medium"
+                    style={{ gridColumn: `${item.startDayIndex + 1} / ${item.endDayIndexExclusive + 1}` }}
+                  >
+                    <div className="truncate">{block.reality.title}</div>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <div
           className="relative grid grid-cols-[4.5rem_repeat(7,minmax(7rem,1fr))]"

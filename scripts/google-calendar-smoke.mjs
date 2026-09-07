@@ -43,15 +43,14 @@ const response = await calendar.events.list({
 })
 
 const items = response.data.items ?? []
-let allDaySkipped = 0
-let normalizedCount = 0
+let timedNormalized = 0
+let allDayNormalized = 0
 let blockCount = 0
-let invalidTimedCount = 0
+let invalidEventCount = 0
 for (const item of items) {
-  if (!item.start?.dateTime || !item.end?.dateTime) {
-    allDaySkipped += 1
-    continue
-  }
+  const isTimed = Boolean(item.start?.dateTime && item.end?.dateTime)
+  const isAllDay = Boolean(item.start?.date && item.end?.date)
+  if (!isTimed && !isAllDay) continue
 
   try {
     const normalized = normalizeGoogleCalendarApiEvent(item, {
@@ -59,20 +58,20 @@ for (const item of items) {
       observedAt: new Date().toISOString(),
     })
     const blocks = decomposeCalendarEvent(normalized)
-    normalizedCount += 1
+    if (normalized.allDay) allDayNormalized += 1
+    else timedNormalized += 1
     blockCount += blocks.length
   } catch {
-    invalidTimedCount += 1
+    invalidEventCount += 1
   }
 }
 
-if (normalizedCount === 0 || blockCount === 0 || invalidTimedCount > 0) {
+if (timedNormalized + allDayNormalized === 0 || blockCount === 0 || invalidEventCount > 0) {
   throw new Error('GOOGLE_CALENDAR_LIVE_SMOKE_FAILED')
 }
-
 console.log('LIVE_READ_OK')
 console.log(`EVENT_COUNT=${items.length}`)
-console.log(`TIMED_NORMALIZED=${normalizedCount}`)
-console.log(`ALL_DAY_SKIPPED=${allDaySkipped}`)
+console.log(`TIMED_NORMALIZED=${timedNormalized}`)
+console.log(`ALL_DAY_NORMALIZED=${allDayNormalized}`)
 console.log(`FAMILY_BLOCKS=${blockCount}`)
 console.log('No event titles, descriptions, locations, or addresses were printed.')

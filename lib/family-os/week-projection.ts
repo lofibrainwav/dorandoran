@@ -46,3 +46,34 @@ export function projectWeekBlocks(blocks: FamilyBlock[], weekStartDate: string):
     }]
   })
 }
+export interface AllDayWeekBlockProjection {
+  blockId: string
+  startDayIndex: number
+  endDayIndexExclusive: number
+}
+
+export function projectAllDayWeekBlocks(
+  blocks: FamilyBlock[],
+  weekStartDate: string,
+): AllDayWeekBlockProjection[] {
+  const weekStart = utcDateNumber(weekStartDate)
+  if (weekStart === null) throw new Error('INVALID_WEEK_START')
+
+  return blocks.flatMap((block) => {
+    if (block.reality.allDay !== true) return []
+    const start = block.reality.start ? utcDateNumber(block.reality.start) : null
+    const end = block.reality.end ? utcDateNumber(block.reality.end) : null
+    if (start === null || end === null || end <= start) return []
+    const rawStartIndex = Math.round((start - weekStart) / 86_400_000)
+    const rawEndIndex = Math.round((end - weekStart) / 86_400_000)
+    const startDayIndex = Math.max(0, rawStartIndex)
+    const endDayIndexExclusive = Math.min(7, rawEndIndex)
+    if (endDayIndexExclusive <= 0 || startDayIndex >= 7 || endDayIndexExclusive <= startDayIndex) return []
+
+    return [{
+      blockId: block.id,
+      startDayIndex,
+      endDayIndexExclusive,
+    }]
+  })
+}

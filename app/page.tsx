@@ -1,5 +1,11 @@
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
-import { normalizeAdapterOutput, projectFamilyOperatingPerson, projectOperatingWatch } from '@/lib/family-os'
+import {
+  normalizeAdapterOutput,
+  projectFamilyOperatingPerson,
+  projectOperatingWatch,
+  projectTemporalGrid,
+  temporalGridForDisplay,
+} from '@/lib/family-os'
 
 const demoObservations = normalizeAdapterOutput('public-demo-calendar', [
   {
@@ -37,10 +43,24 @@ const publicDemoWatch = projectOperatingWatch({
   reality: { start: '2026-09-07T22:00:00Z' }, evidenceRefs: ['demo-watch-evidence'],
 })
 
+const publicMonthGrid = temporalGridForDisplay(projectTemporalGrid({
+  scale: 'month', anchorLocalDate: '2026-09-07', timeZone: 'America/Los_Angeles',
+  observations: demoObservations, subjectId: 'person-demo-anchor',
+}))
+const publicYearGrid = temporalGridForDisplay(projectTemporalGrid({
+  scale: 'year', anchorLocalDate: '2026-09-07', timeZone: 'America/Los_Angeles',
+  observations: demoObservations, subjectId: 'person-demo-anchor',
+}))
+
 export default function HomePage() {
   return (
     <main>
-      <FamilyOperatingHero person={publicDemo} watch={publicDemoWatch} />
+      <FamilyOperatingHero
+        person={publicDemo}
+        watch={publicDemoWatch}
+        monthGrid={publicMonthGrid}
+        yearGrid={publicYearGrid}
+      />
       <section className="home-explainer" aria-labelledby="grammar-title">
         <p className="hero-kicker">Universal context grammar</p>
         <h2 id="grammar-title">Any source can plug in. Family truth stays provider-neutral.</h2>

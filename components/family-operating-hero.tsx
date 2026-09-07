@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import { FamilyGlobe } from './family-globe'
+import { TemporalZoomGrid } from './temporal-zoom-grid'
 import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-operating-read-model'
 import type { OperatingHandoffProjection, OperatingWatchProjection } from '@/lib/family-os/operating-coordination-read-model'
 import type { OperatingPresenceProjection, OperatingRouteProjection } from '@/lib/family-os/operating-route-presence-read-model'
+import type { TemporalGridDisplayProjection } from '@/lib/family-os/temporal-grid'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
 function formatClock(start?: string, timeZone?: string): string | null {
@@ -31,12 +33,16 @@ export function FamilyOperatingHero({
   handoff,
   presence,
   route,
+  monthGrid,
+  yearGrid,
 }: {
   person: FamilyOperatingPersonReadModel
   watch?: OperatingWatchProjection | null
   handoff?: OperatingHandoffProjection | null
   presence?: OperatingPresenceProjection | null
   route?: OperatingRouteProjection | null
+  monthGrid?: TemporalGridDisplayProjection | null
+  yearGrid?: TemporalGridDisplayProjection | null
 }) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
@@ -47,6 +53,7 @@ export function FamilyOperatingHero({
       ? 'Clear · proven tight fit'
       : `${route.state} · ${route.routineState}`
     : null
+  const selectedGrid = timeScale === 'month' ? monthGrid : timeScale === 'year' ? yearGrid : null
   const summary = useMemo(() => {
     if (timeScale === 'past') return 'Past Journey shows memory and travel history without changing today’s operational truth.'
     if (timeScale === 'year') return 'Zoomed out to the year: large milestones stay visible, small details fold away.'
@@ -81,6 +88,7 @@ export function FamilyOperatingHero({
           } : undefined}
         />
         <div className="globe-vignette" aria-hidden="true" />
+        {selectedGrid ? <TemporalZoomGrid grid={selectedGrid} /> : null}
         <div className="globe-label">
           <span>{timeScale === 'past' ? 'World · Past Journey' : timeScale === 'year' ? 'Year · Wide view' : 'Los Angeles · Family context'}</span>
           <strong>永</strong>

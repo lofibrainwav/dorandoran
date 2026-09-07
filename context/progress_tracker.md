@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 130/130 PASS.
+- Family OS regression: 135/135 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -43,7 +43,10 @@
 - Route and Presence now project as separate physical-world evidence channels; Calendar `Scheduled` never becomes `Live` by implication.
 - Presence requires explicit timestamped evidence for `Live`; last-known and missing evidence fail closed without promotion.
 - Route keeps proven tight fits clear, watch distinct, and real friction explicit.
-- Regression count is 130 tests.
+- Month projection is a fixed 42-cell Sunday-first grid; Year projection is 12 months from the same canonical observation stream.
+- Temporal display projections strip evidence refs before client rendering, so aggregation can drive the UI without leaking private evidence ids.
+- Month/Year now overlay the same operating stage instead of becoming separate apps, preserving the zoom grammar.
+- Regression count is 135 tests.
 
 ## Next unit
-Build Month/Year aggregation from the same canonical observations, then add the Past Journey memory socket. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.
+Add the Past Journey memory socket with photo/location evidence contracts, then connect longer-range private calendar windows to Month/Year. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.

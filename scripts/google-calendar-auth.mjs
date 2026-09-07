@@ -1,10 +1,13 @@
 import { authenticate } from '@google-cloud/local-auth'
 import { mkdir, readFile, writeFile, chmod } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { resolveGoogleReadOnlyScopes } from '../lib/family-os/google-source-scopes.ts'
 
-const scope = 'https://www.googleapis.com/auth/calendar.readonly'
 const sourceArg = process.argv.find((arg) => arg.startsWith('--source='))
 const sourceKey = sourceArg?.split('=')[1]?.trim().toLowerCase()
+const servicesArg = process.argv.find((arg) => arg.startsWith('--services='))
+const services = (servicesArg?.split('=')[1] ?? 'calendar').split(',').map((value) => value.trim()).filter(Boolean)
+const scopes = resolveGoogleReadOnlyScopes(services)
 
 function sourceEnv(name) {
   if (!name) {
@@ -31,8 +34,8 @@ if (!clientMeta?.client_id || !clientMeta?.client_secret) {
   throw new Error('INVALID_GOOGLE_CALENDAR_CLIENT_FILE')
 }
 
-console.log('Opening Google authorization for Calendar read-only access...')
-const auth = await authenticate({ keyfilePath: clientPath, scopes: [scope] })
+console.log(`Opening Google authorization for read-only access: ${services.join(', ')}`)
+const auth = await authenticate({ keyfilePath: clientPath, scopes })
 const credentials = auth.credentials
 if (!credentials?.access_token && !credentials?.refresh_token) {
   throw new Error('GOOGLE_CALENDAR_AUTH_RETURNED_NO_CREDENTIALS')
@@ -41,7 +44,8 @@ if (!credentials?.access_token && !credentials?.refresh_token) {
 await mkdir(dirname(tokenPath), { recursive: true, mode: 0o700 })
 const tokenRecord = {
   version: 1,
-  scope,
+  scopes,
+  services,
   createdAt: new Date().toISOString(),
   clientId: clientMeta.client_id,
   credentials,
@@ -53,4 +57,5 @@ await chmod(tokenPath, 0o600)
 console.log('AUTH_OK')
 console.log(`SOURCE=${sourceKey ?? 'legacy'}`)
 console.log(`REFRESH_TOKEN=${credentials.refresh_token ? 'present' : 'missing'}`)
-console.log('No calendar event contents were read by this step.')
+console.log(`SERVICES=${services.join(',')}`)
+console.log('No Calendar or Gmail contents were read by this authorization step.')

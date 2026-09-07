@@ -1,21 +1,23 @@
 # Progress Tracker
 
-Active subsystem: Calendar ingestion/decomposition.
-Active feature spec: `context/feature-specs/03-sunday-first-week-grid.md`.
+Active subsystem: Calendar live-read boundary.
+Active feature spec: `context/feature-specs/04-local-google-calendar-live-read.md`.
 
 Reality now:
-- Family OS core contracts/engines exist in `lib/family-os/`.
-- Family OS core + calendar + Google adapter + week projection tests: 23 passing.
+- Family OS core + deterministic decomposition + Google adapters + week projection are GREEN.
+- Family OS tests: 26 passing.
+- `/family` Sunday-first projection builds and renders.
 - lint/typecheck/build/security audit are GREEN locally.
-- JDK private learning runtime is separately GREEN and must not be rebuilt here.
-- No Family OS database is selected or required for this unit.
+- Local Google REST adapter for `start.dateTime` / `end.dateTime` is GREEN.
+- Family OS-specific read-only OAuth auth/smoke scripts are prepared.
+- `.env.local` points only to external local credential/token paths and the target Family calendar; it is gitignored.
+- No Calendar write scope exists in this unit.
 
 Technical decisions:
-- Pure deterministic logic first.
-- External provider adapter second.
-- UI wiring third.
-- Trigger.dev only for later genuinely long-running work.
+- Do not overwrite global gcloud ADC.
+- Keep local OAuth token outside the repository with file mode 0600.
+- Print only smoke counts/status, never family event contents.
+- Production web OAuth remains a later, separate boundary.
 
-Completed units: deterministic calendar decomposition, Google Calendar normalization, and Sunday-first `/family` week-grid projection are GREEN.
-Next focused step: design the authorized live Google Calendar READ boundary without weakening the current pure adapter/core contracts.
-Done when: auth/env prerequisites are explicitly resolved and live read can be added without embedding credentials or private family fixtures.
+Next focused step: one-time human Google browser consent for Calendar read-only access, then run the live smoke.
+Done when: authorized live read normalizes and decomposes at least one timed Family Calendar event without exposing event contents.

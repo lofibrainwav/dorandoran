@@ -1,0 +1,26 @@
+schema = "hyodo.gates/v1"
+
+[gates.typecheck]
+pillar = "truth"
+command = ["pnpm", "typecheck"]
+timeout = 180
+
+[gates.build]
+pillar = "truth"
+command = ["pnpm", "build"]
+timeout = 300
+
+[gates.tests]
+pillar = "goodness"
+command = ["pnpm", "test"]
+timeout = 300
+
+[gates.audit]
+pillar = "goodness"
+command = ["pnpm", "audit:prod"]
+timeout = 180
+
+[gates.lint]
+pillar = "beauty"
+command = ["pnpm", "lint"]
+timeout = 180

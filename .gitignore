@@ -25,3 +25,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# HyoDo local evidence / pairing (configs remain tracked)
+.hyodo/agent-events.jsonl
+.hyodo/mcp-access.jsonl
+.hyodo/pairing.json
+.hyodo/*.lock

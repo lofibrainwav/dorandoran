@@ -1,0 +1,9 @@
+{
+  "approved": {
+    "8fab40a454a10f82e25228ff97f7be2748cb9fa0588cf848b7802c7552495379": {
+      "approved_at": "2026-09-07T16:50:39.550406+00:00",
+      "via": "first-use"
+    }
+  },
+  "schema": "hyodo.gates-trust/v1"
+}

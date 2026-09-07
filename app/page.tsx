@@ -1,20 +1,18 @@
-import Link from 'next/link'
+import { FamilyGravityHero } from '@/components/family-gravity-hero'
 
 export default function HomePage() {
   return (
-    <main className="min-h-dvh px-6 py-10 md:px-10">
-      <section className="mx-auto flex min-h-[70dvh] max-w-6xl flex-col justify-center gap-6">
-        <p className="text-sm uppercase tracking-[0.24em] text-[var(--muted)]">Chad Family OS</p>
-        <h1 className="max-w-3xl text-5xl font-semibold tracking-[-0.04em] md:text-7xl">
-          Your family, in sync.
-        </h1>
-        <p className="max-w-2xl text-lg leading-8 text-[var(--muted)]">
-          A Jayden-centered family coordination system. The WebGPU hero will live here,
-          while the real family week stays fast, readable, and independent.
-        </p>
-        <Link className="w-fit rounded-full border border-[var(--line)] px-5 py-3" href="/family">
-          Open Family Week
-        </Link>
+    <main>
+      <FamilyGravityHero />
+      <section className="home-explainer" id="how-chad-knows" aria-labelledby="how-title">
+        <p className="hero-kicker">How Chad knows</p>
+        <h2 id="how-title">Quiet when nothing changed. Specific when something did.</h2>
+        <div className="evidence-steps">
+          <article><strong>Observe</strong><span>Calendar, email, and family context stay separate.</span></article>
+          <article><strong>Reconcile</strong><span>Only matching facts are compared. Unknown stays unknown.</span></article>
+          <article><strong>Coordinate</strong><span>Jay or Julie connect only when a real handoff needs them.</span></article>
+          <article><strong>Explain</strong><span>Every important change can expose the evidence behind it.</span></article>
+        </div>
       </section>
     </main>
   )

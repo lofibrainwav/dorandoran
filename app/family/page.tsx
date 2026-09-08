@@ -3,6 +3,7 @@ import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface
 import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calendar-operating-source'
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
 import { loadPrivatePhotoJourney } from '@/lib/server/private-photo-journey-source'
+import { projectPrivatePhotoSetupGuidance } from '@/lib/server/private-photo-setup-guidance'
 import { projectJaydenLearningModule } from '@/lib/server/jayden-specialist-bridge'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,8 @@ export default async function FamilyWeekPage() {
       ])
     : [null, null, null]
 
+  const photoSetup = projectPrivatePhotoSetupGuidance(photoResult, { albumName: process.env.APPLE_PHOTOS_ALBUM_NAME })
+
   return (
     <main className="min-h-dvh px-4 py-6 md:px-8">
       <header className="mx-auto mb-6 max-w-7xl">
@@ -59,6 +62,12 @@ export default async function FamilyWeekPage() {
                 Private local source · today {privateResult.sourceHealth} · temporal {temporalResult?.sourceHealth ?? 'unavailable'}
                 {photoResult ? ` · photos ${photoResult.sourceHealth}/${photoResult.sourceState}` : ''}
               </p>
+              {photoSetup && photoSetup.state !== 'ready' ? (
+                <div className="mt-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                  <strong className="block text-sm">{photoSetup.title}</strong>
+                  <span className="mt-1 block text-sm text-[var(--muted)]">{photoSetup.detail}</span>
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm text-[var(--muted)]">

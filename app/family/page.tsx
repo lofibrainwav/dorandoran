@@ -2,7 +2,7 @@ import { FamilyOperatingHero } from '@/components/family-operating-hero'
 import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface'
 import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calendar-operating-source'
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
-import { loadPrivatePhotoJourney } from '@/lib/server/private-photo-journey-source'
+import { loadPrivatePhotoSnapshot } from '@/lib/server/private-photo-snapshot'
 import { projectPrivatePhotoSetupGuidance } from '@/lib/server/private-photo-setup-guidance'
 import { projectJaydenLearningModule } from '@/lib/server/jayden-specialist-bridge'
 
@@ -24,7 +24,7 @@ const jaydenModules = [
 export default async function FamilyWeekPage() {
   const privateEnabled = privateFamilySurfaceEnabled()
   const now = new Date()
-  const [privateResult, temporalResult, photoResult] = privateEnabled
+  const [privateResult, temporalResult, photoSnapshot] = privateEnabled
     ? await Promise.all([
         loadPrivateCalendarOperatingPerson({
           personId: 'person-jayden', label: 'Jayden', now,
@@ -33,12 +33,13 @@ export default async function FamilyWeekPage() {
         loadPrivateCalendarTemporalGrids({
           personId: 'person-jayden', now, timeZone: 'America/Los_Angeles',
         }),
-        loadPrivatePhotoJourney({
-          observedAt: now.toISOString(), maxGapMs: 36 * 60 * 60 * 1000,
+        loadPrivatePhotoSnapshot({
+          now, maxAgeMs: 24 * 60 * 60 * 1000,
         }),
       ])
     : [null, null, null]
 
+  const photoResult = photoSnapshot?.result ?? null
   const photoSetup = projectPrivatePhotoSetupGuidance(photoResult, { albumName: process.env.APPLE_PHOTOS_ALBUM_NAME })
 
   return (
@@ -60,8 +61,15 @@ export default async function FamilyWeekPage() {
               />
               <p className="mt-2 text-xs text-[var(--muted)]">
                 Private local source · today {privateResult.sourceHealth} · temporal {temporalResult?.sourceHealth ?? 'unavailable'}
+                {photoSnapshot ? ` · photo snapshot ${photoSnapshot.status}` : ''}
                 {photoResult ? ` · photos ${photoResult.sourceHealth}/${photoResult.sourceState}` : ''}
               </p>
+              {photoSnapshot && photoSnapshot.status !== 'fresh' ? (
+                <div className="mt-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                  <strong className="block text-sm">Photos snapshot {photoSnapshot.status}</strong>
+                  <span className="mt-1 block text-sm text-[var(--muted)]">Refresh the local private photo snapshot before using Past Journey memories.</span>
+                </div>
+              ) : null}
               {photoSetup && photoSetup.state !== 'ready' ? (
                 <div className="mt-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
                   <strong className="block text-sm">{photoSetup.title}</strong>

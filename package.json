@@ -16,7 +16,8 @@
     "audit:prod": "pnpm audit --prod --audit-level high",
     "hyodo:safe": "uvx --python 3.12 hyodo==4.14.0 safe --strict --audience vibe",
     "hyodo:check": "uvx --python 3.12 hyodo==4.14.0 check --strict-tests --audience vibe",
-    "verify": "pnpm hyodo:safe && pnpm hyodo:check"
+    "verify": "pnpm hyodo:safe && pnpm hyodo:check",
+    "photos:snapshot:refresh": "node --env-file=.env.local scripts/refresh-private-photo-snapshot.mjs"
   },
   "dependencies": {
     "date-fns": "4.4.0",

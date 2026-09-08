@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 179/179 PASS.
+- Family OS regression: 184/184 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -69,9 +69,12 @@
 - Domain verification is blocked only by the existing apex A record `34.160.49.255`; Vercel requires an interactive user confirmation before overwriting that live DNS record.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
-- Regression count is 179 tests.
+- Regression count is 184 tests.
 - Private Photo Setup Guidance now distinguishes ready, action-required album setup, and source failure without exposing private refs.
 - Local production smoke exposed a performance blocker: live `osxphotos` album reads take about 17.2s cold (about 9.9s with `_skip_searchinfo`), so Photos DB work must leave the HTTP render path.
+- Private Photo Snapshot now moves heavy Photos DB reads to explicit local refresh; `/family` reads only a versioned privacy-safe snapshot.
+- Real refresh produced a 261-byte mode-0600 snapshot in about 20.5s with `partial/album-missing`; no asset/evidence/source refs or credential paths were persisted.
+- Clean production `/family` smoke is HTTP 200 in 0.744s with snapshot truth visible and no private path/ref leakage.
 
 ## Next unit
-Move heavy private Photos reads behind an explicit local snapshot refresh. `/family` must read only the privacy-safe cached projection and remain fast even when the Photos library is cold. Keep the existing album/DNS human approvals separate and fail-closed.
+Keep the fast snapshot path as the HTTP contract. Add a bounded local refresh cadence only after the designated Photos album exists; until then the snapshot truthfully remains `partial/album-missing`. The remaining external blockers are the human macOS Photos permission/album action and the one interactive Vercel DNS cutover for `dorandoran.link`.

@@ -1,34 +1,78 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import {
   SITE_GATE_COOKIE,
+  SITE_GATE_SESSION_PARAM,
   siteGateAuthorized,
   siteGateConfig,
+  siteGateSessionAuthorized,
+  siteGateToken,
 } from './lib/server/site-password-gate'
 
 const PUBLIC_GATE_PATHS = new Set(['/unlock', '/api/site-unlock'])
 
+function protectedHeaders(response: NextResponse) {
+  response.headers.set('Cache-Control', 'private, no-store, max-age=0')
+  response.headers.set('Pragma', 'no-cache')
+  response.headers.set('Referrer-Policy', 'no-referrer')
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+  return response
+}
+
+function cookieOptions(request: NextRequest) {
+  const secure = request.nextUrl.protocol === 'https:'
+  const hostname = request.nextUrl.hostname.toLowerCase()
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? ('none' as const) : ('lax' as const),
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+    ...(hostname === 'dorandoran.link' || hostname.endsWith('.dorandoran.link')
+      ? { domain: 'dorandoran.link' }
+      : {}),
+  }
+}
+
 export async function proxy(request: NextRequest) {
-  const { pathname, search } = request.nextUrl
-  if (PUBLIC_GATE_PATHS.has(pathname)) return NextResponse.next()
+  const { pathname } = request.nextUrl
+  if (PUBLIC_GATE_PATHS.has(pathname)) return protectedHeaders(NextResponse.next())
 
   const gate = siteGateConfig(process.env)
   if (!gate.enabled || !gate.accessCode || !gate.gateKey) {
     return new NextResponse('Site access is temporarily unavailable.', {
       status: 503,
-      headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' },
+      headers: {
+        'Cache-Control': 'no-store',
+        'Referrer-Policy': 'no-referrer',
+        'X-Robots-Tag': 'noindex, nofollow',
+      },
     })
   }
 
   const cookie = request.cookies.get(SITE_GATE_COOKIE)?.value
-  if (await siteGateAuthorized(cookie, gate.accessCode, gate.gateKey)) return NextResponse.next()
+  const cookieAuthorized = await siteGateAuthorized(cookie, gate.accessCode, gate.gateKey)
+  const sessionValue = request.nextUrl.searchParams.get(SITE_GATE_SESSION_PARAM)
+  const sessionAuthorized = await siteGateSessionAuthorized(sessionValue, gate.gateKey, Date.now())
+
+  if (cookieAuthorized || sessionAuthorized) {
+    const response = protectedHeaders(NextResponse.next())
+    if (sessionAuthorized) {
+      response.cookies.set(
+        SITE_GATE_COOKIE,
+        await siteGateToken(gate.accessCode, gate.gateKey),
+        cookieOptions(request),
+      )
+    }
+    return response
+  }
 
   const unlockUrl = new URL('/unlock', request.url)
-  unlockUrl.searchParams.set('next', `${pathname}${search}`)
-  const response = NextResponse.redirect(unlockUrl, 307)
-  response.headers.set('Cache-Control', 'no-store')
-  response.headers.set('X-Robots-Tag', 'noindex, nofollow')
-  return response
+  const cleanNext = request.nextUrl.clone()
+  cleanNext.searchParams.delete(SITE_GATE_SESSION_PARAM)
+  unlockUrl.searchParams.set('next', `${cleanNext.pathname}${cleanNext.search}`)
+  return protectedHeaders(NextResponse.redirect(unlockUrl, 307))
 }
+
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 }

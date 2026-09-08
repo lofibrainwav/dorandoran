@@ -67,6 +67,10 @@ async function renderWeek(mode = 'populated') {
     '@/lib/server/private-photo-snapshot': { loadPrivatePhotoSnapshot: () => { throw new Error('Local private source must remain disabled') } },
     '@/lib/server/private-photo-setup-guidance': { projectPrivatePhotoSetupGuidance: () => null },
     '@/lib/server/jdk-bridge-transport': { loadJaydenLearningModule: async () => ({ id: 'learning', label: 'Learning', state: 'blocked' }) },
+    '@/lib/server/jdk-approved-releases': {
+      loadJdkApprovedReleases: async () => ({ probe: 'not_configured', releases: [] }),
+      projectLearningModuleWithApprovedReleases: (module) => module,
+    },
     '@/lib/server/schedule-result-selection': { selectScheduleResult },
     '@/lib/server/private-operational-family-calendar-source': {
       loadPrivateOperationalFamilyCalendarPerson: async (input) => mode === 'unconfigured' ? null : loadPrivateOperationalFamilyCalendarPerson({

@@ -12,19 +12,22 @@
 - [x] Preserve the legacy access-code path as a temporary migration fallback.
 - [x] Add immutable operational calendar ID configuration.
 - [x] Add deterministic event/series subject rules; no title inference.
-- [x] Add explicit scheduler/transport responsibility defaults and event/series overrides.
-- [x] Add role-aware Today projection without changing schedule truth.
-- [x] Add Vercel-safe server OAuth Calendar credential provider.
-- [x] Wire operational Calendar subject routing into the `/family` web surface while preserving local-only photo boundaries.
-- [x] CI/HyoDo GREEN on final code head before account configuration.
-- [x] Vercel Preview READY on final code head before account configuration.
-- [ ] Configure Google OAuth stable Preview origin + redirect URI.
-- [ ] Configure Preview-only Vercel env for Google household auth.
+- [x] CI/HyoDo GREEN on the Google household runtime before bootstrap helper changes.
+- [x] Add Vercel-safe Calendar credential provider.
+- [x] Wire operational calendar event subject resolver into live Family Today.
+- [x] Add role-aware Jay/Julie projection.
+- [x] Allow authenticated web schedule reads without enabling Apple Photos/local private surfaces on Vercel.
+- [x] Identify the current operational family schedule source through connected Google Calendar data without committing its real ID.
+- [x] Confirm the separate Google Family shared calendar is not the current populated operations source.
+- [x] Confirm Jayden routine events use stable recurring-series IDs suitable for explicit subject rules.
+- [x] Add a one-shot branch-scoped Preview bootstrap helper that reads existing local Calendar OAuth files and never prints secret contents.
+- [ ] CI/HyoDo GREEN on final bootstrap-helper head.
+- [ ] Configure Google OAuth Preview origin + redirect URI.
+- [ ] Configure Preview-only Vercel env for Google household auth using the bootstrap helper.
 - [ ] Verify approved adult sign-in in browser.
 - [ ] Verify unknown account denial.
 - [ ] Verify child account cannot enter management surface.
-- [ ] Configure server-only household Calendar OAuth refresh credentials.
-- [ ] Configure private operational Calendar ID and explicit event/series subject rules in deployment secrets.
-- [ ] Verify real Jayden schedule and Jay/Julie role-aware projection on Preview.
+- [ ] Verify real Jayden schedule projection from the discovered operations calendar.
+- [ ] Verify Jay transport emphasis and Julie scheduling emphasis against identical schedule facts.
 - [ ] Retire legacy password gate only after Preview E2E GREEN.
 - [ ] Promote exactly one verified deployment to `dorandoran.link`.

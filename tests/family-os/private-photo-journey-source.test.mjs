@@ -39,3 +39,19 @@ test('transport failure reports failure without invented memories', async () => 
   assert.equal(result.experience.clusters.length, 0)
   assert.equal(result.experience.stories.length, 0)
 })
+
+test('configured album mode uses explicit album source instead of Photos selection', async () => {
+  let requestedAlbum
+  const result = await loadPrivatePhotoJourney({
+    env: { CHAD_PRIVATE_LOCAL_UI: '1', APPLE_PHOTOS_ALBUM_NAME: 'DoranDoran' },
+    observedAt: '2026-09-07T20:00:00Z', maxGapMs: 3600000,
+    readAlbumMetadata: async ({ albumName }) => {
+      requestedAlbum = albumName
+      return [{ id: 'album-asset', capturedAt: '2025-01-01T10:00:00Z' }]
+    },
+  })
+  assert.equal(requestedAlbum, 'DoranDoran')
+  assert.equal(result.source, 'apple-photos-album')
+  assert.equal(result.selectedCount, 1)
+  assert.equal(JSON.stringify(result).includes('album-asset'), false)
+})

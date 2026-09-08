@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 167/167 PASS.
+- Family OS regression: 171/171 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -63,11 +63,13 @@
 - Past Journey Experience now composes time-gap story cards with place-based globe clusters through one privacy-safe display contract.
 - Coordinate-only memories can become exact-coordinate globe clusters labeled `Location recorded`; no place name is reverse-geocoded or inferred.
 - Private Apple Photos selection source is implemented behind local-only + explicit opt-in gates; it requests only id/date/location and is capped at 100 selected items.
-- Real Apple Photos canary currently fails closed with AppleEvent timeout; no private photo metadata was printed.
-- Canonical public website metadata is now `https://dorandoran.link`; Vercel project domain attachment remains external deployment configuration.
+- Apple Photos `selection` canary remains flaky with AppleEvent timeout, while Photos app automation itself responds normally to lightweight commands.
+- Designated-album fallback using pinned `osxphotos==0.76.1` is implemented; real `DoranDoran` album canary is GREEN with 0 current items and no photo metadata printed.
+- Canonical public website metadata is `https://dorandoran.link`; the domain is now attached to Vercel project `v0-one-box`.
+- Domain verification is blocked only by the existing apex A record `34.160.49.255`; Vercel requires an interactive user confirmation before overwriting that live DNS record.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
-- Regression count is 167 tests.
+- Regression count is 171 tests.
 
 ## Next unit
-Resolve macOS Photos AppleEvent access and re-run metadata-only selection readback. Attach `dorandoran.link` to the Vercel project through an authorized domain-management surface, then verify DNS/TLS and the final PR Preview. Keep private Photos/Calendar sources disabled on Vercel.
+Complete the one interactive Vercel DNS confirmation for `dorandoran.link`, then re-run DNS/TLS verification. Populate or explicitly select the designated `DoranDoran` Photos album before enabling album-backed memories; until then it truthfully yields zero memories. Keep private Photos/Calendar sources disabled on Vercel.

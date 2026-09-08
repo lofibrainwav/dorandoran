@@ -35,6 +35,8 @@ export interface PrivateOperationalFamilyCalendarResult {
   sourceHealth: 'green' | 'failure'
   eventCount: number
   unassignedEventCount: number
+  /** Person-scoped schedule observations inside the week window; empty on failure. */
+  observations: ContextObservation[]
 }
 
 function clean(value: string | undefined): string | null {
@@ -79,6 +81,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       sourceHealth: 'failure',
       eventCount: 0,
       unassignedEventCount: 0,
+      observations: [],
     }
   }
 
@@ -97,6 +100,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       sourceHealth: 'failure',
       eventCount: 0,
       unassignedEventCount: 0,
+      observations: [],
     }
   }
 
@@ -138,6 +142,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       sourceHealth: 'failure',
       eventCount: 0,
       unassignedEventCount: 0,
+      observations: [],
     }
   }
 
@@ -180,5 +185,6 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
     sourceHealth: 'green',
     eventCount,
     unassignedEventCount,
+    observations,
   }
 }

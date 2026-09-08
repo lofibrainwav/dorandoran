@@ -13,7 +13,7 @@ import {
 } from '../lib/family-os/google-household-identity.ts'
 
 const BRANCH = 'feature/google-household-identity-v1'
-const PROJECT = 'v0-one-box'
+const PROJECT = 'dorandoran'
 const SCOPE = 'hyodo-kingdom'
 
 function requiredEnv(name) {

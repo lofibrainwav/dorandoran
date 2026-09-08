@@ -65,7 +65,7 @@
 - Private Apple Photos selection source is implemented behind local-only + explicit opt-in gates; it requests only id/date/location and is capped at 100 selected items.
 - Apple Photos `selection` canary remains flaky with AppleEvent timeout, while Photos app automation itself responds normally to lightweight commands.
 - Designated-album fallback using pinned `osxphotos==0.76.1` is implemented; real designated-album transport canary is GREEN; the `DoranDoran` album is currently absent, so zero photo metadata was read or printed.
-- Canonical public website metadata is `https://dorandoran.link`; the domain is now attached to Vercel project `v0-one-box`.
+- Canonical public website metadata is `https://dorandoran.link`; the domain is now attached to Vercel project `dorandoran` (renamed from `v0-one-box` on 2026-09-08; GitHub repo renamed `one-box-mk` → `dorandoran` the same day).
 - `dorandoran.link` DNS is verified and configured correctly on Vercel; the apex now resolves to the approved Vercel A record and HTTPS is live.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.

@@ -1,5 +1,12 @@
+import Link from 'next/link'
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
-import { parseHouseholdMembership, resolveUniqueChildPersonId } from '@/lib/family-os'
+import {
+  parseHouseholdMembership,
+  projectOperatingPresence,
+  projectWeekDays,
+  resolveHouseholdTimeZone,
+  resolveUniqueChildPersonId,
+} from '@/lib/family-os'
 import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface'
 import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calendar-operating-source'
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
@@ -7,10 +14,10 @@ import { loadPrivateOperationalFamilyCalendarPerson } from '@/lib/server/private
 import { loadPrivatePhotoSnapshot } from '@/lib/server/private-photo-snapshot'
 import { projectPrivatePhotoSetupGuidance } from '@/lib/server/private-photo-setup-guidance'
 import { projectJaydenLearningModule } from '@/lib/server/jayden-specialist-bridge'
+import { selectScheduleResult } from '@/lib/server/schedule-result-selection'
 
 export const dynamic = 'force-dynamic'
 
-const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const jaydenModules = [
   { id: 'schedule', label: 'Schedule' },
   { id: 'school', label: 'School' },
@@ -31,17 +38,29 @@ function householdChildPersonId() {
   }
 }
 
+function householdTimeZone() {
+  try {
+    return resolveHouseholdTimeZone(process.env)
+  } catch (error) {
+    console.error('[family-week] DORANDORAN_TIME_ZONE is invalid; falling back to the default zone', error)
+    return resolveHouseholdTimeZone({})
+  }
+}
+
 export default async function FamilyWeekPage() {
   const privateEnabled = privateFamilySurfaceEnabled()
   const now = new Date()
+  const timeZone = householdTimeZone()
   const childPersonId = householdChildPersonId()
+  // No live location source is wired in production: presence is shown as an explicit Unknown, never guessed.
+  const presence = projectOperatingPresence({ state: 'unknown', observedAt: now.toISOString(), evidenceRefs: [] })
 
   const operationalPromise = childPersonId
     ? loadPrivateOperationalFamilyCalendarPerson({
         personId: childPersonId,
         label: 'Jayden',
         now,
-        timeZone: 'America/Los_Angeles',
+        timeZone,
         modules: jaydenModules,
       })
     : Promise.resolve(null)
@@ -50,10 +69,10 @@ export default async function FamilyWeekPage() {
     ? Promise.all([
         loadPrivateCalendarOperatingPerson({
           personId: 'person-jayden', label: 'Jayden', now,
-          timeZone: 'America/Los_Angeles', modules: jaydenModules,
+          timeZone, modules: jaydenModules,
         }),
         loadPrivateCalendarTemporalGrids({
-          personId: 'person-jayden', now, timeZone: 'America/Los_Angeles',
+          personId: 'person-jayden', now, timeZone,
         }),
         loadPrivatePhotoSnapshot({
           now, maxAgeMs: 24 * 60 * 60 * 1000,
@@ -65,15 +84,25 @@ export default async function FamilyWeekPage() {
     operationalPromise,
     localPrivatePromise,
   ])
-  const scheduleResult = operationalResult ?? privateResult
+  const scheduleResult = selectScheduleResult(operationalResult, privateResult)
+  // UNKNOWN stays explicit: a missing or failed source is not the same as a week with zero facts.
+  const scheduleKnown = Boolean(scheduleResult && scheduleResult.sourceHealth !== 'failure')
+  const week = projectWeekDays({
+    observations: scheduleKnown ? scheduleResult!.observations : [],
+    now,
+    timeZone,
+  })
   const photoResult = photoSnapshot?.result ?? null
   const photoSetup = projectPrivatePhotoSetupGuidance(photoResult, { albumName: process.env.APPLE_PHOTOS_ALBUM_NAME })
 
   return (
     <main className="min-h-dvh px-4 py-6 md:px-8">
-      <header className="mx-auto mb-6 max-w-7xl">
-        <p className="text-sm uppercase tracking-[0.22em] text-[var(--muted)]">Family Week</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Jayden-centered coordination</h1>
+      <header className="mx-auto mb-6 flex max-w-7xl items-end justify-between gap-4">
+        <div>
+          <p className="text-sm uppercase tracking-[0.22em] text-[var(--muted)]">Family Week · week of {week.weekStartDate} · {timeZone}</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Jayden-centered coordination</h1>
+        </div>
+        <Link href="/" className="text-sm text-[var(--muted)] underline-offset-4 hover:underline">Public demo</Link>
       </header>
 
       <section className="mx-auto mb-6 max-w-7xl">
@@ -81,6 +110,7 @@ export default async function FamilyWeekPage() {
           <>
             <FamilyOperatingHero
               person={scheduleResult.readModel}
+              presence={presence}
               monthGrid={temporalResult?.monthGrid}
               yearGrid={temporalResult?.yearGrid}
               journey={photoResult?.experience}
@@ -116,14 +146,30 @@ export default async function FamilyWeekPage() {
         )}
       </section>
 
-      <section className="mx-auto max-w-7xl overflow-x-auto rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-3">
+      <section className="mx-auto max-w-7xl overflow-x-auto rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-3" aria-label="This week">
         <div className="grid min-w-[840px] grid-cols-7 gap-px overflow-hidden rounded-2xl bg-[var(--line)]">
-          {days.map((day) => (
-            <div key={day} className="min-h-[420px] bg-[var(--surface)] p-4">
-              <h2 className="text-sm font-medium text-[var(--muted)]">{day}</h2>
+          {week.days.map((day) => (
+            <div key={day.localDate} className="min-h-[420px] bg-[var(--surface)] p-4" data-today={day.isToday ? 'true' : undefined}>
+              <h2 className="text-sm font-medium text-[var(--muted)]">
+                {day.weekday} <span className={day.isToday ? 'font-semibold text-[var(--fg,inherit)]' : ''}>{day.dayOfMonth}</span>
+              </h2>
+              <ul className="mt-3 space-y-2">
+                {day.items.map((item) => (
+                  <li key={item.id} className="rounded-xl border border-[var(--line)] p-2 text-sm">
+                    {item.clock ? <span className="block text-xs text-[var(--muted)]">{item.clock}</span> : null}
+                    <span className="block">{item.title}</span>
+                  </li>
+                ))}
+              </ul>
+              {day.items.length === 0 ? <p className="mt-3 text-xs text-[var(--muted)]">No scheduled facts.</p> : null}
             </div>
           ))}
         </div>
+        <p className="mt-2 px-1 text-xs text-[var(--muted)]">
+          {scheduleKnown
+            ? `${week.itemCount} scheduled item(s) this week from ${scheduleResult!.source}. Nothing is inferred from titles or guessed.`
+            : 'Schedule source unavailable: this week is unknown, not empty.'}
+        </p>
       </section>
     </main>
   )

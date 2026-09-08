@@ -25,6 +25,8 @@ export interface PrivateCalendarOperatingResult {
   loadedSourceKeys: string[]
   failedSourceKeys: string[]
   eventCount: number
+  /** Person-scoped schedule observations inside the week window. */
+  observations: ContextObservation[]
 }
 export function calendarPayloadsToObservations(
   config: LocalCalendarSourceConfig,
@@ -105,5 +107,6 @@ export async function loadPrivateCalendarOperatingPerson(input: {
     loadedSourceKeys,
     failedSourceKeys,
     eventCount,
+    observations,
   }
 }

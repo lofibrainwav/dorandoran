@@ -86,3 +86,29 @@ test('event subject resolver uses explicit event then series rules and never tit
     id: 'event-unknown', recurringEventId: 'series-unknown', summary: 'Swimming lesson',
   }, rules), null)
 })
+
+test('production-shaped membership: two numeric adult subs coexist with a non-numeric child placeholder', () => {
+  const jaySub = '111111111111111111111'
+  const julieSub = '222222222222222222222'
+  const membership = parseHouseholdMembership({
+    DORANDORAN_HOUSEHOLD_MEMBERS_JSON: JSON.stringify([
+      { personId: 'jay', googleSub: jaySub, access: 'adult', roles: ['admin', 'transport'] },
+      { personId: 'julie', googleSub: julieSub, access: 'adult', roles: ['admin', 'scheduler'] },
+      { personId: 'jayden', googleSub: 'PENDING-JAYDEN-SUB-CHILD-NO-SIGNIN', access: 'child', roles: ['child'] },
+    ]),
+  })
+  assert.equal(membership.length, 3)
+
+  const julie = resolveHouseholdMember({ sub: julieSub, email: 'display@example.invalid' }, membership)
+  assert.ok(julie)
+  assert.equal(julie.personId, 'julie')
+  assert.equal(julie.canSignIn, true)
+  assert.deepEqual(julie.roles, ['admin', 'scheduler'])
+
+  // The placeholder must never match a real or partial Google subject.
+  assert.equal(resolveHouseholdMember({ sub: 'PENDING' }, membership), null)
+  assert.equal(resolveHouseholdMember({ sub: '' }, membership), null)
+  const placeholder = resolveHouseholdMember({ sub: 'PENDING-JAYDEN-SUB-CHILD-NO-SIGNIN' }, membership)
+  assert.ok(placeholder)
+  assert.equal(placeholder.canSignIn, false)
+})

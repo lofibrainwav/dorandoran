@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   SITE_GATE_COOKIE,
   SITE_GATE_SESSION_PARAM,
+  cleanSiteGateSessionPath,
   siteGateAuthorized,
   siteGateConfig,
   siteGateSessionAuthorized,
@@ -28,6 +29,11 @@ function cookieOptions(request: NextRequest) {
   }
 }
 
+function cleanSessionRedirect(request: NextRequest) {
+  const cleanPath = cleanSiteGateSessionPath(`${request.nextUrl.pathname}${request.nextUrl.search}`)
+  return protectedHeaders(NextResponse.redirect(new URL(cleanPath, request.url), 303))
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   if (PUBLIC_GATE_PATHS.has(pathname)) return protectedHeaders(NextResponse.next())
@@ -49,15 +55,17 @@ export async function proxy(request: NextRequest) {
   const sessionValue = request.nextUrl.searchParams.get(SITE_GATE_SESSION_PARAM)
   const sessionAuthorized = await siteGateSessionAuthorized(sessionValue, gate.gateKey, Date.now())
 
-  if (cookieAuthorized || sessionAuthorized) {
-    const response = protectedHeaders(NextResponse.next())
-    if (sessionAuthorized) {
-      response.cookies.set(
-        SITE_GATE_COOKIE,
-        await siteGateToken(gate.accessCode, gate.gateKey),
-        cookieOptions(request),
-      )
-    }
+  if (cookieAuthorized) {
+    return sessionValue ? cleanSessionRedirect(request) : protectedHeaders(NextResponse.next())
+  }
+
+  if (sessionAuthorized) {
+    const response = cleanSessionRedirect(request)
+    response.cookies.set(
+      SITE_GATE_COOKIE,
+      await siteGateToken(gate.accessCode, gate.gateKey),
+      cookieOptions(request),
+    )
     return response
   }
 

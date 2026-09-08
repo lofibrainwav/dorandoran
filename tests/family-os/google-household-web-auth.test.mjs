@@ -41,3 +41,25 @@ test('missing token identity fails closed', async () => {
     verifyIdToken: async () => ({ email: 'display@example.invalid' }),
   }), null)
 })
+
+test('denied identities are logged only when the Preview discovery flag is on', async () => {
+  const lines = []
+  const base = {
+    credential: 'fixture-token', clientId: 'fixture-client-id', membership,
+    verifyIdToken: async () => ({ sub: 'unknown-sub', email: 'someone@example.invalid' }),
+    log: (message) => lines.push(message),
+  }
+
+  assert.equal(await verifyGoogleHouseholdCredential({ ...base, env: {} }), null)
+  assert.deepEqual(lines, [])
+
+  assert.equal(await verifyGoogleHouseholdCredential({ ...base, env: { DORANDORAN_LOG_DENIED_IDENTITY: '1' } }), null)
+  assert.deepEqual(lines, ['[household-auth] denied reason=unknown sub=unknown-sub emailDomain=example.invalid'])
+  assert.ok(!lines[0].includes('fixture-token'))
+
+  assert.equal(await verifyGoogleHouseholdCredential({
+    ...base, env: { DORANDORAN_LOG_DENIED_IDENTITY: '1' },
+    verifyIdToken: async () => ({ sub: 'sub-c' }),
+  }), null)
+  assert.equal(lines[1], '[household-auth] denied reason=child sub=sub-c emailDomain=(none)')
+})

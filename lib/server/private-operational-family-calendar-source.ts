@@ -3,6 +3,8 @@ import {
   projectFamilyOperatingPerson,
   resolveCalendarEventSubject,
   resolveOperationalFamilyCalendar,
+  weekWindowFromLocalDate,
+  type ContextObservation,
   type FamilyOperatingPersonReadModel,
   type GoogleCalendarApiEventPayload,
   type LocalCalendarSourceConfig,
@@ -44,22 +46,6 @@ function emptyReadModel(input: {
   })
 }
 
-function weekWindow(now: Date, timeZone: string): GoogleCalendarReadWindow {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
-  })
-  const parts = Object.fromEntries(formatter.formatToParts(now).map((part) => [part.type, part.value]))
-  const localNoon = new Date(`${parts.year}-${parts.month}-${parts.day}T12:00:00Z`)
-  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(String(parts.weekday))
-  localNoon.setUTCDate(localNoon.getUTCDate() - Math.max(weekday, 0))
-  const start = new Date(localNoon)
-  start.setUTCHours(0, 0, 0, 0)
-  const end = new Date(start)
-  end.setUTCDate(end.getUTCDate() + 8)
-  return { start, end }
-}
-
 export async function loadPrivateOperationalFamilyCalendarPerson(input: {
   env?: Record<string, string | undefined>
   personId: string
@@ -96,11 +82,12 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
     subjectIds: [],
   }
   const readEvents = input.readEvents ?? readGoogleCalendarSource
+  const canonicalWindow = weekWindowFromLocalDate(input.now, input.timeZone)
 
   try {
-    const payloads = await readEvents(config, weekWindow(input.now, input.timeZone))
+    const payloads = await readEvents(config, { start: canonicalWindow.start, end: canonicalWindow.end })
     const observedAt = new Date().toISOString()
-    const observations = []
+    const observations: ContextObservation[] = []
     let eventCount = 0
     let unassignedEventCount = 0
 

@@ -1,4 +1,6 @@
 import {
+  normalizeAdapterOutput,
+  normalizeGoogleCalendarApiEvent,
   parseCalendarSubjectRules,
   projectFamilyOperatingPerson,
   resolveCalendarEventSubject,
@@ -35,8 +37,51 @@ export interface PrivateOperationalFamilyCalendarResult {
   sourceHealth: 'green' | 'failure'
   eventCount: number
   unassignedEventCount: number
-  /** Person-scoped schedule observations inside the week window; empty on failure. */
+  /** Person-scoped timed schedule observations inside the week window; empty on failure. */
   observations: ContextObservation[]
+  /**
+   * Every calendar fact in the window (timed and all-day), with `who` set to the resolved person
+   * or left empty when no explicit rule names one. Nothing is hidden and nothing is guessed.
+   */
+  householdObservations: ContextObservation[]
+}
+
+function householdObservation(input: {
+  config: LocalCalendarSourceConfig
+  payload: GoogleCalendarApiEventPayload
+  observedAt: string
+  timeZone: string
+  subjectId: string | null
+}): ContextObservation | null {
+  let normalized
+  try {
+    normalized = normalizeGoogleCalendarApiEvent(input.payload, { calendarId: input.config.calendarId, observedAt: input.observedAt })
+  } catch {
+    return null
+  }
+  if (!normalized.start || !normalized.end) return null
+  const startMs = Date.parse(normalized.start)
+  const endMs = Date.parse(normalized.end)
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null
+  if (normalized.allDay && [normalized.start, normalized.end].some((date) =>
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(date).toISOString().slice(0, 10) !== date)) return null
+  const evidenceRef = normalized.evidence[0]?.id
+  if (!evidenceRef || !normalized.start) return null
+  return normalizeAdapterOutput(`calendar:${input.config.sourceKey}`, [{
+    id: `context:${evidenceRef}`,
+    kind: normalized.allDay ? 'schedule-all-day' : 'schedule',
+    sixW1H: {
+      who: { personIds: input.subjectId ? [input.subjectId] : [] },
+      what: { label: normalized.title, ref: normalized.id },
+      when: { start: normalized.start, ...(normalized.end ? { end: normalized.end } : {}), timeZone: input.timeZone },
+      ...(normalized.location ? { where: { label: normalized.location } } : {}),
+    },
+    sourceRef: evidenceRef,
+    observedAt: input.observedAt,
+    evidenceState: 'confirmed' as const,
+    evidenceRefs: [evidenceRef],
+    continuity: { recordedAt: input.observedAt },
+  }])[0] ?? null
 }
 
 function clean(value: string | undefined): string | null {
@@ -82,6 +127,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       eventCount: 0,
       unassignedEventCount: 0,
       observations: [],
+      householdObservations: [],
     }
   }
 
@@ -101,6 +147,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       eventCount: 0,
       unassignedEventCount: 0,
       observations: [],
+      householdObservations: [],
     }
   }
 
@@ -143,22 +190,39 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       eventCount: 0,
       unassignedEventCount: 0,
       observations: [],
+      householdObservations: [],
     }
   }
 
   const observedAt = new Date().toISOString()
   const observations: ContextObservation[] = []
+  const householdObservations: ContextObservation[] = []
   let eventCount = 0
   let unassignedEventCount = 0
 
   for (const payload of payloads) {
-    const hasTimes = Boolean(payload.start?.dateTime && payload.end?.dateTime)
-    if (!hasTimes) continue
     const subjectId = resolveCalendarEventSubject({
       id: payload.id,
       recurringEventId: payload.recurringEventId,
       summary: payload.summary,
     }, rules)
+    const fact = householdObservation({ config: observationConfig, payload, observedAt, timeZone: input.timeZone, subjectId })
+    if (!fact) {
+      // A skipped malformed event would make an incomplete week look complete.
+      return {
+        source,
+        readModel: emptyReadModel(input),
+        sourceHealth: 'failure',
+        eventCount: 0,
+        unassignedEventCount: 0,
+        observations: [],
+        householdObservations: [],
+      }
+    }
+    householdObservations.push(fact)
+
+    const hasTimes = Boolean(payload.start?.dateTime && payload.end?.dateTime)
+    if (!hasTimes) continue
     if (!subjectId) {
       unassignedEventCount += 1
       continue
@@ -186,5 +250,6 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
     eventCount,
     unassignedEventCount,
     observations,
+    householdObservations,
   }
 }

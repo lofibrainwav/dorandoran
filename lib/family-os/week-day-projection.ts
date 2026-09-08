@@ -9,6 +9,10 @@ export interface WeekDayItemProjection {
   clock: string | null
   /** True when the event began before this week and is still running into it. */
   continued: boolean
+  /** Calendar-date event (no clock). */
+  allDay: boolean
+  /** Explicitly resolved people; empty means unassigned, never every household member. */
+  subjectIds: string[]
   evidenceRefs: string[]
 }
 
@@ -41,6 +45,13 @@ function clockLabel(iso: string, timeZone: string): string | null {
   }
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+function validCalendarDate(value: string): boolean {
+  const time = Date.parse(value)
+  return DATE_ONLY.test(value) && Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value
+}
+
 function addDays(localDate: string, days: number): string {
   const [y, m, d] = localDate.split('-').map(Number)
   const next = new Date(Date.UTC(y, m - 1, d + days))
@@ -62,11 +73,33 @@ export function projectWeekDays(input: {
   const todayKey = localDateKey(input.now.toISOString(), input.timeZone)
   const buckets = new Map<string, WeekDayItemProjection[]>()
 
+  const weekEndDate = addDays(window.weekStartDate, 7)
+  const subjectIdsOf = (observation: ContextObservation) => [...(observation.sixW1H.who?.personIds ?? [])]
+
   for (const observation of input.observations) {
     const start = observation.sixW1H.when?.start
     const end = observation.sixW1H.when?.end
-    const startMs = start ? Date.parse(start) : Number.NaN
-    if (!start || !Number.isFinite(startMs)) continue
+    if (!start) continue
+
+    if (observation.kind === 'schedule-all-day' || DATE_ONLY.test(start)) {
+      // Calendar-date facts are bucketed by their own date; the end date is exclusive.
+      if (!validCalendarDate(start) || (end && !validCalendarDate(end))) continue
+      const endDate = end ?? addDays(start, 1)
+      if (endDate <= start) continue
+      if (start >= weekEndDate || endDate <= window.weekStartDate) continue
+      const continued = start < window.weekStartDate
+      const key = continued ? window.weekStartDate : start
+      const list = buckets.get(key) ?? []
+      list.push({
+        id: observation.id, title: observation.sixW1H.what?.label ?? 'Untitled', start, end: endDate,
+        clock: null, continued, allDay: true, subjectIds: subjectIdsOf(observation), evidenceRefs: [...observation.evidenceRefs],
+      })
+      buckets.set(key, list)
+      continue
+    }
+
+    const startMs = Date.parse(start)
+    if (!Number.isFinite(startMs)) continue
     const endMs = end && Number.isFinite(Date.parse(end)) ? Date.parse(end) : startMs
     if (startMs >= windowEndMs || endMs <= windowStartMs) continue
     const continued = startMs < windowStartMs
@@ -80,6 +113,8 @@ export function projectWeekDays(input: {
       ...(end ? { end } : {}),
       clock: continued ? null : clockLabel(start, input.timeZone),
       continued,
+      allDay: false,
+      subjectIds: subjectIdsOf(observation),
       evidenceRefs: [...observation.evidenceRefs],
     })
     buckets.set(key, list)
@@ -87,7 +122,8 @@ export function projectWeekDays(input: {
 
   const days = WEEKDAYS.map((weekday, index) => {
     const localDate = addDays(window.weekStartDate, index)
-    const items = (buckets.get(localDate) ?? []).sort((a, b) => a.start.localeCompare(b.start))
+    const items = (buckets.get(localDate) ?? []).sort((a, b) =>
+      (Number(b.allDay) - Number(a.allDay)) || a.start.localeCompare(b.start))
     return { localDate, weekday, dayOfMonth: Number(localDate.slice(8, 10)), isToday: localDate === todayKey, items }
   })
 

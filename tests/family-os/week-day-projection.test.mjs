@@ -79,3 +79,46 @@ test('positive-offset zones bucket midnight-adjacent events on the correct local
   assert.equal(wed.items[0].title, 'Late')
   assert.equal(wed.items[0].clock, '12:30 AM')
 })
+
+test('all-day facts land on their calendar date regardless of zone and sort before timed items; subjects pass through', () => {
+  const allDay = normalizeAdapterOutput('calendar:test', [{
+    id: 'ad', kind: 'schedule-all-day', sourceRef: 'ad', observedAt: '2026-09-08T00:00:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['ad'], continuity: { recordedAt: '2026-09-08T00:00:00Z' },
+    sixW1H: { who: { personIds: [] }, what: { label: 'Passport expiry', ref: 'ad' }, when: { start: '2026-09-08', end: '2026-09-09', timeZone: tz } },
+  }])[0]
+  const timed = obs('t', 'School', '2026-09-08T15:00:00Z', '2026-09-08T21:00:00Z')
+  const week = projectWeekDays({ observations: [timed, allDay], now: new Date('2026-09-08T16:00:00Z'), timeZone: tz })
+  const tuesday = week.days.find((d) => d.localDate === '2026-09-08')
+  assert.deepEqual(tuesday.items.map((i) => i.title), ['Passport expiry', 'School'])
+  assert.equal(tuesday.items[0].allDay, true)
+  assert.equal(tuesday.items[0].clock, null)
+  assert.deepEqual(tuesday.items[0].subjectIds, [])
+  assert.deepEqual(tuesday.items[1].subjectIds, ['child-a'])
+  // Multi-day all-day: 2026-09-05..09-07 (end exclusive) overlaps Sunday 09-06 → shown once, on Sunday.
+  const span = normalizeAdapterOutput('calendar:test', [{
+    id: 'sp', kind: 'schedule-all-day', sourceRef: 'sp', observedAt: '2026-09-08T00:00:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['sp'], continuity: { recordedAt: '2026-09-08T00:00:00Z' },
+    sixW1H: { who: { personIds: [] }, what: { label: 'Trip', ref: 'sp' }, when: { start: '2026-09-05', end: '2026-09-07', timeZone: tz } },
+  }])[0]
+  const week2 = projectWeekDays({ observations: [span], now: new Date('2026-09-08T16:00:00Z'), timeZone: tz })
+  assert.equal(week2.days[0].items[0].title, 'Trip')
+  assert.equal(week2.days[0].items[0].continued, true)
+  assert.equal(week2.itemCount, 1)
+})
+
+test('all-day exclusive week bounds and invalid date ranges never create scheduled facts', () => {
+  const facts = [
+    obs('before', 'Before', '2026-09-05', '2026-09-06'),
+    obs('next', 'Next week', '2026-09-13', '2026-09-14'),
+    obs('valid', 'This Sunday', '2026-09-06', '2026-09-07'),
+    obs('reversed', 'Reversed', '2026-09-09', '2026-09-08'),
+    obs('empty', 'Zero days', '2026-09-08', '2026-09-08'),
+    obs('invalid', 'Invalid date', '2026-02-30', '2026-09-09'),
+    obs('mixed', 'Mixed range', '2026-09-08', '2026-09-09T00:00:00Z'),
+  ]
+  for (const timeZone of [tz, 'Asia/Seoul']) {
+    const week = projectWeekDays({ observations: facts, now: new Date('2026-09-08T03:00:00Z'), timeZone })
+    assert.deepEqual(week.days.flatMap((day) => day.items.map((item) => item.title)), ['This Sunday'])
+    assert.equal(week.days[0].items[0].clock, null)
+  }
+})

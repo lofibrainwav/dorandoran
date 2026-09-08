@@ -98,11 +98,17 @@ export default async function FamilyWeekPage() {
   const scheduleResult = selectScheduleResult(operationalResult, privateResult)
   // UNKNOWN stays explicit: a missing or failed source is not the same as a week with zero facts.
   const scheduleKnown = Boolean(scheduleResult && scheduleResult.sourceHealth !== 'failure')
+  // The week grid shows every household calendar fact; who it is for is a label, never a filter.
   const week = projectWeekDays({
-    observations: scheduleKnown ? scheduleResult!.observations : [],
+    observations: scheduleKnown ? scheduleResult!.householdObservations : [],
     now,
     timeZone,
   })
+  const subjectLabel = (subjectIds: string[]) => {
+    if (subjectIds.length === 0) return 'Family · person unassigned'
+    return [...new Set(subjectIds.map((id) =>
+      (id === childPersonId || (privateEnabled && id === 'person-jayden') ? 'Jayden' : 'Family member')))].join(' · ')
+  }
   const photoResult = photoSnapshot?.result ?? null
   const photoSetup = projectPrivatePhotoSetupGuidance(photoResult, { albumName: process.env.APPLE_PHOTOS_ALBUM_NAME })
 
@@ -168,18 +174,26 @@ export default async function FamilyWeekPage() {
               <ul className="mt-3 space-y-2">
                 {day.items.map((item) => (
                   <li key={item.id} className="rounded-xl border border-[var(--line)] p-2 text-sm">
-                    {item.clock ? <span className="block text-xs text-[var(--muted)]">{item.clock}</span> : null}
+                    <span className="block text-xs text-[var(--muted)]">
+                      {item.allDay ? 'All day' : item.clock}
+                      {item.continued ? ' · Continued from last week' : ''}
+                    </span>
                     <span className="block">{item.title}</span>
+                    <span className="mt-1 block text-xs text-[var(--muted)]">{subjectLabel(item.subjectIds)}</span>
                   </li>
                 ))}
               </ul>
-              {day.items.length === 0 ? <p className="mt-3 text-xs text-[var(--muted)]">No scheduled facts.</p> : null}
+              {day.items.length === 0 ? (
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                  {scheduleKnown ? 'No scheduled facts.' : 'Schedule unavailable.'}
+                </p>
+              ) : null}
             </div>
           ))}
         </div>
         <p className="mt-2 px-1 text-xs text-[var(--muted)]">
           {scheduleKnown
-            ? `${week.itemCount} scheduled item(s) this week from ${scheduleResult!.source}. Nothing is inferred from titles or guessed.`
+            ? `${week.itemCount} calendar item(s) this week. Family items without an assigned person remain visible.`
             : 'Schedule source unavailable: this week is unknown, not empty.'}
         </p>
       </section>

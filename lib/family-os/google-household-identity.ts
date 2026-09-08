@@ -101,6 +101,11 @@ export function resolveHouseholdMember(
   return membership.find((member) => member.googleSub === googleSub) ?? null
 }
 
+export function resolveUniqueChildPersonId(membership: HouseholdMember[]): string | null {
+  const children = membership.filter((member) => member.access === 'child')
+  return children.length === 1 ? children[0].personId : null
+}
+
 export function resolveOperationalFamilyCalendar(
   env: Record<string, string | undefined>,
 ): string | null {

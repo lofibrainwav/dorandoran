@@ -10,7 +10,7 @@
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.
-- Family OS regression: 145/145 PASS.
+- Family OS regression: 167/167 PASS.
 - Next production build: PASS.
 - Production audit: 0 known vulnerabilities.
 
@@ -60,9 +60,14 @@
 - Past Journey Story Projection now converts structural trip groups into privacy-safe story cards using only confirmed count/time and explicit place labels.
 - Story output contains no evidence refs, source refs, or place refs; no trip purpose, route, emotion, or destination is invented.
 - Family OS regression is now 158/158 GREEN.
+- Past Journey Experience now composes time-gap story cards with place-based globe clusters through one privacy-safe display contract.
+- Coordinate-only memories can become exact-coordinate globe clusters labeled `Location recorded`; no place name is reverse-geocoded or inferred.
+- Private Apple Photos selection source is implemented behind local-only + explicit opt-in gates; it requests only id/date/location and is capped at 100 selected items.
+- Real Apple Photos canary currently fails closed with AppleEvent timeout; no private photo metadata was printed.
+- Canonical public website metadata is now `https://dorandoran.link`; Vercel project domain attachment remains external deployment configuration.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
-- Regression count is 145 tests.
+- Regression count is 167 tests.
 
 ## Next unit
-Connect privacy-safe trip stories with the existing globe memory-cluster projection, then connect a real authorized Photo source. Connect a real authorized Photo source only after those provider-neutral contracts are GREEN; keep route/presence and JDK delegated transport behind their separate authority boundaries.
+Resolve macOS Photos AppleEvent access and re-run metadata-only selection readback. Attach `dorandoran.link` to the Vercel project through an authorized domain-management surface, then verify DNS/TLS and the final PR Preview. Keep private Photos/Calendar sources disabled on Vercel.

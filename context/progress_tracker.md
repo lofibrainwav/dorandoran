@@ -57,9 +57,12 @@
 - Trip Grouping now partitions confirmed timed memory observations only by an explicit caller-supplied gap policy; no semantic trip or place name is invented.
 - Untimed confirmed memories remain counted as ungrouped; schedules, stale evidence, and unrelated subjects are excluded.
 - Family OS regression is now 154/154 GREEN.
+- Past Journey Story Projection now converts structural trip groups into privacy-safe story cards using only confirmed count/time and explicit place labels.
+- Story output contains no evidence refs, source refs, or place refs; no trip purpose, route, emotion, or destination is invented.
+- Family OS regression is now 158/158 GREEN.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
 - Regression count is 145 tests.
 
 ## Next unit
-Add privacy-safe story projection over structural trip groups, then globe memory-cluster projection. Connect a real authorized Photo source only after those provider-neutral contracts are GREEN; keep route/presence and JDK delegated transport behind their separate authority boundaries.
+Connect privacy-safe trip stories with the existing globe memory-cluster projection, then connect a real authorized Photo source. Connect a real authorized Photo source only after those provider-neutral contracts are GREEN; keep route/presence and JDK delegated transport behind their separate authority boundaries.

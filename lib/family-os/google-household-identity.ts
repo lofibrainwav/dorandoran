@@ -26,9 +26,9 @@ export interface CalendarSubjectRule {
 }
 
 export interface CalendarEventIdentity {
-  id?: string | null
-  recurringEventId?: string | null
-  summary?: string | null
+  id?: unknown
+  recurringEventId?: unknown
+  summary?: unknown
 }
 
 const HOUSEHOLD_ROLES = new Set<HouseholdRole>(['admin', 'scheduler', 'transport', 'child'])

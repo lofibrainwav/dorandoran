@@ -1,6 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Metadata } from 'next'
 import './globals.css'
+import './planner.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://dorandoran.link'),

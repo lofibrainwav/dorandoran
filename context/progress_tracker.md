@@ -2,7 +2,9 @@
 
 ## Active handoff — 2026-09-08
 
-Unit 26 ([household week completeness](feature-specs/26-household-week-completeness.md)) is implemented and locally verified on `feat/family-week-shows-all-household-facts`, based on `265d20417404891248e69d7f2bd9334219d0d951`. The household week now retains operational-calendar facts without changing person-scoped NOW/NEXT assignment. HyoDo safety and all five quality gates passed; actual server-page render tests cover labels, privacy, and UNKNOWN versus empty. A local private-source read retained 11 of 11 timed events. Changes remain uncommitted and unpublished; authenticated production behavior is not yet verified. The historical next-unit notes below do not supersede this handoff.
+Unit 26 ([household week completeness](feature-specs/26-household-week-completeness.md)) landed via PR #16, commit `17cec9c3cf9b3fd87e1e0ec93e6ad42ec1102fc3`, merge `91d5164d3919d414c3c0cb71a86f80b30c8b5fe8`. Exact-head CI passed; production deployment `dpl_8jz1BhgeyR8e3RLuYvruGHooLLJM` was READY. Authenticated production browser retained all 11 household calendar facts.
+
+Unit 27 ([memo timebox planner](feature-specs/27-memo-timebox-planner.md)) is the current implementation on `feat/family-timebox-planner`. It adds memo-to-gap scheduling, fresh authenticated availability checks, explicit draft export and a working street map. Local browser verification covers placement, persistence, failure preservation and responsive layout. Full Google/Apple ecosystem synchronization remains a named residual, not a completed capability. The historical notes below do not supersede this handoff.
 
 ## Current state
 - Greenfield worktree created from `main`.

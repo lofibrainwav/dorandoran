@@ -6,6 +6,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
 import * as domain from '../../lib/family-os/index.ts'
+import * as plannerDomain from '../../lib/family-os/family-planner.ts'
 import { loadPrivateOperationalFamilyCalendarPerson } from '../../lib/server/private-operational-family-calendar-source.ts'
 import { selectScheduleResult } from '../../lib/server/schedule-result-selection.ts'
 
@@ -15,6 +16,17 @@ const require = createRequire(import.meta.url)
 const compiled = ts.transpileModule(readFileSync(new URL('../../app/family/page.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
 }).outputText
+
+const plannerCompiled = ts.transpileModule(readFileSync(new URL('../../components/family-planner.tsx', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+}).outputText
+const plannerModule = { exports: {} }
+new Function('require', 'module', 'exports', plannerCompiled)((specifier) => {
+  if (specifier === '@/lib/family-os/family-planner') return plannerDomain
+  if (specifier === './family-globe') return { FamilyGlobe: () => createElement('div', { 'aria-label': 'map fixture' }) }
+  if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier)
+  throw new Error(`Unmocked planner boundary: ${specifier}`)
+}, plannerModule, plannerModule.exports)
 
 async function renderWeek(mode = 'populated') {
   const timeZone = 'America/Los_Angeles'
@@ -36,6 +48,8 @@ async function renderWeek(mode = 'populated') {
     { id: 'all-day-event', summary: 'Shared reminder', description: 'private-provider-description', start: { date }, end: { date: nextDate.toISOString().slice(0, 10) } },
   ]
   const dependencies = {
+    '@/components/family-planner': plannerModule.exports,
+    '@/lib/family-os/family-planner': plannerDomain,
     'next/link': ({ children }) => createElement('a', null, children),
     '@/components/family-operating-hero': { FamilyOperatingHero: ({ person }) => {
       assert.doesNotMatch(JSON.stringify(person), /Adult appointment|Shared reminder/)
@@ -76,7 +90,7 @@ async function renderWeek(mode = 'populated') {
 
 test('the real Family Week page renders every household fact and the all-day/subject labels', async () => {
   const html = await renderWeek()
-  for (const text of ['Child practice', 'Adult appointment', 'Shared reminder', 'All day', 'Jayden', 'Family member', 'Family · person unassigned', '3 calendar item(s)']) {
+  for (const text of ['Child practice', 'Adult appointment', 'Shared reminder', '종일', 'Jayden', '보호자', '3개 실제 일정', '빈 시간에 자동 배치']) {
     assert.ok(html.includes(text), `Missing visible content: ${text}`)
   }
   for (const privateValue of ['private-adult-person-id', 'private-render-fixture-calendar', 'private-provider-description', '/private/', 'calendar:']) {
@@ -87,11 +101,10 @@ test('the real Family Week page renders every household fact and the all-day/sub
 test('the rendered week distinguishes failed/unconfigured sources from an observed empty week', async () => {
   for (const mode of ['failure', 'unconfigured']) {
     const html = await renderWeek(mode)
-    assert.match(html, /this week is unknown, not empty/)
-    assert.doesNotMatch(html, /No scheduled facts/)
-    assert.equal((html.match(/Schedule unavailable\./g) ?? []).length, 7)
+    assert.match(html, /일정이 확인되지 않아 빈 시간으로 간주하지 않습니다/)
+    assert.doesNotMatch(html, /분의 여유/)
   }
   const empty = await renderWeek('empty')
-  assert.equal((empty.match(/No scheduled facts\./g) ?? []).length, 7)
-  assert.match(empty, /0 calendar item\(s\)/)
+  assert.match(empty, /분의 여유/)
+  assert.match(empty, /0개 실제 일정/)
 })

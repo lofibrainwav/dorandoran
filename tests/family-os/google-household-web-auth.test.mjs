@@ -2,7 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { parseHouseholdMembership } from '../../lib/family-os/index.ts'
-import { verifyGoogleHouseholdCredential } from '../../lib/server/google-household-web-auth.ts'
+import {
+  buildGoogleRedirectBridgeHtml,
+  verifyGoogleHouseholdCredential,
+} from '../../lib/server/google-household-web-auth.ts'
 
 const membership = parseHouseholdMembership({
   DORANDORAN_HOUSEHOLD_MEMBERS_JSON: JSON.stringify([
@@ -62,4 +65,16 @@ test('denied identities are logged only when the Preview discovery flag is on', 
     verifyIdToken: async () => ({ sub: 'sub-c' }),
   }), null)
   assert.equal(lines[1], '[household-auth] denied reason=child sub=sub-c emailDomain=(none)')
+})
+
+test('GET bridge page forwards a fragment ID token into the POST contract without embedding config', () => {
+  const html = buildGoogleRedirectBridgeHtml()
+  assert.match(html, /id_token/)
+  assert.match(html, /g_csrf_token/)
+  assert.match(html, /f\.method='POST'/)
+  assert.match(html, /f\.action='\/api\/auth\/google'/)
+  assert.match(html, /\/signin\?error=google/)
+  assert.match(html, /noindex/)
+  assert.doesNotMatch(html, /googleusercontent|client_id|DORANDORAN/)
+  assert.equal(buildGoogleRedirectBridgeHtml("/api/auth/google';alert(1);'"), buildGoogleRedirectBridgeHtml('/api/auth/googlealert1'))
 })

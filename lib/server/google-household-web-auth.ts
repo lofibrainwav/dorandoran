@@ -64,3 +64,16 @@ export async function verifyGoogleHouseholdCredential(input: {
 
   return { googleSub: member.googleSub, member }
 }
+
+/**
+ * Google Identity Services sometimes completes a redirect-mode sign-in with a
+ * GET to login_uri carrying the ID token in the URL fragment
+ * (#id_token=...&prompt=none) instead of a POST. Servers never see fragments,
+ * so this tiny bridge page moves the token into the regular POST contract
+ * (credential + double-submit g_csrf_token). It embeds no configuration and
+ * never persists the token anywhere other than the immediate form post.
+ */
+export function buildGoogleRedirectBridgeHtml(postPath = '/api/auth/google'): string {
+  const safePath = postPath.replace(/[^a-zA-Z0-9/_-]/g, '')
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><title>Signing in</title></head><body><noscript>Enable JavaScript to finish signing in.</noscript><script>(function(){var h=new URLSearchParams(location.hash.replace(/^#/,''));var t=h.get('id_token');history.replaceState(null,'',location.pathname);if(!t){location.replace('/signin?error=google');return;}var c=Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(16)),function(b){return('0'+b.toString(16)).slice(-2)}).join('');document.cookie='g_csrf_token='+c+'; path=/; secure; samesite=lax; max-age=300';var f=document.createElement('form');f.method='POST';f.action='${safePath}';function add(n,v){var i=document.createElement('input');i.type='hidden';i.name=n;i.value=v;f.appendChild(i);}add('credential',t);add('g_csrf_token',c);document.body.appendChild(f);f.submit();})();</script></body></html>`
+}

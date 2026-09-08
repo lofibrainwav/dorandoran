@@ -5,7 +5,10 @@ import {
   HOUSEHOLD_SESSION_MAX_AGE_SECONDS,
   householdSessionToken,
 } from '../../../../lib/server/google-household-session.ts'
-import { verifyGoogleHouseholdCredential } from '../../../../lib/server/google-household-web-auth.ts'
+import {
+  buildGoogleRedirectBridgeHtml,
+  verifyGoogleHouseholdCredential,
+} from '../../../../lib/server/google-household-web-auth.ts'
 
 function redirectToSignIn(request: NextRequest, error: 'csrf' | 'denied' | 'google') {
   const url = new URL('/signin', request.url)
@@ -21,6 +24,19 @@ function sessionCookieOptions(request: NextRequest) {
     path: '/',
     maxAge: HOUSEHOLD_SESSION_MAX_AGE_SECONDS,
   }
+}
+
+// GIS redirect mode may land here with GET + #id_token fragment; bridge it into the POST contract.
+export async function GET() {
+  return new NextResponse(buildGoogleRedirectBridgeHtml(), {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  })
 }
 
 export async function POST(request: NextRequest) {

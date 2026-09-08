@@ -38,7 +38,7 @@
 - `/family` now has an explicit local-only private surface gate; Vercel/public runtime blocks that private path by construction.
 - Private local readback is GREEN and the public production simulation renders Family Week with no private source badge or secret-bearing fields.
 - Jayden Learning is now a specialist module projection, not duplicated Family OS logic.
-- Current verified JDK release transport is parent-session/capsule/same-origin bound with no delegated bridge, so the Learning module truthfully renders `Bridge pending` locally instead of pretending it is connected.
+- Current verified JDK release transport is parent-session/capsule/same-origin bound with no delegated bridge, so the Learning module truthfully renders `Bridge pending` instead of pretending it is connected. Since 2026-09-08 that state is derived from `DORANDORAN_JDK_BRIDGE_URL` + a live `/status` probe (20 s in-process cache, run in parallel with the calendar loaders) (see spec 09 contract), not from constants; the JDK-side status endpoint is still to be built.
 - Local private readback contains the Learning bridge status; public/Vercel simulation contains no private module projection.
 - Route and Presence now project as separate physical-world evidence channels; Calendar `Scheduled` never becomes `Live` by implication.
 - Presence requires explicit timestamped evidence for `Live`; last-known and missing evidence fail closed without promotion.

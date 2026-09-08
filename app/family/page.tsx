@@ -13,21 +13,15 @@ import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-
 import { loadPrivateOperationalFamilyCalendarPerson } from '@/lib/server/private-operational-family-calendar-source'
 import { loadPrivatePhotoSnapshot } from '@/lib/server/private-photo-snapshot'
 import { projectPrivatePhotoSetupGuidance } from '@/lib/server/private-photo-setup-guidance'
-import { projectJaydenLearningModule } from '@/lib/server/jayden-specialist-bridge'
+import { loadJaydenLearningModule } from '@/lib/server/jdk-bridge-transport'
 import { selectScheduleResult } from '@/lib/server/schedule-result-selection'
 
 export const dynamic = 'force-dynamic'
 
-const jaydenModules = [
+const baseJaydenModules = [
   { id: 'schedule', label: 'Schedule' },
   { id: 'school', label: 'School' },
   { id: 'activities', label: 'Activities' },
-  projectJaydenLearningModule({
-    parentSessionBound: true,
-    capsuleBound: true,
-    sameOriginBound: true,
-    delegatedBridgeConfigured: false,
-  }),
 ]
 
 function householdChildPersonId() {
@@ -52,6 +46,9 @@ export default async function FamilyWeekPage() {
   const now = new Date()
   const timeZone = householdTimeZone()
   const childPersonId = householdChildPersonId()
+  // Learning state is derived from the delegated JDK bridge (env + cached live status probe), never from constants.
+  // It runs alongside the calendar loaders so a slow bridge never serialises the page.
+  const learningPromise = loadJaydenLearningModule()
   // No live location source is wired in production: presence is shown as an explicit Unknown, never guessed.
   const presence = projectOperatingPresence({ state: 'unknown', observedAt: now.toISOString(), evidenceRefs: [] })
 
@@ -61,7 +58,7 @@ export default async function FamilyWeekPage() {
         label: 'Jayden',
         now,
         timeZone,
-        modules: jaydenModules,
+        modules: baseJaydenModules,
       })
     : Promise.resolve(null)
 
@@ -69,7 +66,7 @@ export default async function FamilyWeekPage() {
     ? Promise.all([
         loadPrivateCalendarOperatingPerson({
           personId: 'person-jayden', label: 'Jayden', now,
-          timeZone, modules: jaydenModules,
+          timeZone, modules: baseJaydenModules,
         }),
         loadPrivateCalendarTemporalGrids({
           personId: 'person-jayden', now, timeZone,
@@ -80,10 +77,13 @@ export default async function FamilyWeekPage() {
       ])
     : Promise.resolve([null, null, null] as const)
 
-  const [operationalResult, [privateResult, temporalResult, photoSnapshot]] = await Promise.all([
+  const [operationalResult, [privateResult, temporalResult, photoSnapshot], learningModule] = await Promise.all([
     operationalPromise,
     localPrivatePromise,
+    learningPromise,
   ])
+  if (operationalResult) operationalResult.readModel.modules = [...operationalResult.readModel.modules, learningModule]
+  if (privateResult) privateResult.readModel.modules = [...privateResult.readModel.modules, learningModule]
   const scheduleResult = selectScheduleResult(operationalResult, privateResult)
   // UNKNOWN stays explicit: a missing or failed source is not the same as a week with zero facts.
   const scheduleKnown = Boolean(scheduleResult && scheduleResult.sourceHealth !== 'failure')

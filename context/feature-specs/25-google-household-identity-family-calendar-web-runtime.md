@@ -55,13 +55,12 @@ Scheduler/transport defaults are a separate family policy, never inferred from t
 ### 25G Role-aware Today Projection
 The same canonical family observations can project different action emphasis for each signed-in adult without changing source truth.
 
-### 25H Password Gate Retirement
-Only after Google sign-in + membership + protected-route Preview E2E passes:
-- remove `/unlock`
-- remove `/api/site-unlock`
-- remove `site-password-gate.ts`
-- remove `DORANDORAN_ACCESS_CODE` and `DORANDORAN_GATE_KEY`
-- remove one-time `__dd_session` logic
+### 25H Password Gate Retirement — DONE 2026-09-08
+Completed after both approved adults signed in on Production with Google identity:
+- removed `/unlock` and `/api/site-unlock`
+- removed `site-password-gate.ts` and its tests
+- removed `DORANDORAN_ACCESS_CODE` and `DORANDORAN_GATE_KEY` from Production env (2026-09-08)
+- removed one-time `__dd_session` logic; `proxy.ts` now fails closed to 503 when identity configuration is incomplete and otherwise redirects to `/signin`
 
 ## Rollout order
 1. Pure household membership + subject resolver contracts and tests.
@@ -70,7 +69,7 @@ Only after Google sign-in + membership + protected-route Preview E2E passes:
 4. Role-aware Today projection.
 5. Preview browser E2E with approved adults and denied unknown/child identities.
 6. HyoDo/CI GREEN.
-7. Retire password gate.
+7. Retire password gate. (done 2026-09-08)
 8. Promote exactly one verified deployment to `dorandoran.link`.
 
 ## Non-goals

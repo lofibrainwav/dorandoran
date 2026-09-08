@@ -73,9 +73,7 @@
 - GREEN Preview for HEAD `42078ba` was promoted to Production after explicit user approval.
 - Live readback is GREEN: `https://dorandoran.link/` and `/family` both return HTTP 200.
 - Public `/family` exposes no private local-source badge, Photos setup state, credential path, Apple evidence ref, or private snapshot path.
-- DoranDoran Site Password Gate is live in Production: unauthenticated `/` and `/family` redirect to `/unlock` with no-store + noindex headers.
-- Site access code and independent gate key are stored only as Vercel Production Secrets; the real access code is absent from tracked files and never enters the authorization cookie.
-- Unlock page is public-safe and noindex; private Family/Photos state remains hidden before authorization.
+- (Historical) DoranDoran Site Password Gate was live in Production until 2026-09-08. It is retired under spec 25H: unauthenticated `/` and `/family` now redirect to `/signin`; `/unlock`, `/api/site-unlock`, `site-password-gate.ts` and the `DORANDORAN_ACCESS_CODE` / `DORANDORAN_GATE_KEY` Production keys are gone.
 - Private Photo Setup Guidance now distinguishes ready, action-required album setup, and source failure without exposing private refs.
 - Local production smoke exposed a performance blocker: live `osxphotos` album reads take about 17.2s cold (about 9.9s with `_skip_searchinfo`), so Photos DB work must leave the HTTP render path.
 - Private Photo Snapshot now moves heavy Photos DB reads to explicit local refresh; `/family` reads only a versioned privacy-safe snapshot.

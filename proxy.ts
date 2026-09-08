@@ -1,4 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { parseHouseholdMembership } from './lib/family-os/google-household-identity'
+import {
+  HOUSEHOLD_SESSION_COOKIE,
+  resolveHouseholdSessionMember,
+} from './lib/server/google-household-session'
 import {
   SITE_GATE_COOKIE,
   SITE_GATE_SESSION_PARAM,
@@ -9,7 +14,7 @@ import {
   siteGateToken,
 } from './lib/server/site-password-gate'
 
-const PUBLIC_GATE_PATHS = new Set(['/unlock', '/api/site-unlock'])
+const PUBLIC_GATE_PATHS = new Set(['/signin', '/api/auth/google', '/unlock', '/api/site-unlock'])
 
 function protectedHeaders(response: NextResponse) {
   response.headers.set('Cache-Control', 'private, no-store, max-age=0')
@@ -17,6 +22,17 @@ function protectedHeaders(response: NextResponse) {
   response.headers.set('Referrer-Policy', 'no-referrer')
   response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   return response
+}
+
+function unavailableResponse(message = 'Site access is temporarily unavailable.') {
+  return new NextResponse(message, {
+    status: 503,
+    headers: {
+      'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  })
 }
 
 function cookieOptions(request: NextRequest) {
@@ -34,21 +50,9 @@ function cleanSessionRedirect(request: NextRequest) {
   return protectedHeaders(NextResponse.redirect(new URL(cleanPath, request.url), 303))
 }
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  if (PUBLIC_GATE_PATHS.has(pathname)) return protectedHeaders(NextResponse.next())
-
+async function legacyGateResponse(request: NextRequest) {
   const gate = siteGateConfig(process.env)
-  if (!gate.enabled || !gate.accessCode || !gate.gateKey) {
-    return new NextResponse('Site access is temporarily unavailable.', {
-      status: 503,
-      headers: {
-        'Cache-Control': 'no-store',
-        'Referrer-Policy': 'no-referrer',
-        'X-Robots-Tag': 'noindex, nofollow',
-      },
-    })
-  }
+  if (!gate.enabled || !gate.accessCode || !gate.gateKey) return null
 
   const cookie = request.cookies.get(SITE_GATE_COOKIE)?.value
   const cookieAuthorized = await siteGateAuthorized(cookie, gate.accessCode, gate.gateKey)
@@ -68,6 +72,56 @@ export async function proxy(request: NextRequest) {
     )
     return response
   }
+
+  return null
+}
+
+function googleAuthConfiguration() {
+  const clientId = process.env.GOOGLE_WEB_CLIENT_ID?.trim() ?? ''
+  const authSecret = process.env.DORANDORAN_AUTH_SECRET?.trim() ?? ''
+  const membersJson = process.env.DORANDORAN_HOUSEHOLD_MEMBERS_JSON?.trim() ?? ''
+  const anyPresent = Boolean(clientId || authSecret || membersJson)
+  const complete = Boolean(clientId && authSecret && membersJson)
+  return { clientId, authSecret, membersJson, anyPresent, complete }
+}
+
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  if (PUBLIC_GATE_PATHS.has(pathname)) return protectedHeaders(NextResponse.next())
+
+  const googleConfig = googleAuthConfiguration()
+  if (googleConfig.anyPresent && !googleConfig.complete) {
+    return unavailableResponse('Google household access is temporarily unavailable.')
+  }
+
+  if (googleConfig.complete) {
+    let membership
+    try {
+      membership = parseHouseholdMembership(process.env)
+    } catch {
+      return unavailableResponse('Google household access is temporarily unavailable.')
+    }
+    if (!membership.length) return unavailableResponse('Google household access is temporarily unavailable.')
+
+    const token = request.cookies.get(HOUSEHOLD_SESSION_COOKIE)?.value
+    const member = await resolveHouseholdSessionMember(token, googleConfig.authSecret, membership, Date.now())
+    if (member) {
+      return request.nextUrl.searchParams.has(SITE_GATE_SESSION_PARAM)
+        ? cleanSessionRedirect(request)
+        : protectedHeaders(NextResponse.next())
+    }
+
+    const legacy = await legacyGateResponse(request)
+    if (legacy) return legacy
+
+    return protectedHeaders(NextResponse.redirect(new URL('/signin', request.url), 307))
+  }
+
+  const legacy = await legacyGateResponse(request)
+  if (legacy) return legacy
+
+  const gate = siteGateConfig(process.env)
+  if (!gate.enabled) return unavailableResponse()
 
   const unlockUrl = new URL('/unlock', request.url)
   const cleanNext = request.nextUrl.clone()

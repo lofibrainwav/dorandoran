@@ -26,10 +26,10 @@ async function defaultVerifyIdToken(input: {
 export const DENIED_IDENTITY_LOG_FLAG = 'DORANDORAN_LOG_DENIED_IDENTITY'
 
 /**
- * Operational discovery hook: when DORANDORAN_LOG_DENIED_IDENTITY=1 (Preview only),
- * a denied sign-in logs the verified Google sub so an operator can add the
- * household member without ever committing the value to the repository.
- * Off by default; never logs the credential itself.
+ * Operational discovery hook: only Vercel Preview may emit a denied Google
+ * subject, and only when DORANDORAN_LOG_DENIED_IDENTITY=1 is explicitly set.
+ * Production is hard-disabled even if the flag is accidentally inherited.
+ * The credential itself is never logged.
  */
 export function reportDeniedIdentity(
   claims: GoogleIdentityClaims,
@@ -37,6 +37,7 @@ export function reportDeniedIdentity(
   env: Record<string, string | undefined>,
   log: (message: string) => void,
 ): void {
+  if (env.VERCEL_ENV?.trim() !== 'preview') return
   if (env[DENIED_IDENTITY_LOG_FLAG]?.trim() !== '1') return
   const sub = typeof claims.sub === 'string' && claims.sub.trim() ? claims.sub.trim() : '(missing)'
   const domain = typeof claims.email === 'string' && claims.email.includes('@') ? claims.email.split('@')[1] : '(none)'

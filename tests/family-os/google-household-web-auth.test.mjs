@@ -56,15 +56,32 @@ test('denied identities are logged only when the Preview discovery flag is on', 
   assert.equal(await verifyGoogleHouseholdCredential({ ...base, env: {} }), null)
   assert.deepEqual(lines, [])
 
-  assert.equal(await verifyGoogleHouseholdCredential({ ...base, env: { DORANDORAN_LOG_DENIED_IDENTITY: '1' } }), null)
+  assert.equal(await verifyGoogleHouseholdCredential({
+    ...base,
+    env: { DORANDORAN_LOG_DENIED_IDENTITY: '1', VERCEL_ENV: 'preview' },
+  }), null)
   assert.deepEqual(lines, ['[household-auth] denied reason=unknown sub=unknown-sub emailDomain=example.invalid'])
   assert.ok(!lines[0].includes('fixture-token'))
 
   assert.equal(await verifyGoogleHouseholdCredential({
-    ...base, env: { DORANDORAN_LOG_DENIED_IDENTITY: '1' },
+    ...base,
+    env: { DORANDORAN_LOG_DENIED_IDENTITY: '1', VERCEL_ENV: 'preview' },
     verifyIdToken: async () => ({ sub: 'sub-c' }),
   }), null)
   assert.equal(lines[1], '[household-auth] denied reason=child sub=sub-c emailDomain=(none)')
+})
+
+test('denied identity discovery never logs in Production even if the flag is accidentally enabled', async () => {
+  const lines = []
+  assert.equal(await verifyGoogleHouseholdCredential({
+    credential: 'fixture-token',
+    clientId: 'fixture-client-id',
+    membership,
+    verifyIdToken: async () => ({ sub: 'production-unknown', email: 'someone@example.invalid' }),
+    env: { DORANDORAN_LOG_DENIED_IDENTITY: '1', VERCEL_ENV: 'production' },
+    log: (message) => lines.push(message),
+  }), null)
+  assert.deepEqual(lines, [])
 })
 
 test('GET bridge page forwards a fragment ID token into the POST contract without embedding config', () => {

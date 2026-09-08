@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import {
   siteGateToken,
   siteGateAuthorized,
+  siteGateSessionToken,
+  siteGateSessionAuthorized,
   safeNextPath,
   siteGateConfig,
 } from '../../lib/server/site-password-gate.ts'
@@ -21,6 +23,23 @@ test('authorization requires the exact derived cookie token', async () => {
   assert.equal(await siteGateAuthorized('wrong', 'test-code', 'fixture-key-a'), false)
   assert.equal(await siteGateAuthorized(undefined, 'test-code', 'fixture-key-a'), false)
 })
+
+test('signed fallback session survives without a cookie until expiry', async () => {
+  const now = Date.UTC(2026, 8, 8, 4, 0, 0)
+  const token = await siteGateSessionToken('fixture-key-a', now + 60_000)
+  assert.equal(await siteGateSessionAuthorized(token, 'fixture-key-a', now), true)
+  assert.equal(await siteGateSessionAuthorized(token, 'fixture-key-a', now + 59_000), true)
+  assert.equal(await siteGateSessionAuthorized(token, 'fixture-key-a', now + 60_000), false)
+})
+
+test('signed fallback session rejects tampering and wrong gate keys', async () => {
+  const now = Date.UTC(2026, 8, 8, 4, 0, 0)
+  const token = await siteGateSessionToken('fixture-key-a', now + 60_000)
+  assert.equal(await siteGateSessionAuthorized(`${token}x`, 'fixture-key-a', now), false)
+  assert.equal(await siteGateSessionAuthorized(token, 'fixture-key-b', now), false)
+  assert.equal(await siteGateSessionAuthorized('bad', 'fixture-key-a', now), false)
+})
+
 test('next path accepts only same-site absolute paths', () => {
   assert.equal(safeNextPath('/family?view=past'), '/family?view=past')
   assert.equal(safeNextPath('/'), '/')

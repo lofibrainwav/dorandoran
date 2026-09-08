@@ -64,7 +64,7 @@
 - Coordinate-only memories can become exact-coordinate globe clusters labeled `Location recorded`; no place name is reverse-geocoded or inferred.
 - Private Apple Photos selection source is implemented behind local-only + explicit opt-in gates; it requests only id/date/location and is capped at 100 selected items.
 - Apple Photos `selection` canary remains flaky with AppleEvent timeout, while Photos app automation itself responds normally to lightweight commands.
-- Designated-album fallback using pinned `osxphotos==0.76.1` is implemented; real `DoranDoran` album canary is GREEN with 0 current items and no photo metadata printed.
+- Designated-album fallback using pinned `osxphotos==0.76.1` is implemented; real designated-album transport canary is GREEN; the `DoranDoran` album is currently absent, so zero photo metadata was read or printed.
 - Canonical public website metadata is `https://dorandoran.link`; the domain is now attached to Vercel project `v0-one-box`.
 - Domain verification is blocked only by the existing apex A record `34.160.49.255`; Vercel requires an interactive user confirmation before overwriting that live DNS record.
 - Calendar range transport now fails closed when a next-page token indicates truncation.

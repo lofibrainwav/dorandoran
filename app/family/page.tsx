@@ -2,6 +2,7 @@ import { FamilyOperatingHero } from '@/components/family-operating-hero'
 import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface'
 import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calendar-operating-source'
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
+import { loadPrivatePhotoJourney } from '@/lib/server/private-photo-journey-source'
 import { projectJaydenLearningModule } from '@/lib/server/jayden-specialist-bridge'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +23,7 @@ const jaydenModules = [
 export default async function FamilyWeekPage() {
   const privateEnabled = privateFamilySurfaceEnabled()
   const now = new Date()
-  const [privateResult, temporalResult] = privateEnabled
+  const [privateResult, temporalResult, photoResult] = privateEnabled
     ? await Promise.all([
         loadPrivateCalendarOperatingPerson({
           personId: 'person-jayden', label: 'Jayden', now,
@@ -31,8 +32,12 @@ export default async function FamilyWeekPage() {
         loadPrivateCalendarTemporalGrids({
           personId: 'person-jayden', now, timeZone: 'America/Los_Angeles',
         }),
+        loadPrivatePhotoJourney({
+          observedAt: now.toISOString(), maxGapMs: 36 * 60 * 60 * 1000,
+        }),
       ])
-    : [null, null]
+    : [null, null, null]
+
   return (
     <main className="min-h-dvh px-4 py-6 md:px-8">
       <header className="mx-auto mb-6 max-w-7xl">
@@ -48,9 +53,11 @@ export default async function FamilyWeekPage() {
                 person={privateResult.readModel}
                 monthGrid={temporalResult?.monthGrid}
                 yearGrid={temporalResult?.yearGrid}
+                journey={photoResult?.experience}
               />
               <p className="mt-2 text-xs text-[var(--muted)]">
                 Private local source · today {privateResult.sourceHealth} · temporal {temporalResult?.sourceHealth ?? 'unavailable'}
+                {photoResult ? ` · photos ${photoResult.sourceHealth}` : ''}
               </p>
             </>
           ) : (

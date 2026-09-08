@@ -3,8 +3,7 @@ import {
   normalizeAdapterOutput,
   projectFamilyOperatingPerson,
   projectOperatingWatch,
-  projectPastJourney,
-  pastJourneyForDisplay,
+  projectPastJourneyExperience,
   projectTemporalGrid,
   temporalGridForDisplay,
 } from '@/lib/family-os'
@@ -75,9 +74,10 @@ const publicYearGrid = temporalGridForDisplay(projectTemporalGrid({
   scale: 'year', anchorLocalDate: '2026-09-07', timeZone: 'America/Los_Angeles',
   observations: demoObservations, subjectId: 'person-demo-anchor',
 }))
-const publicJourney = pastJourneyForDisplay(projectPastJourney({
+const publicJourney = projectPastJourneyExperience({
   observations: demoJourneyObservations, subjectId: 'person-demo-anchor',
-}))
+  maxGapMs: 36 * 60 * 60 * 1000,
+})
 
 export default function HomePage() {
   return (

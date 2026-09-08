@@ -7,7 +7,7 @@ import type { FamilyOperatingPersonReadModel } from '@/lib/family-os/family-oper
 import type { OperatingHandoffProjection, OperatingWatchProjection } from '@/lib/family-os/operating-coordination-read-model'
 import type { OperatingPresenceProjection, OperatingRouteProjection } from '@/lib/family-os/operating-route-presence-read-model'
 import type { TemporalGridDisplayProjection } from '@/lib/family-os/temporal-grid'
-import type { PastJourneyDisplayProjection } from '@/lib/family-os/past-journey'
+import type { PastJourneyExperienceProjection } from '@/lib/family-os/past-journey-experience'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
 function formatClock(start?: string, timeZone?: string): string | null {
@@ -45,7 +45,7 @@ export function FamilyOperatingHero({
   route?: OperatingRouteProjection | null
   monthGrid?: TemporalGridDisplayProjection | null
   yearGrid?: TemporalGridDisplayProjection | null
-  journey?: PastJourneyDisplayProjection | null
+  journey?: PastJourneyExperienceProjection | null
 }) {
   const [timeScale, setTimeScale] = useState<TimeScale>('today')
   const [personFocused, setPersonFocused] = useState(false)
@@ -108,16 +108,16 @@ export function FamilyOperatingHero({
           <aside className="past-journey-panel" aria-label="Past Journey memories">
             <div className="person-row">
               <div><span>Past Journey</span><small>Photo + place memory socket</small></div>
-              <span className="presence-pill">{journey?.clusters.length ?? 0} places</span>
+              <span className="presence-pill">{journey?.stories.length ?? 0} stories · {journey?.clusters.length ?? 0} places</span>
             </div>
             <div className="journey-memory-list">
-              {(journey?.clusters ?? []).map((cluster) => (
-                <article key={cluster.id}>
-                  <strong>{cluster.label}</strong>
-                  <span>{cluster.memoryCount} memories</span>
+              {(journey?.stories ?? []).map((story) => (
+                <article key={story.id}>
+                  <strong>{story.summary}</strong>
+                  <span>{story.start.slice(0, 10)}{story.end !== story.start ? ` → ${story.end.slice(0, 10)}` : ''}</span>
                 </article>
               ))}
-              {!journey?.clusters.length ? <p>No verified place memories yet.</p> : null}
+              {!journey?.stories.length ? <p>No verified memory stories yet.</p> : null}
             </div>
           </aside>
         ) : (

@@ -8,10 +8,12 @@ Goal: let Family OS reveal Jayden's specialist Learning runtime without copying 
 - Family OS receives only a module availability/status projection until delegated transport is ready.
 - No JDK task prompt, response, private evidence, capsule, or parent-session data enters the family module summary.
 
-## Current JDK transport truth
-The verified JDK release endpoint is POST-only, parent-session protected, capsule-bound, and same-origin protected. No delegated Family OS bridge is configured yet.
+## Current JDK transport truth (updated 2026-09-08)
+The parent release endpoint (`POST /api/parent-released-practice`) stays parent-session protected, capsule-bound, and same-origin protected. It is never the Family OS transport.
 
-Therefore Learning must render as `Bridge pending`, not as connected or live.
+JDK now also exposes a *delegated* transport for Family OS: `GET /api/family-bridge/releases`, bearer-token only, read-only, serving approved-release projections (`releaseId`, `taskId`, `subject`, `conceptId`, `rendererId`, `approvedAt`) from a private-server ledger. It is backed by a persistent parent review ledger, so an approved release exists server-side rather than only inside one browser tab.
+
+`GET /api/family-bridge/status` reports all three bindings as `false` only when that ledger is configured on the JDK side; otherwise it keeps reporting the bound parent path, and Learning must render as `Bridge pending`.
 
 ## Ready condition
 Learning becomes ready only when the JDK transport decision is `ready` after those binding constraints are removed from the bridge path and delegated transport is configured.
@@ -24,7 +26,8 @@ Family OS derives the Learning state per request instead of from constants:
   `{ "parentSessionBound": boolean, "capsuleBound": boolean, "sameOriginBound": boolean }` (2 s timeout, no-store, redirects rejected, body ≤ 4 KB; the result is cached in-process for 20 s so a slow bridge never serialises page renders).
 - All three false → `Connected`. Any true → `Bridge pending` with the reported binding reasons.
 - Unreachable / non-2xx → `Bridge unreachable`; 401/403 → `Bridge unauthorized`; non-JSON, oversized or malformed body → `Bridge status invalid` (all state `unknown`, never Connected).
-- No task prompt, response, capsule, or parent-session data ever crosses this contract. The JDK side of this endpoint is not implemented yet.
+- No task prompt, response, capsule, or parent-session data ever crosses this contract. Implemented on the JDK side (lofibrainwav/JDK, `api/family-bridge/status.ts`, `api/family-bridge/releases.ts`).
+- Family OS currently consumes only `/status`. `/releases` is available for a later Learning module that lists approved releases; it must still never render prompts or evidence.
 
 ## Acceptance
 - blocked and ready transport states are tested

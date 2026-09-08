@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useRef } from 'react'
-import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl'
+import { useEffect, useRef, useState } from 'react'
+import { Map as MapLibreMap, Marker, Popup, NavigationControl } from 'maplibre-gl'
 import { scheduleGlobeProjection } from '@/lib/client/maplibre-globe'
+import { familyMapStyle } from '@/lib/client/family-map-style'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 import { cameraForTimeScale, DEFAULT_HOUSEHOLD_HOME, type HouseholdHome } from '@/lib/family-os/household-home'
 
@@ -27,23 +28,30 @@ export function FamilyGlobe({
   const initialTimeScale = useRef(timeScale)
   const initialHome = useRef(home)
   const initialFocusPoint = useRef(focusPoint)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading')
 
   useEffect(() => {
     const host = hostRef.current
     if (!host || mapRef.current) return
 
+    let failed = false
     const markUnavailable = () => {
+      failed = true
       host.dataset.globeFallback = 'true'
+      setStatus('unavailable')
     }
 
     let map: MapLibreMap
     try {
       map = new MapLibreMap({
         container: host,
-        style: 'https://demotiles.maplibre.org/style.json',
+        style: familyMapStyle(),
         ...cameraForTimeScale(initialTimeScale.current, initialHome.current),
-        attributionControl: false,
-        interactive: false,
+        attributionControl: { compact: false },
+        interactive: true,
+        cooperativeGestures: true,
+        // Map tiles need a valid referrer; disclose only this app's origin, never a private path.
+        transformRequest: (url) => ({ url, referrerPolicy: 'origin' }),
       })
     } catch {
       markUnavailable()
@@ -51,6 +59,18 @@ export function FamilyGlobe({
     }
 
     mapRef.current = map
+    map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
+    const timeout = window.setTimeout(markUnavailable, 12000)
+    map.on('load', () => {
+      window.clearTimeout(timeout)
+      if (failed) return
+      delete host.dataset.globeFallback
+      setStatus('ready')
+      map.resize()
+    })
+    map.on('error', markUnavailable)
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(host)
     let removed = false
     const removeMap = () => {
       if (removed) return
@@ -76,6 +96,8 @@ export function FamilyGlobe({
     }
 
     return () => {
+      window.clearTimeout(timeout)
+      resizeObserver.disconnect()
       cancelProjection()
       removeMap()
     }
@@ -129,5 +151,12 @@ export function FamilyGlobe({
     })
   }, [journeyPoints, timeScale])
 
-  return <div ref={hostRef} className="family-globe" aria-hidden="true" />
+  return <>
+    <div ref={hostRef} className="family-globe" role="region" aria-label={`${home.label} family area map`} />
+    {status !== 'ready' ? <div className="map-load-status" role="status">
+      <strong>{status === 'loading' ? '지도를 불러오고 있어요' : '이 브라우저에서 지도를 표시하지 못했어요'}</strong>
+      <span>{home.label} · 가족 생활권, 실시간 위치 아님</span>
+      {status === 'unavailable' ? <a href={`https://www.google.com/maps/@${home.latitude},${home.longitude},11z`} target="_blank" rel="noreferrer">Google 지도에서 열기 ↗</a> : null}
+    </div> : null}
+  </>
 }

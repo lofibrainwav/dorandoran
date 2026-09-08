@@ -1,4 +1,6 @@
-# Unit 24 — DoranDoran Site Password Gate
+# Unit 24 — DoranDoran Site Password Gate (RETIRED 2026-09-08)
+
+> Retired under spec 25H once Google household identity carried both approved adults on Production. The code, routes, tests and Production env keys described below no longer exist; this document is kept as history only.
 
 ## Security boundary
 - `dorandoran.link` pages require an explicit site password before content is rendered.

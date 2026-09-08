@@ -21,7 +21,6 @@ export default async function SignInPage({
   const protocol = requestHeaders.get('x-forwarded-proto') ?? 'https'
   const origin = host ? `${protocol}://${host}` : 'https://dorandoran.link'
   const clientId = process.env.GOOGLE_WEB_CLIENT_ID?.trim()
-  const legacyFallback = Boolean(process.env.DORANDORAN_ACCESS_CODE?.trim())
   const message = signInMessage(params.error)
 
   return (
@@ -67,14 +66,6 @@ export default async function SignInPage({
           </div>
         )}
 
-        {legacyFallback ? (
-          <a
-            href="/unlock"
-            className="mt-7 inline-flex text-sm text-white/45 underline decoration-white/20 underline-offset-4 hover:text-white/70"
-          >
-            Temporary access-code fallback
-          </a>
-        ) : null}
       </section>
     </main>
   )

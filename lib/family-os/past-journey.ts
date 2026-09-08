@@ -50,6 +50,10 @@ function sortedTimes(values: Array<string | undefined>): string[] {
   return values.filter((value): value is string => Boolean(value)).sort((a, b) => Date.parse(a) - Date.parse(b))
 }
 
+function coordinateClusterRef(coordinates: { latitude: number; longitude: number }): string {
+  return `coordinates:${coordinates.latitude},${coordinates.longitude}`
+}
+
 export function projectPastJourney(input: ProjectPastJourneyInput): PastJourneyProjection {
   const memories = input.observations.filter((item) => isSubjectMemory(item, input.subjectId))
   const grouped = new Map<string, ContextObservation[]>()
@@ -57,13 +61,14 @@ export function projectPastJourney(input: ProjectPastJourneyInput): PastJourneyP
 
   for (const memory of memories) {
     const where = memory.sixW1H.where
-    if (!where?.placeRef || !where.label || !validCoordinates(where.coordinates)) {
+    if (!where || !validCoordinates(where.coordinates)) {
       unlocatedMemoryCount += 1
       continue
     }
-    const list = grouped.get(where.placeRef) ?? []
+    const clusterRef = where.placeRef ?? coordinateClusterRef(where.coordinates)
+    const list = grouped.get(clusterRef) ?? []
     list.push(memory)
-    grouped.set(where.placeRef, list)
+    grouped.set(clusterRef, list)
   }
 
   const clusters = [...grouped.entries()].map(([placeRef, items]) => {
@@ -73,7 +78,7 @@ export function projectPastJourney(input: ProjectPastJourneyInput): PastJourneyP
     return {
       id: `journey:${placeRef}`,
       placeRef,
-      label: first.label!,
+      label: first.label?.trim() || 'Location recorded',
       coordinates: first.coordinates!,
       memoryCount: items.length,
       ...(times.length ? { firstSeen: times[0], lastSeen: times[times.length - 1] } : {}),

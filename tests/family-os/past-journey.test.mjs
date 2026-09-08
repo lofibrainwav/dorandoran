@@ -68,3 +68,19 @@ test('schedule observations and other people never become journey memories', () 
   assert.equal(journey.clusters.length, 0)
   assert.equal(journey.unlocatedMemoryCount, 0)
 })
+test('coordinate-only memory becomes an exact globe cluster without inventing a place name', () => {
+  const coordinateOnly = normalizeAdapterOutput('memory-demo', [{
+    id: 'm4', kind: 'memory', sourceRef: 'memory:4', observedAt: '2026-09-07T20:03:00Z',
+    evidenceState: 'confirmed', evidenceRefs: ['memory-evidence-4'],
+    sixW1H: {
+      who: { personIds: ['person-a'] },
+      when: { start: '2025-07-01T10:00:00Z' },
+      where: { coordinates: { latitude: 34.1234, longitude: -118.1234 } },
+    }, continuity: { recordedAt: '2026-09-07T20:03:00Z' },
+  }])
+  const journey = projectPastJourney({ observations: coordinateOnly, subjectId: 'person-a' })
+  assert.equal(journey.clusters.length, 1)
+  assert.equal(journey.clusters[0].label, 'Location recorded')
+  assert.deepEqual(journey.clusters[0].coordinates, { latitude: 34.1234, longitude: -118.1234 })
+  assert.equal(journey.unlocatedMemoryCount, 0)
+})

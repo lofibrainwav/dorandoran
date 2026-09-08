@@ -4,6 +4,7 @@ import {
   parseHouseholdMembership,
   projectOperatingPresence,
   projectWeekDays,
+  resolveHouseholdHome,
   resolveHouseholdTimeZone,
   resolveUniqueChildPersonId,
 } from '@/lib/family-os'
@@ -32,6 +33,15 @@ function householdChildPersonId() {
   }
 }
 
+function householdHome() {
+  try {
+    return resolveHouseholdHome(process.env)
+  } catch (error) {
+    console.error('[family-week] DORANDORAN_HOME_COORDINATES is invalid; falling back to the default home', error)
+    return resolveHouseholdHome({})
+  }
+}
+
 function householdTimeZone() {
   try {
     return resolveHouseholdTimeZone(process.env)
@@ -45,6 +55,7 @@ export default async function FamilyWeekPage() {
   const privateEnabled = privateFamilySurfaceEnabled()
   const now = new Date()
   const timeZone = householdTimeZone()
+  const home = householdHome()
   const childPersonId = householdChildPersonId()
   // Learning state is derived from the delegated JDK bridge (env + cached live status probe), never from constants.
   // It runs alongside the calendar loaders so a slow bridge never serialises the page.
@@ -110,6 +121,7 @@ export default async function FamilyWeekPage() {
           <>
             <FamilyOperatingHero
               person={scheduleResult.readModel}
+              home={home}
               presence={presence}
               monthGrid={temporalResult?.monthGrid}
               yearGrid={temporalResult?.yearGrid}

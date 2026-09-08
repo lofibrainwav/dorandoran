@@ -9,6 +9,7 @@ import type { OperatingPresenceProjection, OperatingRouteProjection } from '@/li
 import type { TemporalGridDisplayProjection } from '@/lib/family-os/temporal-grid'
 import type { PastJourneyExperienceProjection } from '@/lib/family-os/past-journey-experience'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
+import { DEFAULT_HOUSEHOLD_HOME, type HouseholdHome } from '@/lib/family-os/household-home'
 
 function formatClock(start?: string, timeZone?: string): string | null {
   if (!start || !timeZone) return null
@@ -30,6 +31,7 @@ const scales: Array<{ id: TimeScale; label: string }> = [
 
 export function FamilyOperatingHero({
   person,
+  home = DEFAULT_HOUSEHOLD_HOME,
   watch,
   handoff,
   presence,
@@ -39,6 +41,7 @@ export function FamilyOperatingHero({
   journey,
 }: {
   person: FamilyOperatingPersonReadModel
+  home?: HouseholdHome
   watch?: OperatingWatchProjection | null
   handoff?: OperatingHandoffProjection | null
   presence?: OperatingPresenceProjection | null
@@ -89,6 +92,7 @@ export function FamilyOperatingHero({
       <div className="operating-stage">
         <FamilyGlobe
           timeScale={timeScale}
+          home={home}
           focusPoint={person.place.coordinates ? {
             longitude: person.place.coordinates.longitude,
             latitude: person.place.coordinates.latitude,
@@ -99,7 +103,7 @@ export function FamilyOperatingHero({
         <div className="globe-vignette" aria-hidden="true" />
         {selectedGrid ? <TemporalZoomGrid grid={selectedGrid} /> : null}
         <div className="globe-label">
-          <span>{timeScale === 'past' ? 'World · Past Journey' : timeScale === 'year' ? 'Year · Wide view' : 'Los Angeles · Family context'}</span>
+          <span>{timeScale === 'past' ? 'World · Past Journey' : timeScale === 'year' ? 'Year · Wide view' : `${home.label} · Family context`}</span>
           <strong>永</strong>
           <small>Past → Now</small>
         </div>

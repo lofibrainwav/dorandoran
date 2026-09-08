@@ -5,6 +5,7 @@ import {
   siteGateAuthorized,
   siteGateSessionToken,
   siteGateSessionAuthorized,
+  cleanSiteGateSessionPath,
   safeNextPath,
   siteGateConfig,
 } from '../../lib/server/site-password-gate.ts'
@@ -38,6 +39,13 @@ test('signed fallback session rejects tampering and wrong gate keys', async () =
   assert.equal(await siteGateSessionAuthorized(`${token}x`, 'fixture-key-a', now), false)
   assert.equal(await siteGateSessionAuthorized(token, 'fixture-key-b', now), false)
   assert.equal(await siteGateSessionAuthorized('bad', 'fixture-key-a', now), false)
+})
+
+test('clean session path removes only the one-time gate parameter', () => {
+  assert.equal(cleanSiteGateSessionPath('/?__dd_session=abc'), '/')
+  assert.equal(cleanSiteGateSessionPath('/family?view=past&__dd_session=abc'), '/family?view=past')
+  assert.equal(cleanSiteGateSessionPath('/family?__dd_session=abc&view=past'), '/family?view=past')
+  assert.equal(cleanSiteGateSessionPath('/family?view=past'), '/family?view=past')
 })
 
 test('next path accepts only same-site absolute paths', () => {

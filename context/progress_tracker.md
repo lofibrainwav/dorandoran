@@ -66,10 +66,13 @@
 - Apple Photos `selection` canary remains flaky with AppleEvent timeout, while Photos app automation itself responds normally to lightweight commands.
 - Designated-album fallback using pinned `osxphotos==0.76.1` is implemented; real designated-album transport canary is GREEN; the `DoranDoran` album is currently absent, so zero photo metadata was read or printed.
 - Canonical public website metadata is `https://dorandoran.link`; the domain is now attached to Vercel project `v0-one-box`.
-- Domain verification is blocked only by the existing apex A record `34.160.49.255`; Vercel requires an interactive user confirmation before overwriting that live DNS record.
+- `dorandoran.link` DNS is verified and configured correctly on Vercel; the apex now resolves to the approved Vercel A record and HTTPS is live.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
 - Regression count is 184 tests.
+- GREEN Preview for HEAD `42078ba` was promoted to Production after explicit user approval.
+- Live readback is GREEN: `https://dorandoran.link/` and `/family` both return HTTP 200.
+- Public `/family` exposes no private local-source badge, Photos setup state, credential path, Apple evidence ref, or private snapshot path.
 - Private Photo Setup Guidance now distinguishes ready, action-required album setup, and source failure without exposing private refs.
 - Local production smoke exposed a performance blocker: live `osxphotos` album reads take about 17.2s cold (about 9.9s with `_skip_searchinfo`), so Photos DB work must leave the HTTP render path.
 - Private Photo Snapshot now moves heavy Photos DB reads to explicit local refresh; `/family` reads only a versioned privacy-safe snapshot.
@@ -77,4 +80,4 @@
 - Clean production `/family` smoke is HTTP 200 in 0.744s with snapshot truth visible and no private path/ref leakage.
 
 ## Next unit
-Keep the fast snapshot path as the HTTP contract. Add a bounded local refresh cadence only after the designated Photos album exists; until then the snapshot truthfully remains `partial/album-missing`. The remaining external blockers are the human macOS Photos permission/album action and the one interactive Vercel DNS cutover for `dorandoran.link`.
+Resolve the remaining macOS Photos human-session boundary: create the empty `DoranDoran` album in a real Photos GUI/TCC-authorized session, place only explicitly approved memories into it, then run `pnpm photos:snapshot:refresh` and verify Past Journey/Globe real-data projection. Keep private Photos/Calendar sources disabled on Vercel.

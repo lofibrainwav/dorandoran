@@ -1,8 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import {
   SITE_GATE_COOKIE,
+  SITE_GATE_SESSION_MAX_AGE_SECONDS,
+  SITE_GATE_SESSION_PARAM,
   safeNextPath,
   siteGateConfig,
+  siteGateSessionToken,
   siteGateToken,
 } from '@/lib/server/site-password-gate'
 
@@ -10,7 +13,26 @@ function unlockRedirect(request: NextRequest, next: string, error = false) {
   const url = new URL('/unlock', request.url)
   url.searchParams.set('next', next)
   if (error) url.searchParams.set('error', '1')
-  return NextResponse.redirect(url, 303)
+  const response = NextResponse.redirect(url, 303)
+  response.headers.set('Cache-Control', 'no-store')
+  response.headers.set('Referrer-Policy', 'no-referrer')
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+  return response
+}
+
+function cookieOptions(request: NextRequest) {
+  const secure = request.nextUrl.protocol === 'https:'
+  const hostname = request.nextUrl.hostname.toLowerCase()
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? ('none' as const) : ('lax' as const),
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+    ...(hostname === 'dorandoran.link' || hostname.endsWith('.dorandoran.link')
+      ? { domain: 'dorandoran.link' }
+      : {}),
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -27,14 +49,20 @@ export async function POST(request: NextRequest) {
     return unlockRedirect(request, next, true)
   }
 
-  const response = NextResponse.redirect(new URL(next, request.url), 303)
-  response.cookies.set(SITE_GATE_COOKIE, await siteGateToken(gate.accessCode, gate.gateKey), {
-    httpOnly: true,
-    secure: request.nextUrl.protocol === 'https:',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-  })
-  response.headers.set('Cache-Control', 'no-store')
+  const destination = new URL(next, request.url)
+  destination.searchParams.set(
+    SITE_GATE_SESSION_PARAM,
+    await siteGateSessionToken(gate.gateKey, Date.now() + SITE_GATE_SESSION_MAX_AGE_SECONDS * 1000),
+  )
+  const response = NextResponse.redirect(destination, 303)
+  response.cookies.set(
+    SITE_GATE_COOKIE,
+    await siteGateToken(gate.accessCode, gate.gateKey),
+    cookieOptions(request),
+  )
+  response.headers.set('Cache-Control', 'private, no-store, max-age=0')
+  response.headers.set('Pragma', 'no-cache')
+  response.headers.set('Referrer-Policy', 'no-referrer')
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   return response
 }

@@ -69,7 +69,7 @@
 - Domain verification is blocked only by the existing apex A record `34.160.49.255`; Vercel requires an interactive user confirmation before overwriting that live DNS record.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
-- Regression count is 171 tests.
+- Regression count is 174 tests.
 
 ## Next unit
-Complete the one interactive Vercel DNS confirmation for `dorandoran.link`, then re-run DNS/TLS verification. Populate or explicitly select the designated `DoranDoran` Photos album before enabling album-backed memories; until then it truthfully yields zero memories. Keep private Photos/Calendar sources disabled on Vercel.
+Complete the one interactive Vercel DNS confirmation for `dorandoran.link`, then re-run DNS/TLS verification. Create the `DoranDoran` album from a real Photos GUI session and explicitly place approved memories into it; until then local Family OS truthfully reports `partial/album-missing`. Keep private Photos/Calendar sources disabled on Vercel.

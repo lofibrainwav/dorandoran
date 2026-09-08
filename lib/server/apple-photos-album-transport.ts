@@ -39,7 +39,8 @@ album_name = sys.argv[1]
 limit = int(sys.argv[2])
 with contextlib.redirect_stdout(io.StringIO()):
     db = osxphotos.PhotosDB()
-    photos = db.photos(albums=[album_name])[:limit]
+    album_exists = any(album.title == album_name for album in db.album_info)
+    photos = db.photos(albums=[album_name])[:limit] if album_exists else []
 rows = []
 for photo in photos:
     row = {"id": photo.uuid}
@@ -49,7 +50,7 @@ for photo in photos:
     if lat is not None and lon is not None:
         row["coordinates"] = {"latitude": lat, "longitude": lon}
     rows.append(row)
-print(json.dumps(rows))
+print(json.dumps({"albumExists": album_exists, "rows": rows}))
 `
 
 async function runAlbumQuery(command: string, args: string[]): Promise<string> {
@@ -70,5 +71,11 @@ export async function readApplePhotosAlbumMetadata(
   const command = process.env.UV_BIN?.trim() || 'uv'
   const args = ['run', '--with', `osxphotos==${OSXPHOTOS_VERSION}`, '--python', '3.12', 'python', '-c', pythonScript, albumName, String(input.limit)]
   const raw = await runner(command, args)
-  return sanitizeRows(JSON.parse(raw || '[]'), input.limit)
+  const parsed: unknown = JSON.parse(raw || '[]')
+  if (Array.isArray(parsed)) return sanitizeRows(parsed, input.limit)
+  if (!parsed || typeof parsed !== 'object') throw new Error('APPLE_PHOTOS_ALBUM_PAYLOAD_INVALID')
+  const payload = parsed as { albumExists?: unknown; rows?: unknown }
+  if (payload.albumExists === false) throw new Error('APPLE_PHOTOS_ALBUM_NOT_FOUND')
+  if (payload.albumExists !== true) throw new Error('APPLE_PHOTOS_ALBUM_PAYLOAD_INVALID')
+  return sanitizeRows(payload.rows, input.limit)
 }

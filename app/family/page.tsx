@@ -57,7 +57,7 @@ export default async function FamilyWeekPage() {
               />
               <p className="mt-2 text-xs text-[var(--muted)]">
                 Private local source · today {privateResult.sourceHealth} · temporal {temporalResult?.sourceHealth ?? 'unavailable'}
-                {photoResult ? ` · photos ${photoResult.sourceHealth}` : ''}
+                {photoResult ? ` · photos ${photoResult.sourceHealth}/${photoResult.sourceState}` : ''}
               </p>
             </>
           ) : (

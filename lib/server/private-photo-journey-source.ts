@@ -17,8 +17,9 @@ export type PrivatePhotoAlbumReader = (input: { albumName: string; limit: number
 
 export interface PrivatePhotoJourneyResult {
   source: 'apple-photos-selection' | 'apple-photos-album'
-  sourceHealth: 'green' | 'failure'
+  sourceHealth: 'green' | 'partial' | 'failure'
   selectedCount: number
+  sourceState: 'ready' | 'album-missing' | 'failure'
   experience: PastJourneyExperienceProjection
 }
 
@@ -75,13 +76,18 @@ export async function loadPrivatePhotoJourney(input: {
       source: plan.source,
       sourceHealth: 'green',
       selectedCount: records.length,
+      sourceState: 'ready',
       experience: projectPastJourneyExperience({ observations, maxGapMs: input.maxGapMs }),
     }
-  } catch {
+  } catch (error) {
+    const albumMissing = plan.source === 'apple-photos-album'
+      && error instanceof Error
+      && error.message.includes('APPLE_PHOTOS_ALBUM_NOT_FOUND')
     return {
       source: plan.source,
-      sourceHealth: 'failure',
+      sourceHealth: albumMissing ? 'partial' : 'failure',
       selectedCount: 0,
+      sourceState: albumMissing ? 'album-missing' : 'failure',
       experience: emptyExperience(input.maxGapMs),
     }
   }

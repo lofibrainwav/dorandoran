@@ -17,6 +17,7 @@ const humanApproval = {
   recipientFingerprint: email.recipientFingerprint,
   contentFingerprint: email.contentFingerprint,
   approvedByType: 'human',
+  approvedByAccess: 'adult',
   approvedByPersonId: 'jay',
   expiresAtEpochMs: 2_000,
   consumed: false,
@@ -40,6 +41,17 @@ test('automation or agent approval can never authorize an email send', () => {
   )
 })
 
+test('child identity cannot authorize an external email send', () => {
+  assert.deepEqual(
+    decideExternalAction({
+      request: email,
+      approval: { ...humanApproval, approvedByAccess: 'child', approvedByPersonId: 'jayden' },
+      nowEpochMs: 1_000,
+    }),
+    { kind: 'deny', reason: 'ADULT_APPROVAL_REQUIRED' },
+  )
+})
+
 test('approval is bound to the exact action, recipient, and content', () => {
   for (const approval of [
     { ...humanApproval, actionId: 'different' },
@@ -55,7 +67,7 @@ test('approval is bound to the exact action, recipient, and content', () => {
 
 test('expired or consumed approval cannot be reused', () => {
   assert.deepEqual(
-    decideExternalAction({ request: email, approval: humanApproval, nowEpochMs: 2_001 }),
+    decideExternalAction({ request: email, approval: humanApproval, nowEpochMs: 2_000 }),
     { kind: 'deny', reason: 'APPROVAL_EXPIRED' },
   )
   assert.deepEqual(
@@ -64,7 +76,7 @@ test('expired or consumed approval cannot be reused', () => {
   )
 })
 
-test('an exact, current, unconsumed human approval authorizes one email send', () => {
+test('an exact, current, unconsumed adult human approval authorizes one email send', () => {
   assert.deepEqual(decideExternalAction({ request: email, approval: humanApproval, nowEpochMs: 1_000 }), {
     kind: 'allow',
     approvedByPersonId: 'jay',

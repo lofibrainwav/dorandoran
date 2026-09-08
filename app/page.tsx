@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
 import {
   normalizeAdapterOutput,
@@ -90,6 +91,11 @@ export default function HomePage() {
         journey={publicJourney}
       />
       <section className="home-explainer" aria-labelledby="grammar-title">
+        <p className="hero-kicker">Public demo · fixed sample data</p>
+        <p>
+          Everything above is a static demonstration. Signed-in household members see their real week at{' '}
+          <Link href="/family">Family Week →</Link>
+        </p>
         <p className="hero-kicker">Universal context grammar</p>
         <h2 id="grammar-title">Any source can plug in. Family truth stays provider-neutral.</h2>
         <div className="evidence-steps">

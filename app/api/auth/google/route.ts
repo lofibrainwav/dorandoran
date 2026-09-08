@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     const expiresAt = Date.now() + HOUSEHOLD_SESSION_MAX_AGE_SECONDS * 1000
     const token = await householdSessionToken(authorized.googleSub, authSecret, expiresAt)
-    const response = NextResponse.redirect(new URL('/', request.url), 303)
+    const response = NextResponse.redirect(new URL('/family', request.url), 303)
     response.cookies.set(HOUSEHOLD_SESSION_COOKIE, token, sessionCookieOptions(request))
     response.headers.set('Cache-Control', 'no-store')
     response.headers.set('Referrer-Policy', 'no-referrer')

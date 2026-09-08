@@ -131,3 +131,17 @@ test('operational family calendar source stays off when required private runtime
   })
   assert.equal(result, null)
 })
+
+test('operational calendar result exposes the person observations for week rendering', async () => {
+  const result = await loadPrivateOperationalFamilyCalendarPerson({
+    env,
+    personId: 'child-a',
+    label: 'Child',
+    now: new Date('2026-09-08T16:00:00-07:00'),
+    timeZone: 'America/Los_Angeles',
+    readEvents: async () => payloads,
+  })
+  assert.ok(result)
+  assert.equal(result.observations.length, 1)
+  assert.equal(result.observations[0].sixW1H.what?.label, 'Child activity')
+})

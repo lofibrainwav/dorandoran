@@ -1,3 +1,5 @@
+import type { HouseholdMember } from '../family-os/google-household-identity.ts'
+
 export const HOUSEHOLD_SESSION_COOKIE = 'dorandoran_household_v1'
 export const HOUSEHOLD_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
@@ -89,4 +91,16 @@ export async function verifyHouseholdSessionToken(
   const expected = await hmac(payload, secret)
   if (!safeEqual(signature, expected)) return null
   return { googleSub, expiresAt }
+}
+
+export async function resolveHouseholdSessionMember(
+  token: string | undefined,
+  authSecret: string,
+  membership: HouseholdMember[],
+  now: number,
+): Promise<HouseholdMember | null> {
+  const claims = await verifyHouseholdSessionToken(token, authSecret, now)
+  if (!claims) return null
+  const member = membership.find((candidate) => candidate.googleSub === claims.googleSub) ?? null
+  return member?.canSignIn ? member : null
 }

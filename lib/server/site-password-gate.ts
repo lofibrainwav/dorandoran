@@ -79,6 +79,12 @@ export async function siteGateSessionAuthorized(
   return safeEqual(signature, expected)
 }
 
+export function cleanSiteGateSessionPath(pathAndQuery: string): string {
+  const url = new URL(pathAndQuery, 'https://dorandoran.invalid')
+  url.searchParams.delete(SITE_GATE_SESSION_PARAM)
+  return `${url.pathname}${url.search}`
+}
+
 export function safeNextPath(value: string | null | undefined): string {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/'
   return value

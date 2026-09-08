@@ -51,9 +51,12 @@
 - Public demo markers are explicitly labeled as demo memories; private photo/file evidence refs are stripped from the client display projection.
 - Private Month/Year now reads one exact LA-local calendar year and projects both grids from the same server-only observation set.
 - Real private readback is GREEN: 46 timed events across 9 active months, with 4 active cells in the current month; no titles/locations/ids were printed.
+- Photo Metadata Adapter now converts metadata-only photo evidence into canonical `memory` observations; raw pixels, file paths, thumbnails, and raw EXIF cannot enter the observation.
+- Missing/invalid capture or place metadata remains unknown; photo metadata never emits live-presence semantics.
+- Photo metadata composes directly with Past Journey clustering; Family OS regression is now 150/150 GREEN.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
 - Regression count is 145 tests.
 
 ## Next unit
-Define the photo metadata adapter that can feed Past Journey without exposing raw pixels or file paths, then add trip grouping/story projection. Add private route/presence adapters only after a real authorized source exists; keep JDK delegated transport separate from the parent-security boundary.
+Add trip grouping over confirmed memory observations, then story projection and globe memory-cluster projection. Connect a real authorized Photo source only after those provider-neutral contracts are GREEN; keep route/presence and JDK delegated transport behind their separate authority boundaries.

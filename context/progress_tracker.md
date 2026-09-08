@@ -1,5 +1,9 @@
 # Progress Tracker
 
+## Active handoff — 2026-09-08
+
+Unit 26 ([household week completeness](feature-specs/26-household-week-completeness.md)) is implemented and locally verified on `feat/family-week-shows-all-household-facts`, based on `265d20417404891248e69d7f2bd9334219d0d951`. The household week now retains operational-calendar facts without changing person-scoped NOW/NEXT assignment. HyoDo safety and all five quality gates passed; actual server-page render tests cover labels, privacy, and UNKNOWN versus empty. A local private-source read retained 11 of 11 timed events. Changes remain uncommitted and unpublished; authenticated production behavior is not yet verified. The historical next-unit notes below do not supersede this handoff.
+
 ## Current state
 - Greenfield worktree created from `main`.
 - Legacy UI shell removed.

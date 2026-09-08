@@ -11,6 +11,12 @@ import {
   type SpecialistModuleSummary,
 } from '../family-os/index.ts'
 import { readGoogleCalendarSource, type GoogleCalendarReadWindow } from './google-calendar-local-transport.ts'
+import {
+  calendarWebRuntimeHealth,
+  readGoogleCalendarWebSource,
+  resolveGoogleCalendarWebRuntimeConfig,
+  type GoogleCalendarWebRuntimeConfig,
+} from './google-calendar-web-transport.ts'
 import { calendarPayloadsToObservations } from './private-calendar-operating-source.ts'
 
 export type OperationalFamilyCalendarReadEvents = (
@@ -18,8 +24,13 @@ export type OperationalFamilyCalendarReadEvents = (
   window: GoogleCalendarReadWindow,
 ) => Promise<GoogleCalendarApiEventPayload[]>
 
+export type OperationalFamilyWebCalendarReadEvents = (
+  config: GoogleCalendarWebRuntimeConfig,
+  window: GoogleCalendarReadWindow,
+) => Promise<GoogleCalendarApiEventPayload[]>
+
 export interface PrivateOperationalFamilyCalendarResult {
-  source: 'operational-family-local'
+  source: 'operational-family-local' | 'operational-family-web'
   readModel: FamilyOperatingPersonReadModel
   sourceHealth: 'green' | 'failure'
   eventCount: number
@@ -54,19 +65,34 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
   timeZone: string
   modules?: SpecialistModuleSummary[]
   readEvents?: OperationalFamilyCalendarReadEvents
+  readWebEvents?: OperationalFamilyWebCalendarReadEvents
 }): Promise<PrivateOperationalFamilyCalendarResult | null> {
   const env = input.env ?? process.env
+  const calendarId = resolveOperationalFamilyCalendar(env)
+  if (!calendarId) return null
+
+  const webHealth = calendarWebRuntimeHealth(env)
+  if (webHealth === 'incomplete') {
+    return {
+      source: 'operational-family-web',
+      readModel: emptyReadModel(input),
+      sourceHealth: 'failure',
+      eventCount: 0,
+      unassignedEventCount: 0,
+    }
+  }
+
   const clientPath = clean(env.GOOGLE_CALENDAR_CLIENT_SECRET_PATH)
   const tokenPath = clean(env.GOOGLE_CALENDAR_TOKEN_PATH)
-  const calendarId = resolveOperationalFamilyCalendar(env)
-  if (!clientPath || !tokenPath || !calendarId) return null
+  const localReady = Boolean(clientPath && tokenPath)
+  if (webHealth === 'off' && !localReady) return null
 
   let rules
   try {
     rules = parseCalendarSubjectRules(env)
   } catch {
     return {
-      source: 'operational-family-local',
+      source: webHealth === 'ready' ? 'operational-family-web' : 'operational-family-local',
       readModel: emptyReadModel(input),
       sourceHealth: 'failure',
       eventCount: 0,
@@ -74,65 +100,85 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
     }
   }
 
-  const config: LocalCalendarSourceConfig = {
-    sourceKey: 'family-operations',
-    clientPath,
-    tokenPath,
-    calendarId,
-    subjectIds: [],
-  }
-  const readEvents = input.readEvents ?? readGoogleCalendarSource
   const canonicalWindow = weekWindowFromLocalDate(input.now, input.timeZone)
+  const window = { start: canonicalWindow.start, end: canonicalWindow.end }
+  let payloads: GoogleCalendarApiEventPayload[]
+  let source: PrivateOperationalFamilyCalendarResult['source']
+  let observationConfig: LocalCalendarSourceConfig
 
   try {
-    const payloads = await readEvents(config, { start: canonicalWindow.start, end: canonicalWindow.end })
-    const observedAt = new Date().toISOString()
-    const observations: ContextObservation[] = []
-    let eventCount = 0
-    let unassignedEventCount = 0
-
-    for (const payload of payloads) {
-      const hasTimes = Boolean(payload.start?.dateTime && payload.end?.dateTime)
-      if (!hasTimes) continue
-      const subjectId = resolveCalendarEventSubject({
-        id: payload.id,
-        recurringEventId: payload.recurringEventId,
-        summary: payload.summary,
-      }, rules)
-      if (!subjectId) {
-        unassignedEventCount += 1
-        continue
+    if (webHealth === 'ready') {
+      const webConfig = resolveGoogleCalendarWebRuntimeConfig(env)
+      if (!webConfig) throw new Error('GOOGLE_CALENDAR_WEB_CONFIG_MISSING')
+      payloads = await (input.readWebEvents ?? readGoogleCalendarWebSource)(webConfig, window)
+      source = 'operational-family-web'
+      observationConfig = {
+        sourceKey: 'family-operations',
+        clientPath: '',
+        tokenPath: '',
+        calendarId: webConfig.calendarId,
+        subjectIds: [],
       }
-      if (subjectId !== input.personId) continue
-      observations.push(...calendarPayloadsToObservations(
-        { ...config, subjectIds: [input.personId] },
-        [payload],
-        observedAt,
-        input.timeZone,
-      ))
-      eventCount += 1
-    }
-
-    return {
-      source: 'operational-family-local',
-      readModel: projectFamilyOperatingPerson({
-        personId: input.personId,
-        label: input.label,
-        now: input.now.toISOString(),
-        observations,
-        modules: input.modules,
-      }),
-      sourceHealth: 'green',
-      eventCount,
-      unassignedEventCount,
+    } else {
+      const localConfig: LocalCalendarSourceConfig = {
+        sourceKey: 'family-operations',
+        clientPath: clientPath!,
+        tokenPath: tokenPath!,
+        calendarId,
+        subjectIds: [],
+      }
+      payloads = await (input.readEvents ?? readGoogleCalendarSource)(localConfig, window)
+      source = 'operational-family-local'
+      observationConfig = localConfig
     }
   } catch {
     return {
-      source: 'operational-family-local',
+      source: webHealth === 'ready' ? 'operational-family-web' : 'operational-family-local',
       readModel: emptyReadModel(input),
       sourceHealth: 'failure',
       eventCount: 0,
       unassignedEventCount: 0,
     }
+  }
+
+  const observedAt = new Date().toISOString()
+  const observations: ContextObservation[] = []
+  let eventCount = 0
+  let unassignedEventCount = 0
+
+  for (const payload of payloads) {
+    const hasTimes = Boolean(payload.start?.dateTime && payload.end?.dateTime)
+    if (!hasTimes) continue
+    const subjectId = resolveCalendarEventSubject({
+      id: payload.id,
+      recurringEventId: payload.recurringEventId,
+      summary: payload.summary,
+    }, rules)
+    if (!subjectId) {
+      unassignedEventCount += 1
+      continue
+    }
+    if (subjectId !== input.personId) continue
+    observations.push(...calendarPayloadsToObservations(
+      { ...observationConfig, subjectIds: [input.personId] },
+      [payload],
+      observedAt,
+      input.timeZone,
+    ))
+    eventCount += 1
+  }
+
+  return {
+    source,
+    readModel: projectFamilyOperatingPerson({
+      personId: input.personId,
+      label: input.label,
+      now: input.now.toISOString(),
+      observations,
+      modules: input.modules,
+    }),
+    sourceHealth: 'green',
+    eventCount,
+    unassignedEventCount,
   }
 }

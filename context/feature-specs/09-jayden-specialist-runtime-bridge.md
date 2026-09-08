@@ -16,6 +16,16 @@ Therefore Learning must render as `Bridge pending`, not as connected or live.
 ## Ready condition
 Learning becomes ready only when the JDK transport decision is `ready` after those binding constraints are removed from the bridge path and delegated transport is configured.
 
+## Delegated bridge status contract (2026-09-08)
+Family OS derives the Learning state per request instead of from constants:
+
+- `DORANDORAN_JDK_BRIDGE_URL` (https only) declares the delegated bridge; unset → `Bridge pending` with reason `DELEGATED_BRIDGE_MISSING`.
+- `GET {DORANDORAN_JDK_BRIDGE_URL}/status` with optional `Authorization: Bearer ${DORANDORAN_JDK_BRIDGE_TOKEN}` must return
+  `{ "parentSessionBound": boolean, "capsuleBound": boolean, "sameOriginBound": boolean }` (2 s timeout, no-store, redirects rejected, body ≤ 4 KB; the result is cached in-process for 20 s so a slow bridge never serialises page renders).
+- All three false → `Connected`. Any true → `Bridge pending` with the reported binding reasons.
+- Unreachable / non-2xx → `Bridge unreachable`; 401/403 → `Bridge unauthorized`; non-JSON, oversized or malformed body → `Bridge status invalid` (all state `unknown`, never Connected).
+- No task prompt, response, capsule, or parent-session data ever crosses this contract. The JDK side of this endpoint is not implemented yet.
+
 ## Acceptance
 - blocked and ready transport states are tested
 - Family OS module rendering is data-driven

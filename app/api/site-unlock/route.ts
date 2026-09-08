@@ -21,17 +21,12 @@ function unlockRedirect(request: NextRequest, next: string, error = false) {
 }
 
 function cookieOptions(request: NextRequest) {
-  const secure = request.nextUrl.protocol === 'https:'
-  const hostname = request.nextUrl.hostname.toLowerCase()
   return {
     httpOnly: true,
-    secure,
-    sameSite: secure ? ('none' as const) : ('lax' as const),
+    secure: request.nextUrl.protocol === 'https:',
+    sameSite: 'lax' as const,
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
-    ...(hostname === 'dorandoran.link' || hostname.endsWith('.dorandoran.link')
-      ? { domain: 'dorandoran.link' }
-      : {}),
   }
 }
 

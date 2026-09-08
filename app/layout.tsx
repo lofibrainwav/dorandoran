@@ -3,8 +3,10 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Chad Family OS',
+  metadataBase: new URL('https://dorandoran.link'),
+  title: 'DoranDoran Family OS',
   description: 'Jayden-centered family coordination.',
+  alternates: { canonical: '/' },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

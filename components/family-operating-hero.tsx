@@ -74,7 +74,7 @@ export function FamilyOperatingHero({
     <section className="operating-hero" aria-labelledby="hero-title">
       <div className="operating-topbar">
         <div>
-          <p className="hero-kicker">Chad Family OS</p>
+          <p className="hero-kicker">DoranDoran · Family OS</p>
           <h1 id="hero-title">One family. One living timeline.</h1>
         </div>
         <nav className="time-zoom" aria-label="Time zoom">

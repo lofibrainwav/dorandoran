@@ -12,14 +12,19 @@
 - [x] Preserve the legacy access-code path as a temporary migration fallback.
 - [x] Add immutable operational calendar ID configuration.
 - [x] Add deterministic event/series subject rules; no title inference.
-- [ ] CI/HyoDo GREEN on stacked PR.
-- [ ] Configure Google OAuth preview origin + redirect URI.
+- [x] Add explicit scheduler/transport responsibility defaults and event/series overrides.
+- [x] Add role-aware Today projection without changing schedule truth.
+- [x] Add Vercel-safe server OAuth Calendar credential provider.
+- [x] Wire operational Calendar subject routing into the `/family` web surface while preserving local-only photo boundaries.
+- [x] CI/HyoDo GREEN on final code head before account configuration.
+- [x] Vercel Preview READY on final code head before account configuration.
+- [ ] Configure Google OAuth stable Preview origin + redirect URI.
 - [ ] Configure Preview-only Vercel env for Google household auth.
 - [ ] Verify approved adult sign-in in browser.
 - [ ] Verify unknown account denial.
 - [ ] Verify child account cannot enter management surface.
-- [ ] Add Vercel-safe Calendar credential provider.
-- [ ] Wire operational calendar event subject resolver into live Family Today.
-- [ ] Add role-aware Jay/Julie projection.
+- [ ] Configure server-only household Calendar OAuth refresh credentials.
+- [ ] Configure private operational Calendar ID and explicit event/series subject rules in deployment secrets.
+- [ ] Verify real Jayden schedule and Jay/Julie role-aware projection on Preview.
 - [ ] Retire legacy password gate only after Preview E2E GREEN.
 - [ ] Promote exactly one verified deployment to `dorandoran.link`.

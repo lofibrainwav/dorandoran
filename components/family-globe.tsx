@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl'
+import { scheduleGlobeProjection } from '@/lib/client/maplibre-globe'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 
 type GlobePoint = { longitude: number; latitude: number; label: string }
@@ -30,26 +31,38 @@ export function FamilyGlobe({
   const journeyMarkerRefs = useRef<Marker[]>([])
   const initialTimeScale = useRef(timeScale)
   const initialFocusPoint = useRef(focusPoint)
+  const [globeUnavailable, setGlobeUnavailable] = useState(false)
 
   useEffect(() => {
-    if (!hostRef.current || mapRef.current) return
-    const map = new MapLibreMap({
-      container: hostRef.current,
-      style: 'https://demotiles.maplibre.org/style.json',
-      center: cameraByTime[initialTimeScale.current].center,
-      zoom: cameraByTime[initialTimeScale.current].zoom,
-      attributionControl: false,
-      interactive: false,
-    })
-    map.setProjection({ type: 'globe' })
+    if (globeUnavailable || !hostRef.current || mapRef.current) return
+
+    let map: MapLibreMap
+    try {
+      map = new MapLibreMap({
+        container: hostRef.current,
+        style: 'https://demotiles.maplibre.org/style.json',
+        center: cameraByTime[initialTimeScale.current].center,
+        zoom: cameraByTime[initialTimeScale.current].zoom,
+        attributionControl: false,
+        interactive: false,
+      })
+    } catch {
+      setGlobeUnavailable(true)
+      return
+    }
+
+    mapRef.current = map
+    const cancelProjection = scheduleGlobeProjection(map, () => setGlobeUnavailable(true))
+
     if (initialFocusPoint.current) {
       markerRef.current = new Marker({ color: '#f0d68a' })
         .setLngLat([initialFocusPoint.current.longitude, initialFocusPoint.current.latitude])
         .setPopup(new Popup({ closeButton: false }).setText(initialFocusPoint.current.label))
         .addTo(map)
     }
-    mapRef.current = map
+
     return () => {
+      cancelProjection()
       markerRef.current?.remove()
       journeyMarkerRefs.current.forEach((marker) => marker.remove())
       journeyMarkerRefs.current = []
@@ -57,7 +70,7 @@ export function FamilyGlobe({
       markerRef.current = null
       mapRef.current = null
     }
-  }, [])
+  }, [globeUnavailable])
 
   useEffect(() => {
     const map = mapRef.current
@@ -93,7 +106,6 @@ export function FamilyGlobe({
     markerRef.current.getPopup()?.setText(focusPoint.label)
   }, [focusPoint])
 
-
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -108,5 +120,6 @@ export function FamilyGlobe({
     })
   }, [journeyPoints, timeScale])
 
+  if (globeUnavailable) return <div className="family-globe" aria-hidden="true" data-globe-fallback="true" />
   return <div ref={hostRef} className="family-globe" aria-hidden="true" />
 }

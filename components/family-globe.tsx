@@ -4,24 +4,19 @@ import { useEffect, useRef } from 'react'
 import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl'
 import { scheduleGlobeProjection } from '@/lib/client/maplibre-globe'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
+import { cameraForTimeScale, DEFAULT_HOUSEHOLD_HOME, type HouseholdHome } from '@/lib/family-os/household-home'
 
 type GlobePoint = { longitude: number; latitude: number; label: string }
 
-const cameraByTime: Record<TimeScale, { center: [number, number]; zoom: number }> = {
-  now: { center: [-118.24, 34.05], zoom: 8.5 },
-  today: { center: [-118.24, 34.05], zoom: 7.8 },
-  week: { center: [-118.24, 34.05], zoom: 6.0 },
-  month: { center: [-119.5, 36.5], zoom: 4.0 },
-  year: { center: [-98, 38], zoom: 2.6 },
-  past: { center: [0, 22], zoom: 1.25 },
-}
 
 export function FamilyGlobe({
   timeScale,
+  home = DEFAULT_HOUSEHOLD_HOME,
   focusPoint,
   journeyPoints = [],
 }: {
   timeScale: TimeScale
+  home?: HouseholdHome
   focusPoint?: GlobePoint
   journeyPoints?: GlobePoint[]
 }) {
@@ -30,6 +25,7 @@ export function FamilyGlobe({
   const markerRef = useRef<Marker | null>(null)
   const journeyMarkerRefs = useRef<Marker[]>([])
   const initialTimeScale = useRef(timeScale)
+  const initialHome = useRef(home)
   const initialFocusPoint = useRef(focusPoint)
 
   useEffect(() => {
@@ -45,8 +41,7 @@ export function FamilyGlobe({
       map = new MapLibreMap({
         container: host,
         style: 'https://demotiles.maplibre.org/style.json',
-        center: cameraByTime[initialTimeScale.current].center,
-        zoom: cameraByTime[initialTimeScale.current].zoom,
+        ...cameraForTimeScale(initialTimeScale.current, initialHome.current),
         attributionControl: false,
         interactive: false,
       })
@@ -89,7 +84,7 @@ export function FamilyGlobe({
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    const target = cameraByTime[timeScale]
+    const target = cameraForTimeScale(timeScale, home)
     const showFocusMarker = timeScale === 'now' || timeScale === 'today' || timeScale === 'week'
     const markerElement = markerRef.current?.getElement()
     if (markerElement) markerElement.style.display = showFocusMarker ? '' : 'none'
@@ -99,7 +94,7 @@ export function FamilyGlobe({
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduced) map.jumpTo(target)
     else map.easeTo({ ...target, duration: 650 })
-  }, [timeScale])
+  }, [timeScale, home])
 
   useEffect(() => {
     const map = mapRef.current

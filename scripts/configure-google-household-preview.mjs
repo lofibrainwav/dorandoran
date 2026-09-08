@@ -49,7 +49,7 @@ const [clientRaw, tokenRaw] = await Promise.all([
 ])
 
 const calendarCredentials = parseGoogleOAuthClientSecret(clientRaw)
-const calendarRefreshToken = parseGoogleOAuthRefreshToken(tokenRaw)
+const calendarRefreshToken = parseGoogleOAuthRefreshToken(tokenRaw, calendarCredentials.clientId)
 const webClientId = requiredEnv('GOOGLE_WEB_CLIENT_ID')
 const membersJson = requiredEnv('DORANDORAN_HOUSEHOLD_MEMBERS_JSON')
 const familyCalendarId = requiredEnv('DORANDORAN_FAMILY_CALENDAR_ID')

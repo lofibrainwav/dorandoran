@@ -49,9 +49,28 @@ export function parseGoogleOAuthClientSecret(raw: string): GoogleOAuthClientCred
   return { clientId, clientSecret }
 }
 
-export function parseGoogleOAuthRefreshToken(raw: string): string {
+/**
+ * Accepts both the raw googleapis credential object ({ refresh_token }) and the
+ * local token record written by scripts/google-calendar-auth.mjs
+ * ({ version, clientId, credentials: { refresh_token } }).
+ * When the record carries a clientId and the caller supplies the expected
+ * client id, a mismatch is rejected before any remote write happens.
+ */
+export function parseGoogleOAuthRefreshToken(raw: string, expectedClientId?: string): string {
   const root = parseJsonObject(raw, 'INVALID_GOOGLE_OAUTH_TOKEN')
-  const refreshToken = clean(root.refresh_token)
+  const nested = root.credentials
+  const credentials =
+    nested && typeof nested === 'object' && !Array.isArray(nested)
+      ? (nested as Record<string, unknown>)
+      : root
+
+  const recordClientId = clean(root.clientId)
+  const expected = clean(expectedClientId)
+  if (recordClientId && expected && recordClientId !== expected) {
+    throw new Error('GOOGLE_OAUTH_TOKEN_CLIENT_MISMATCH')
+  }
+
+  const refreshToken = clean(credentials.refresh_token)
   if (!refreshToken) throw new Error('MISSING_GOOGLE_REFRESH_TOKEN')
   return refreshToken
 }

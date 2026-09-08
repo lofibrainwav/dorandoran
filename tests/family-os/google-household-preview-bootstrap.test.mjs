@@ -49,6 +49,29 @@ test('bootstrap requires a refresh token and never returns access tokens', () =>
   )
 })
 
+test('bootstrap reads the local calendar token record shape written by google-calendar-auth', () => {
+  const record = JSON.stringify({
+    version: 1,
+    clientId: 'calendar-client-id',
+    credentials: {
+      access_token: 'short-lived-access-token',
+      refresh_token: 'nested-refresh-token',
+      expiry_date: 123,
+    },
+  })
+
+  assert.equal(parseGoogleOAuthRefreshToken(record), 'nested-refresh-token')
+  assert.equal(parseGoogleOAuthRefreshToken(record, 'calendar-client-id'), 'nested-refresh-token')
+  assert.throws(
+    () => parseGoogleOAuthRefreshToken(record, 'other-client-id'),
+    /GOOGLE_OAUTH_TOKEN_CLIENT_MISMATCH/,
+  )
+  assert.throws(
+    () => parseGoogleOAuthRefreshToken(JSON.stringify({ version: 1, credentials: { access_token: 'x' } })),
+    /MISSING_GOOGLE_REFRESH_TOKEN/,
+  )
+})
+
 test('preview env plan contains only named runtime values and marks secrets sensitive', () => {
   const entries = buildGoogleHouseholdPreviewEnv({
     webClientId: 'login-client',

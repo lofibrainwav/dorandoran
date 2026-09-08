@@ -7,6 +7,7 @@ import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calenda
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
 import { loadPrivateOperationalFamilyCalendarPerson } from '@/lib/server/private-operational-family-calendar-source'
 import { loadPrivatePhotoSnapshot } from '@/lib/server/private-photo-snapshot'
+import { loadJdkApprovedReleases, projectLearningModuleWithApprovedReleases } from '@/lib/server/jdk-approved-releases'
 import { loadJaydenLearningModule } from '@/lib/server/jdk-bridge-transport'
 import { selectScheduleResult } from '@/lib/server/schedule-result-selection'
 
@@ -35,7 +36,7 @@ export default async function FamilyWeekPage() {
   const home = householdHome()
   const childPersonId = householdChildPersonId()
   const modules = [{ id: 'schedule', label: 'Schedule' }, { id: 'school', label: 'School' }, { id: 'activities', label: 'Activities' }]
-  const [operational, [local, temporal, photos], learning] = await Promise.all([
+  const [operational, [local, temporal, photos], learningBase, approvedReleases] = await Promise.all([
     childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: 'Jayden', now, timeZone, modules }) : Promise.resolve(null),
     privateEnabled ? Promise.all([
       loadPrivateCalendarOperatingPerson({ personId: 'person-jayden', label: 'Jayden', now, timeZone, modules }),
@@ -43,7 +44,9 @@ export default async function FamilyWeekPage() {
       loadPrivatePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 }),
     ]) : Promise.resolve([null, null, null] as const),
     loadJaydenLearningModule(),
+    loadJdkApprovedReleases(),
   ])
+  const learning = projectLearningModuleWithApprovedReleases(learningBase, approvedReleases)
   const schedule = selectScheduleResult(operational, local)
   if (schedule) schedule.readModel.modules = [...schedule.readModel.modules, learning]
   const model = buildFamilyPlanner({

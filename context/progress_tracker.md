@@ -54,9 +54,12 @@
 - Photo Metadata Adapter now converts metadata-only photo evidence into canonical `memory` observations; raw pixels, file paths, thumbnails, and raw EXIF cannot enter the observation.
 - Missing/invalid capture or place metadata remains unknown; photo metadata never emits live-presence semantics.
 - Photo metadata composes directly with Past Journey clustering; Family OS regression is now 150/150 GREEN.
+- Trip Grouping now partitions confirmed timed memory observations only by an explicit caller-supplied gap policy; no semantic trip or place name is invented.
+- Untimed confirmed memories remain counted as ungrouped; schedules, stale evidence, and unrelated subjects are excluded.
+- Family OS regression is now 154/154 GREEN.
 - Calendar range transport now fails closed when a next-page token indicates truncation.
 - Private `/family` runs week and year reads in parallel, while public/Vercel still cannot enable the private surface.
 - Regression count is 145 tests.
 
 ## Next unit
-Add trip grouping over confirmed memory observations, then story projection and globe memory-cluster projection. Connect a real authorized Photo source only after those provider-neutral contracts are GREEN; keep route/presence and JDK delegated transport behind their separate authority boundaries.
+Add privacy-safe story projection over structural trip groups, then globe memory-cluster projection. Connect a real authorized Photo source only after those provider-neutral contracts are GREEN; keep route/presence and JDK delegated transport behind their separate authority boundaries.

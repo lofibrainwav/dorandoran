@@ -1,0 +1,25 @@
+# Unit 25A rollout checklist
+
+- [x] Branch from verified Family OS head `b700e69`.
+- [x] Keep real Google subjects, emails, calendar IDs, credentials out of the public repository.
+- [x] Add explicit household membership keyed by Google `sub`.
+- [x] Deny unknown identities.
+- [x] Keep child identity separate from adult management login authority.
+- [x] Add signed versioned household session cookie.
+- [x] Add Sign in with Google redirect surface.
+- [x] Add Google ID-token verification through existing `googleapis` dependency.
+- [x] Prefer Google auth only when all required Google household settings exist.
+- [x] Preserve the legacy access-code path as a temporary migration fallback.
+- [x] Add immutable operational calendar ID configuration.
+- [x] Add deterministic event/series subject rules; no title inference.
+- [ ] CI/HyoDo GREEN on stacked PR.
+- [ ] Configure Google OAuth preview origin + redirect URI.
+- [ ] Configure Preview-only Vercel env for Google household auth.
+- [ ] Verify approved adult sign-in in browser.
+- [ ] Verify unknown account denial.
+- [ ] Verify child account cannot enter management surface.
+- [ ] Add Vercel-safe Calendar credential provider.
+- [ ] Wire operational calendar event subject resolver into live Family Today.
+- [ ] Add role-aware Jay/Julie projection.
+- [ ] Retire legacy password gate only after Preview E2E GREEN.
+- [ ] Promote exactly one verified deployment to `dorandoran.link`.

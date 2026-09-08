@@ -19,6 +19,7 @@ export type HumanApproval = {
   recipientFingerprint: string
   contentFingerprint: string
   approvedByType: 'human' | 'agent' | 'system'
+  approvedByAccess: 'adult' | 'child'
   approvedByPersonId: string
   expiresAtEpochMs: number
   consumed: boolean
@@ -30,6 +31,7 @@ export type ExternalActionDecision =
       kind: 'deny'
       reason:
         | 'HUMAN_APPROVAL_REQUIRED'
+        | 'ADULT_APPROVAL_REQUIRED'
         | 'APPROVAL_MISMATCH'
         | 'APPROVAL_EXPIRED'
         | 'APPROVAL_CONSUMED'
@@ -50,6 +52,10 @@ export function decideExternalAction({
     return { kind: 'deny', reason: 'HUMAN_APPROVAL_REQUIRED' }
   }
 
+  if (approval.approvedByAccess !== 'adult') {
+    return { kind: 'deny', reason: 'ADULT_APPROVAL_REQUIRED' }
+  }
+
   if (
     approval.kind !== 'human_approval' ||
     approval.actionKind !== request.kind ||
@@ -61,7 +67,7 @@ export function decideExternalAction({
   }
 
   if (approval.consumed) return { kind: 'deny', reason: 'APPROVAL_CONSUMED' }
-  if (approval.expiresAtEpochMs < nowEpochMs) return { kind: 'deny', reason: 'APPROVAL_EXPIRED' }
+  if (approval.expiresAtEpochMs <= nowEpochMs) return { kind: 'deny', reason: 'APPROVAL_EXPIRED' }
 
   return { kind: 'allow', approvedByPersonId: approval.approvedByPersonId }
 }

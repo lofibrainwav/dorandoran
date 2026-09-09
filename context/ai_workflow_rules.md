@@ -1,5 +1,8 @@
 # AI Workflow Rules
 
+Core lifecycle principle:
+- AI는 Candidate까지, Task는 사람. (see `context/feature-specs/28-core-lifecycle.md`)
+
 Completion contract:
 1. run the relevant local test first
 2. make the smallest scoped change

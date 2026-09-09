@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
 import * as domain from '../../lib/family-os/index.ts'
 import * as plannerDomain from '../../lib/family-os/family-planner.ts'
+import * as plannerBridgeDomain from '../../lib/family-os/lifecycle-planner-bridge.ts'
 import { loadPrivateOperationalFamilyCalendarPerson } from '../../lib/server/private-operational-family-calendar-source.ts'
 import { selectScheduleResult } from '../../lib/server/schedule-result-selection.ts'
 
@@ -23,6 +24,7 @@ const plannerCompiled = ts.transpileModule(readFileSync(new URL('../../component
 const plannerModule = { exports: {} }
 new Function('require', 'module', 'exports', plannerCompiled)((specifier) => {
   if (specifier === '@/lib/family-os/family-planner') return plannerDomain
+  if (specifier === '@/lib/family-os/lifecycle-planner-bridge') return plannerBridgeDomain
   if (specifier === './family-globe') return { FamilyGlobe: () => createElement('div', { 'aria-label': 'map fixture' }) }
   if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier)
   throw new Error(`Unmocked planner boundary: ${specifier}`)

@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { FamilyGlobe } from './family-globe'
-import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent } from '@/lib/family-os/family-planner'
+import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
+import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PREFIX, type LifecycleTaskForPlanner } from '@/lib/family-os/lifecycle-planner-bridge'
 import type { HouseholdHome } from '@/lib/family-os/household-home'
 
 type Saved = { memo: string; plans: PlannedTimebox[]; durations: Record<string, number> }
@@ -22,8 +23,11 @@ function readSaved(raw: string): Saved {
 
 const ownerLabel = { child: 'Jayden', adult: '보호자', family: '가족 · 대상 미배정' }
 
-export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, children }: {
-  model: FamilyPlannerModel; home: HouseholdHome; appleStatus: string; learningStatus: string; children?: ReactNode
+export interface FamilyPlannerLifecycleViewer { personId: string; access: 'adult' | 'child' }
+
+export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, lifecycleViewer, children }: {
+  model: FamilyPlannerModel; home: HouseholdHome; appleStatus: string; learningStatus: string
+  lifecycleViewer?: FamilyPlannerLifecycleViewer | null; children?: ReactNode
 }) {
   const [freshModel, setFreshModel] = useState<FamilyPlannerModel | null>(null)
   const [busy, setBusy] = useState(false)
@@ -36,7 +40,38 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [showConnections, setShowConnections] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
-  const wishes = useMemo(() => parsePlannerMemo(saved.memo).map((wish) => ({ ...wish, minutes: saved.durations[wish.id] ?? wish.minutes })), [saved])
+  // 로그인 viewer가 있을 때만, 본인 lane(person=)의 수락한 task를 읽어 planner wish로 합류시킨다.
+  // 실패(비로그인·네트워크·서버 오류)해도 memo만으로 조용히 계속 동작한다 — planner를 깨뜨리지 않는다.
+  const [lifecycleWishes, setLifecycleWishes] = useState<PlannerWish[]>([])
+  const [lifecycleNotice, setLifecycleNotice] = useState('')
+  useEffect(() => {
+    if (!lifecycleViewer) return
+    let cancelled = false
+    const viewer = lifecycleViewer
+    // unmount·viewer 변경 시 진행 중인 요청 자체를 끊는다 (setState 방지만으로는 네트워크가 계속 흐름).
+    const controller = new AbortController()
+    async function run() {
+      try {
+        const response = await fetch(`/api/lifecycle/tasks?person=${encodeURIComponent(viewer.personId)}`, {
+          credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+        })
+        if (!response.ok) throw new Error('UNAVAILABLE')
+        const data = (await response.json()) as { tasks?: LifecycleTaskForPlanner[] }
+        if (!Array.isArray(data.tasks)) throw new Error('UNAVAILABLE')
+        if (cancelled) return
+        setLifecycleWishes(lifecycleTasksToPlannerWishes(data.tasks, viewer))
+        setLifecycleNotice('')
+      } catch {
+        if (!cancelled) { setLifecycleWishes([]); setLifecycleNotice('수락한 일을 불러오지 못했습니다. 메모만으로 계속할게요.') }
+      }
+    }
+    void run()
+    return () => { cancelled = true; controller.abort() }
+  }, [lifecycleViewer])
+  const wishes = useMemo(
+    () => mergePlannerWishes(parsePlannerMemo(saved.memo), lifecycleWishes).map((wish) => ({ ...wish, minutes: saved.durations[wish.id] ?? wish.minutes })),
+    [saved, lifecycleWishes],
+  )
   const plans = saved.plans
   const collision = (plan: PlannedTimebox) => !model.known || !model.days.some((day) => day.date === plan.date && day.gaps.some((gap) => plan.startMinute >= gap.startMinute && plan.startMinute + plan.minutes <= gap.endMinute))
   const collidingPlans = plans.filter(collision)
@@ -111,7 +146,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <label className="sr-only" htmlFor="family-memo">가족 할 일 메모</label>
           <textarea id="family-memo" maxLength={10000} value={saved.memo} onChange={(event) => save({ ...saved, memo: event.target.value, durations: {} })} placeholder={'한 줄에 하나씩 편하게 적어보세요\n\n예) 해야 할 학교 준비 20분\n@Jayden 책 읽기 30분\n함께 산책 40분\n쥴리와 이야기 나누기'} />
           <p className="memo-hint">시간을 적지 않으면 <b>30분 예상</b>으로 시작해요. 아래에서 바꿀 수 있어요.</p>
-          {wishes.length ? <div className="wish-list">{wishes.map((wish) => <label key={wish.id} className="wish-row"><span><b>{wish.required ? '해야' : '하고 싶어'}</b>{wish.title}<small>{wish.estimated && !saved.durations[wish.id] ? '예상 시간 · 확인해 주세요' : wish.owner}</small></span><input aria-label={`${wish.title} 소요시간`} type="number" min="5" max="900" step="5" value={wish.minutes} onChange={(event) => save({ ...saved, durations: { ...saved.durations, [wish.id]: Number(event.target.value) } })} /><small>분</small></label>)}</div> : <div className="memo-empty"><span>〰</span><p>머릿속에 있던 것들을<br />여기에 내려놓으세요.</p></div>}
+          {lifecycleNotice ? <p className="memo-hint">{lifecycleNotice}</p> : null}
+          {wishes.length ? <div className="wish-list">{wishes.map((wish) => <label key={wish.id} className="wish-row"><span><b>{wish.required ? '해야' : '하고 싶어'}</b>{wish.title}<small>{wish.id.startsWith(LIFECYCLE_WISH_ID_PREFIX) ? `수락한 일 · ${wish.owner}` : wish.estimated && !saved.durations[wish.id] ? '예상 시간 · 확인해 주세요' : wish.owner}</small></span><input aria-label={`${wish.title} 소요시간`} type="number" min="5" max="900" step="5" value={wish.minutes} onChange={(event) => save({ ...saved, durations: { ...saved.durations, [wish.id]: Number(event.target.value) } })} /><small>분</small></label>)}</div> : <div className="memo-empty"><span>〰</span><p>머릿속에 있던 것들을<br />여기에 내려놓으세요.</p></div>}
           <button className="auto-plan-button" disabled={!model.known || !wishes.length} onClick={arrange}>✦ {plans.length ? '시간표 다시 짜기' : '빈 시간에 자동 배치'} <span>→</span></button>
           <p className="memo-policy">기존 일정 앞뒤 15분 여유 · 할 일 사이 10분 쉼<br />필수 항목 우선 · 종일 일정이 있는 날은 자동 배치 제외</p>
           <p className="local-note">이 브라우저에 저장 · 가족 계정 간 동기화 전</p>

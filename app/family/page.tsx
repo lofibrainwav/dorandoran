@@ -80,7 +80,8 @@ export default async function FamilyWeekPage() {
   })
   const appleStatus = photos?.status === 'fresh' && photos.result?.sourceState === 'ready'
     ? '허용된 사진 메타데이터 읽음' : photos?.status === 'stale' ? '사진 스냅샷 갱신 필요' : 'Apple 메타데이터 서버 연결 전'
-  return <FamilyPlanner model={model} home={home} appleStatus={appleStatus} learningStatus={learning.statusLabel ?? '학습 연결 상태 확인 필요'}>
+  return <FamilyPlanner model={model} home={home} appleStatus={appleStatus} learningStatus={learning.statusLabel ?? '학습 연결 상태 확인 필요'}
+    lifecycleViewer={lifecycleViewerMember ? { personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access } : null}>
     {schedule ? <FamilyOperatingHero person={schedule.readModel} home={home}
       presence={projectOperatingPresence({ state: 'unknown', observedAt: now.toISOString(), evidenceRefs: [] })}
       monthGrid={temporal?.monthGrid} yearGrid={temporal?.yearGrid} journey={photos?.result?.experience} /> : null}

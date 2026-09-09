@@ -5,6 +5,10 @@ import { parseDorandoranHandoff } from '../../lib/family-os/drive-handoff-intake
 import { buildArtifactRegistry } from '../../lib/family-os/artifact-registry.ts'
 import { proposeCandidate, validateCaptureWrite } from '../../lib/family-os/lifecycle.ts'
 
+// Unit 33: 계약상 digest 는 sha256 소문자 hex 64자여야 한다. 테스트 의도(서로 다른 해시)는
+// 문자로 구분하고 형식은 계약을 지킨다.
+const digestOf = (char) => `sha256:${char.repeat(64)}`
+
 const CONTEXT = { capturedBy: 'dorandoran-intake', capturedAt: '2026-09-09T08:00:00.000Z' }
 
 function record(overrides = {}) {
@@ -174,11 +178,11 @@ test('every actionable mapped kind that proposes a candidate is accepted by life
     { kind: 'decision', candidateSuggested: false, sourceSystem: 'human', requestedAction: 'accept_candidate' },
     {
       kind: 'final_artifact', candidateSuggested: true, sourceSystem: 'chatgpt', requestedAction: 'none',
-      driveFileId: 'drive-file-1', digest: 'sha256:abc',
+      driveFileId: 'drive-file-1', digest: digestOf('a'),
     },
     {
       kind: 'final_artifact', candidateSuggested: false, sourceSystem: 'human', requestedAction: 'accept_candidate',
-      driveFileId: 'drive-file-1', digest: 'sha256:abc',
+      driveFileId: 'drive-file-1', digest: digestOf('a'),
     },
   ]
   for (const overrides of scenarios) {
@@ -210,13 +214,13 @@ test('final_artifact with both driveFileId and digest produces an artifact', () 
   const result = parse({
     kind: 'final_artifact',
     driveFileId: 'drive-file-1',
-    digest: 'sha256:abc',
+    digest: digestOf('a'),
     status: 'final',
   })
   assert.equal(result.ok, true)
   assert.notEqual(result.intake.artifact, null)
   assert.equal(result.intake.artifact.id, 'drive-file-1')
-  assert.equal(result.intake.artifact.digest, 'sha256:abc')
+  assert.equal(result.intake.artifact.digest, digestOf('a'))
   assert.equal(result.intake.artifact.state, 'confirmed')
 })
 
@@ -225,7 +229,7 @@ test('final_artifact missing digest, driveFileId, or both produces no artifact',
   assert.equal(missingDigest.ok, true)
   assert.equal(missingDigest.intake.artifact, null)
 
-  const missingDriveFileId = parse({ kind: 'final_artifact', digest: 'sha256:abc' })
+  const missingDriveFileId = parse({ kind: 'final_artifact', digest: digestOf('a') })
   assert.equal(missingDriveFileId.ok, true)
   assert.equal(missingDriveFileId.intake.artifact, null)
 
@@ -235,7 +239,7 @@ test('final_artifact missing digest, driveFileId, or both produces no artifact',
 })
 
 test('a non final_artifact kind never produces an artifact, even with driveFileId and digest present', () => {
-  const result = parse({ kind: 'decision', driveFileId: 'drive-file-1', digest: 'sha256:abc' })
+  const result = parse({ kind: 'decision', driveFileId: 'drive-file-1', digest: digestOf('a') })
   assert.equal(result.ok, true)
   assert.equal(result.intake.artifact, null)
 })
@@ -252,7 +256,7 @@ test('status maps to the artifact observation state', () => {
     ['archived', 'stale'],
   ]
   for (const [status, state] of cases) {
-    const result = parse({ kind: 'final_artifact', driveFileId: 'drive-file-1', digest: 'sha256:abc', status })
+    const result = parse({ kind: 'final_artifact', driveFileId: 'drive-file-1', digest: digestOf('a'), status })
     assert.equal(result.ok, true, status)
     assert.equal(result.intake.artifact.state, state, status)
   }
@@ -264,7 +268,7 @@ test('inference is carried separately and never merged into statedText, evidence
   const result = parse({
     kind: 'final_artifact',
     driveFileId: 'drive-file-1',
-    digest: 'sha256:abc',
+    digest: digestOf('a'),
     statedText: 'the actual statement',
     inference: 'an inferred conclusion',
     evidenceRefs: ['ev-1'],
@@ -362,7 +366,7 @@ test('wrong-type fields fail closed with FIELD_INVALID and the offending field',
 
 test('empty-string or whitespace-only optional fields fail closed as FIELD_INVALID, not silently absent', () => {
   assert.deepEqual(
-    parse({ kind: 'final_artifact', driveFileId: '', digest: 'sha256:abc' }),
+    parse({ kind: 'final_artifact', driveFileId: '', digest: digestOf('a') }),
     { ok: false, code: 'FIELD_INVALID', field: 'driveFileId' },
   )
   assert.deepEqual(
@@ -409,7 +413,7 @@ test('the produced artifact is accepted by buildArtifactRegistry', () => {
   const result = parse({
     kind: 'final_artifact',
     driveFileId: 'drive-file-1',
-    digest: 'sha256:abc',
+    digest: digestOf('a'),
     status: 'final',
     evidenceRefs: ['ev-1'],
   })
@@ -417,7 +421,7 @@ test('the produced artifact is accepted by buildArtifactRegistry', () => {
   const registry = buildArtifactRegistry([result.intake.artifact])
   assert.equal(registry.artifacts.length, 1)
   assert.equal(registry.artifacts[0].id, 'drive-file-1')
-  assert.equal(registry.artifacts[0].digests[0], 'sha256:abc')
+  assert.equal(registry.artifacts[0].digests[0], digestOf('a'))
   assert.equal(registry.artifacts[0].state, 'confirmed')
   assert.deepEqual(registry.conflicts, [])
 })
@@ -436,4 +440,45 @@ test('the produced capture passes validateCaptureWrite for an adult own-lane ses
     target: { personId: 'jay', access: 'adult' },
   })
   assert.deepEqual(write, { ok: true })
+})
+
+// ---- Unit 33: digest format validation ----
+
+const VALID_DIGEST = digestOf('a')
+
+test('a present-but-malformed digest fails closed instead of reaching the registry', () => {
+  const malformed = [
+    'not-a-hash',
+    'sha256:abc',
+    `sha256:${'a'.repeat(63)}`,
+    `sha256:${'a'.repeat(65)}`,
+    `sha256:${'A'.repeat(64)}`,
+    `md5:${'a'.repeat(64)}`,
+    'a'.repeat(64),
+    `sha256:${'g'.repeat(64)}`,
+  ]
+  for (const digest of malformed) {
+    assert.deepEqual(
+      parse({ digest }),
+      { ok: false, code: 'FIELD_INVALID', field: 'digest' },
+      `expected FIELD_INVALID for digest ${JSON.stringify(digest)}`,
+    )
+  }
+})
+
+test('a valid sha256 digest still reaches the artifact observation', () => {
+  const result = parse({
+    kind: 'final_artifact',
+    driveFileId: 'drive-file-1',
+    digest: VALID_DIGEST,
+    status: 'final',
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.intake.artifact.digest, VALID_DIGEST)
+})
+
+test('an absent digest is still not a rejection — it only withholds the artifact', () => {
+  const result = parse({ kind: 'final_artifact', driveFileId: 'drive-file-1' })
+  assert.equal(result.ok, true)
+  assert.equal(result.intake.artifact, null)
 })

@@ -3,6 +3,7 @@ export type AuthorityState = 'auto' | 'recover' | 'gate_required' | 'blocked'
 export type JobMode = 'digital' | 'physical' | 'together'
 export type WorkState = 'hold' | 'open' | 'in_progress' | 'risk' | 'done'
 export type RoutineState = 'proven_tight_fit' | 'normal_fit' | 'watch' | 'friction' | 'unknown'
+export type PrivacyScope = 'personal' | 'family' | 'professional'
 
 export interface EvidenceRef {
   id: string
@@ -107,6 +108,10 @@ export interface Opportunity {
   requiredLocation?: string
   requiredTools?: string[]
   evidenceRefs: string[]
+  sourceCaptureId?: string
+  proposedBy?: string
+  decision?: { by: string; at: string; kind: 'accept' | 'decline'; evidenceRef: string }
+  privacyScope?: PrivacyScope
 }
 
 export interface CapacityObservation {
@@ -183,6 +188,8 @@ export interface FamilyBlock {
   id: string
   type: 'event' | 'action' | 'reminder' | 'decision' | 'auth'
   parentBlockId?: string
+  candidateId?: string
+  privacyScope?: PrivacyScope
   workMode?: JobMode
   reality: {
     title: string

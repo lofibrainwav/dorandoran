@@ -19,6 +19,14 @@ approval has to be re-obtained at every downstream gate, which reads to the huma
 "I already told you". The fix is not to weaken the gate — an unclassified action must still
 stop — but to make the existing approval *legible* to it.
 
+## Relationship to `authority.ts`
+
+`authority.ts` (consent grants) decides **whether an action needs a human gate at all** —
+capability plus consent, answering `auto | gate_required | blocked`, with four always-human
+gates (gmail send, file share, payment, publish). This unit decides **whether an approval
+already given covers this request**. Policy first, then evidence; they compose rather than
+compete. Its result type is `AuthorityEvaluation`, distinct from that file's `AuthorityDecision`.
+
 ## What a grant binds
 
 An approval that binds nothing is a blank cheque. A grant therefore pins **what** and

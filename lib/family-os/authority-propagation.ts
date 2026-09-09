@@ -9,6 +9,10 @@ import type { Opportunity } from './contracts.ts'
  *
  * This unit narrows how often a human must be asked. It never removes the asking — every path
  * that is not explicitly inside a live grant denies.
+ *
+ * Not a replacement for `authority.ts`: that one decides *whether an action needs a human gate at
+ * all* (capability + consent, `auto | gate_required | blocked`). This one decides *whether an
+ * approval already given covers this request*. Policy and evidence — they compose, in that order.
  */
 
 /** What an approval binds: one verb, and the things it may touch. */
@@ -41,7 +45,7 @@ export type AuthorityDenyReason =
 
 export type AuthorityDigest = (canonical: string) => string
 
-export type AuthorityDecision =
+export type AuthorityEvaluation =
   | { ok: true; ref: string }
   | { ok: false; reason: AuthorityDenyReason; detail?: string }
 
@@ -116,7 +120,7 @@ export function evaluateAuthority(input: {
   now: string
   consumedNonces?: readonly string[]
   digest: AuthorityDigest
-}): AuthorityDecision {
+}): AuthorityEvaluation {
   const grant = input.grant
   // 결재의 부재는 결코 허가가 아니다.
   if (!grant) return { ok: false, reason: 'GRANT_MISSING' }

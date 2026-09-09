@@ -1,10 +1,15 @@
 # Progress Tracker
 
-## Active handoff — 2026-09-08
+## Active handoff — 2026-09-09
 
-Unit 26 ([household week completeness](feature-specs/26-household-week-completeness.md)) landed via PR #16, commit `17cec9c3cf9b3fd87e1e0ec93e6ad42ec1102fc3`, merge `91d5164d3919d414c3c0cb71a86f80b30c8b5fe8`. Exact-head CI passed; production deployment `dpl_8jz1BhgeyR8e3RLuYvruGHooLLJM` was READY. Authenticated production browser retained all 11 household calendar facts.
+Units 29–32 landed on `main` today, all through PR + Greenfield Quality + HyoDo shadow; `main` push now also triggers CI (`26fbe0d`).
 
-Unit 27 ([memo timebox planner](feature-specs/27-memo-timebox-planner.md)) is the current implementation on `feat/family-timebox-planner`. It adds memo-to-gap scheduling, fresh authenticated availability checks, explicit draft export and a working street map. Local browser verification covers placement, persistence, failure preservation and responsive layout. Full Google/Apple ecosystem synchronization remains a named residual, not a completed capability. The historical notes below do not supersede this handoff.
+- Unit 29 ([planner recommendations](feature-specs/29-planner-recommendations.md)) `9b86703` — gap-fitting wish recommendations, lazy-loaded in `/family` with fallback to auto-placement.
+- Unit 30 ([artifact registry / night reconcile / daily capsule](feature-specs/30-artifact-registry-night-reconcile-daily-capsule.md)) `93da1d0` — pure read model; first consumer is Unit 31.
+- Unit 32 ([family coordination anchor](feature-specs/32-family-coordination-anchor.md)) PR #28 merge `97490bb` — ported from the 2026-09-07 WIP branch `feature/chad-family-os-core-v0.1` (122 behind main, unmergeable); only the pure module moved.
+- Unit 31 ([Drive handoff intake](feature-specs/31-drive-handoff-intake.md)) PR #29 merge `fbf3ffd` — the code-side receiver for the provider-neutral Google Drive AI contract (`00_START_HERE_DORANDORAN_AI_README`, MOC 00/10/20, `DORANDORAN_HANDOFF_TEMPLATE` v1, 2026-09-09). Independent adversarial review (FAIL 3 / WARN 2) was repaired before merge. Drive-side reconciliation findings (field-name drift, `child-controlled`, missing `digest`) are recorded in bb `02-Projects/kingdom-os/dorandoran/2026-09-09-drive-contract-reconciliation.md` and await the Drive contract owner.
+
+Regression count is 522 tests. Unauthenticated `/` and `/family` still 307 → `/signin`; authenticated UI was not re-observed today. The historical notes below do not supersede this handoff.
 
 ## Current state
 - Greenfield worktree created from `main`.
@@ -87,4 +92,6 @@ Unit 27 ([memo timebox planner](feature-specs/27-memo-timebox-planner.md)) is th
 - Clean production `/family` smoke is HTTP 200 in 0.744s with snapshot truth visible and no private path/ref leakage.
 
 ## Next unit
-Resolve the remaining macOS Photos human-session boundary: create the empty `DoranDoran` album in a real Photos GUI/TCC-authorized session, place only explicitly approved memories into it, then run `pnpm photos:snapshot:refresh` and verify Past Journey/Globe real-data projection. Keep private Photos/Calendar sources disabled on Vercel.
+Two open lanes, in priority order:
+1. Drive contract owner decides the three reconciliation items (README/template field names, `child-controlled`, `digest`), then wire `04_DORANDORAN_OUTBOX` polling into `parseDorandoranHandoff` → `/api/lifecycle/capture` (explicit local trigger first; no scheduler, no Drive write).
+2. Resolve the macOS Photos human-session boundary: create the empty `DoranDoran` album in a real Photos GUI/TCC-authorized session, place only explicitly approved memories into it, then run `pnpm photos:snapshot:refresh` and verify Past Journey/Globe real-data projection. Keep private Photos/Calendar sources disabled on Vercel.

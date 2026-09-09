@@ -1,6 +1,6 @@
 # Runtime environment keys (Family OS)
 
-All keys are read server-side only. None is required for the public demo page.
+All keys are read server-side only. None is required to render `/`, though reaching `/` still requires signing in — the whole site is behind the household gate (spec 25H, reaffirmed 2026-09-09).
 
 | Key | Purpose | Default / behaviour |
 |---|---|---|

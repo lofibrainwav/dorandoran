@@ -91,9 +91,9 @@ export default function HomePage() {
         journey={publicJourney}
       />
       <section className="home-explainer" aria-labelledby="grammar-title">
-        <p className="hero-kicker">Public demo · fixed sample data</p>
+        <p className="hero-kicker">Demo · fixed sample data</p>
         <p>
-          Everything above is a static demonstration. Signed-in household members see their real week at{' '}
+          Everything above is a static demonstration. Your real week is at{' '}
           <Link href="/family">Family Week →</Link>
         </p>
         <p className="hero-kicker">Universal context grammar</p>

@@ -5,11 +5,18 @@ export type AuthorityDecision = {
   reason: string
 }
 
+const EXPLICIT_HUMAN_GATES = [
+  ['gmail', 'send'],
+  ['files', 'share'],
+  ['payments', 'execute'],
+  ['publishing', 'publish'],
+] as const satisfies ReadonlyArray<readonly [ConsentGrant['domain'], ConsentGrant['actions'][number]]>
+
 export function requiresExplicitHumanGate(
   domain: ConsentGrant['domain'],
   action: ConsentGrant['actions'][number],
 ): boolean {
-  return domain === 'gmail' && action === 'send'
+  return EXPLICIT_HUMAN_GATES.some(([gateDomain, gateAction]) => gateDomain === domain && gateAction === action)
 }
 
 export function resolveAuthority(input: {

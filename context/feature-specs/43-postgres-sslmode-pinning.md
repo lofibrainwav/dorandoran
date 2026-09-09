@@ -40,7 +40,12 @@ green, `hyodo:check` 5/5, deployment READY. And the certificate of the database 
 family's captures, candidates and tasks stops being verified. Nothing in the repository would say
 so, because nothing in the repository asserted it in the first place.
 
-`pg` is currently pinned at `8.23.0`, and a dependabot group PR is open.
+`pg` is currently pinned at `8.23.0`.
+
+*(Correction, same day: this line first read "…and a dependabot group PR is open", placed so it
+implied that PR could bump `pg`. Measured afterwards: PR #4 bumps `next`, `postcss` and `lodash`
+only, and is itself stale — it targets `next` 16.2.4→16.2.6 while main is on 16.3.4. The risk this
+unit addresses is some future `pg` major, not any PR open today.)*
 
 ## The fix
 

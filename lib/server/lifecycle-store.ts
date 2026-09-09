@@ -37,6 +37,14 @@ export interface LifecycleByIdInput {
   scopes: PrivacyScope[]
 }
 
+/** Same scope boundary as `LifecycleByIdInput`, but looked up by the Candidate it came from
+ * rather than its own id — used to check whether an accepted Candidate already has a Task. */
+export interface LifecycleByCandidateIdInput {
+  candidateId: string
+  personId: string
+  scopes: PrivacyScope[]
+}
+
 export interface LifecycleStore {
   putCapture(capture: CaptureEvent): Promise<void>
   getCapture(input: LifecycleByIdInput): Promise<CaptureEvent | null>
@@ -48,16 +56,32 @@ export interface LifecycleStore {
   insertTask(record: TaskRecord): Promise<void>
   updateTask(record: TaskRecord, expectedVersion: number): Promise<void>
   getTask(input: LifecycleByIdInput): Promise<TaskRecord | null>
+  getTaskByCandidateId(input: LifecycleByCandidateIdInput): Promise<TaskRecord | null>
   listTasks(input: {
     personId: string
     scopes: PrivacyScope[]
     workStates?: WorkState[]
     limit?: number
   }): Promise<TaskRecord[]>
+  /**
+   * Accepts a Candidate: the candidate's optimistic-concurrency UPDATE and the new Task's INSERT
+   * happen as one atomic unit — either both land or neither does. There is no code path that can
+   * observe a decided Candidate with a missing Task, or vice versa, as a result of calling this.
+   * Throws `LIFECYCLE_VERSION_CONFLICT` on a stale `expectedVersion`, the same `insertTask` errors
+   * (`LIFECYCLE_DUPLICATE_ID` / `LIFECYCLE_CANDIDATE_ALREADY_TASKED`) on a Task collision, and —
+   * Postgres only — `LIFECYCLE_TRANSACTION_UNAVAILABLE` when no transaction runner was injected
+   * (fail closed: this must never silently degrade into two separate, non-atomic writes).
+   */
+  acceptCandidate(input: { candidate: CandidateRecord; expectedVersion: number; task: TaskRecord }): Promise<void>
 }
 
 export type LifecycleQueryResult = { rows: Record<string, unknown>[]; rowCount: number | null }
 export type LifecycleQueryFn = (text: string, params?: unknown[]) => Promise<LifecycleQueryResult>
+/** Runs `fn` against a single dedicated connection wrapped in `BEGIN`/`COMMIT`, rolling back and
+ * rethrowing unchanged on any failure. The `query` handed to `fn` must be used for every statement
+ * in the transaction — a query issued through the store's ordinary `query` runs on a different
+ * connection and would not be part of it. */
+export type LifecycleTransactionFn = <T>(fn: (query: LifecycleQueryFn) => Promise<T>) => Promise<T>
 
 const DEFAULT_LIST_LIMIT = 50
 const MAX_LIST_LIMIT = 500
@@ -382,12 +406,73 @@ function throwInsertError(error: unknown, candidateUniqueConstraint?: string): n
 
 const TASK_CANDIDATE_ID_CONSTRAINT = 'lifecycle_task_candidate_id_key'
 
+/** Shared by the standalone `updateCandidate` and by `acceptCandidate`'s transaction — both issue
+ * the exact same statement, just against a different connection. */
+async function runUpdateCandidate(
+  runQuery: LifecycleQueryFn,
+  candidate: CandidateRecord,
+  expectedVersion: number,
+): Promise<void> {
+  const result = await runQuery(
+    `UPDATE lifecycle_candidate
+     SET person_id = $1, privacy_scope = $2, source_capture_id = $3, proposed_by = $4,
+         opportunity = $5, decision = $6, version = $7, updated_at = $8
+     WHERE id = $9 AND version = $10`,
+    [
+      candidate.personId,
+      candidate.privacyScope,
+      candidate.sourceCaptureId ?? null,
+      candidate.proposedBy,
+      JSON.stringify(candidate.opportunity),
+      candidate.decision ? JSON.stringify(candidate.decision) : null,
+      expectedVersion + 1,
+      candidate.updatedAt,
+      candidate.id,
+      expectedVersion,
+    ],
+  )
+  if (!result.rowCount) throw new Error('LIFECYCLE_VERSION_CONFLICT')
+}
+
+/** Shared by the standalone `insertTask` and by `acceptCandidate`'s transaction. */
+async function runInsertTask(runQuery: LifecycleQueryFn, task: TaskRecord): Promise<void> {
+  try {
+    await runQuery(
+      `INSERT INTO lifecycle_task
+        (id, person_id, privacy_scope, candidate_id, block, work_state, authority_ref, version, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        task.id,
+        task.personId,
+        task.privacyScope,
+        task.candidateId,
+        JSON.stringify(task.block),
+        task.workState,
+        task.authorityRef ?? null,
+        task.version,
+        task.createdAt,
+        task.updatedAt,
+      ],
+    )
+  } catch (error) {
+    throwInsertError(error, TASK_CANDIDATE_ID_CONSTRAINT)
+  }
+}
+
 /** Injectable-query Postgres implementation. Every list query filters `privacy_scope = ANY($n)`
  * and orders by its timestamp DESC, id ASC (a deterministic tiebreak for equal timestamps); every
  * by-id read filters `person_id = $n AND privacy_scope = ANY($n)` too. An empty scopes array
- * short-circuits to `[]` / `null` without ever reaching the database (fail closed). */
-export function createPostgresLifecycleStore(input: { query: LifecycleQueryFn }): LifecycleStore {
-  const { query } = input
+ * short-circuits to `[]` / `null` without ever reaching the database (fail closed).
+ *
+ * `transaction` is optional so this factory keeps working with only a bare `query` function (as
+ * every existing caller and test already provides) — but `acceptCandidate` fails closed to
+ * `LIFECYCLE_TRANSACTION_UNAVAILABLE` when it is missing, rather than ever falling back to two
+ * separate, non-atomic writes. */
+export function createPostgresLifecycleStore(input: {
+  query: LifecycleQueryFn
+  transaction?: LifecycleTransactionFn
+}): LifecycleStore {
+  const { query, transaction } = input
 
   async function putCapture(capture: CaptureEvent): Promise<void> {
     try {
@@ -466,25 +551,7 @@ export function createPostgresLifecycleStore(input: { query: LifecycleQueryFn })
   }
 
   async function updateCandidate(candidate: CandidateRecord, expectedVersion: number): Promise<void> {
-    const result = await query(
-      `UPDATE lifecycle_candidate
-       SET person_id = $1, privacy_scope = $2, source_capture_id = $3, proposed_by = $4,
-           opportunity = $5, decision = $6, version = $7, updated_at = $8
-       WHERE id = $9 AND version = $10`,
-      [
-        candidate.personId,
-        candidate.privacyScope,
-        candidate.sourceCaptureId ?? null,
-        candidate.proposedBy,
-        JSON.stringify(candidate.opportunity),
-        candidate.decision ? JSON.stringify(candidate.decision) : null,
-        expectedVersion + 1,
-        candidate.updatedAt,
-        candidate.id,
-        expectedVersion,
-      ],
-    )
-    if (!result.rowCount) throw new Error('LIFECYCLE_VERSION_CONFLICT')
+    await runUpdateCandidate(query, candidate, expectedVersion)
   }
 
   async function getCandidate(input: LifecycleByIdInput): Promise<CandidateRecord | null> {
@@ -515,27 +582,7 @@ export function createPostgresLifecycleStore(input: { query: LifecycleQueryFn })
   }
 
   async function insertTask(task: TaskRecord): Promise<void> {
-    try {
-      await query(
-        `INSERT INTO lifecycle_task
-          (id, person_id, privacy_scope, candidate_id, block, work_state, authority_ref, version, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          task.id,
-          task.personId,
-          task.privacyScope,
-          task.candidateId,
-          JSON.stringify(task.block),
-          task.workState,
-          task.authorityRef ?? null,
-          task.version,
-          task.createdAt,
-          task.updatedAt,
-        ],
-      )
-    } catch (error) {
-      throwInsertError(error, TASK_CANDIDATE_ID_CONSTRAINT)
-    }
+    await runInsertTask(query, task)
   }
 
   async function updateTask(task: TaskRecord, expectedVersion: number): Promise<void> {
@@ -568,6 +615,28 @@ export function createPostgresLifecycleStore(input: { query: LifecycleQueryFn })
     )
     const row = result.rows[0]
     return row ? taskRowToRecord(row) : null
+  }
+
+  async function getTaskByCandidateId(input: LifecycleByCandidateIdInput): Promise<TaskRecord | null> {
+    if (input.scopes.length === 0) return null
+    const result = await query(
+      'SELECT * FROM lifecycle_task WHERE candidate_id = $1 AND person_id = $2 AND privacy_scope = ANY($3)',
+      [input.candidateId, input.personId, input.scopes],
+    )
+    const row = result.rows[0]
+    return row ? taskRowToRecord(row) : null
+  }
+
+  async function acceptCandidate(input: {
+    candidate: CandidateRecord
+    expectedVersion: number
+    task: TaskRecord
+  }): Promise<void> {
+    if (!transaction) throw new Error('LIFECYCLE_TRANSACTION_UNAVAILABLE')
+    await transaction(async (txQuery) => {
+      await runUpdateCandidate(txQuery, input.candidate, input.expectedVersion)
+      await runInsertTask(txQuery, input.task)
+    })
   }
 
   async function listTasks(input: {
@@ -609,7 +678,9 @@ export function createPostgresLifecycleStore(input: { query: LifecycleQueryFn })
     insertTask,
     updateTask,
     getTask,
+    getTaskByCandidateId,
     listTasks,
+    acceptCandidate,
   }
 }
 
@@ -631,7 +702,7 @@ export function createLifecycleStoreFromEnv(env: {
   if (!connectionString) return null
 
   let pool: PgPool | null = null
-  const query: LifecycleQueryFn = async (text, params) => {
+  async function ensurePool(): Promise<PgPool> {
     if (!pool) {
       const { Pool } = await import('pg')
       pool = new Pool({
@@ -642,10 +713,39 @@ export function createLifecycleStoreFromEnv(env: {
       })
       activePools.add(pool)
     }
-    return pool.query(text, params)
+    return pool
   }
 
-  return createPostgresLifecycleStore({ query })
+  const query: LifecycleQueryFn = async (text, params) => {
+    const activePool = await ensurePool()
+    return activePool.query(text, params)
+  }
+
+  // One dedicated client for the lifetime of `fn`, wrapped in BEGIN/COMMIT — ROLLBACK and rethrow
+  // unchanged on any failure, release the client either way. `pg` is still only ever imported
+  // lazily via `ensurePool`, whether the first caller is `query` or `transaction`.
+  const transaction: LifecycleTransactionFn = async (fn) => {
+    const activePool = await ensurePool()
+    const client = await activePool.connect()
+    try {
+      await client.query('BEGIN')
+      const txQuery: LifecycleQueryFn = (text, params) => client.query(text, params)
+      const result = await fn(txQuery)
+      await client.query('COMMIT')
+      return result
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        // A failed rollback must never mask the original error that triggered it.
+      }
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  return createPostgresLifecycleStore({ query, transaction })
 }
 
 /** Ends every pool created by `createLifecycleStoreFromEnv` so far — for tests and graceful
@@ -756,6 +856,34 @@ export function createMemoryLifecycleStore(): LifecycleStore {
     return clone(found)
   }
 
+  async function getTaskByCandidateId(input: LifecycleByCandidateIdInput): Promise<TaskRecord | null> {
+    if (input.scopes.length === 0) return null
+    const found = [...tasks.values()].find((task) => task.candidateId === input.candidateId)
+    if (!found || found.personId !== input.personId) return null
+    if (!input.scopes.includes(found.privacyScope)) return null
+    return clone(found)
+  }
+
+  /** Stages both mutations and validates both — the version check on the candidate, the
+   * duplicate/candidate-already-tasked checks on the task — before committing either one. Nothing
+   * partial is ever observable: a failing task check leaves the candidate exactly as it was. */
+  async function acceptCandidate(input: {
+    candidate: CandidateRecord
+    expectedVersion: number
+    task: TaskRecord
+  }): Promise<void> {
+    const existingCandidate = candidates.get(input.candidate.id)
+    if (!existingCandidate || existingCandidate.version !== input.expectedVersion) {
+      throw new Error('LIFECYCLE_VERSION_CONFLICT')
+    }
+    if (tasks.has(input.task.id)) throw new Error('LIFECYCLE_DUPLICATE_ID')
+    if (tasksByCandidateId.has(input.task.candidateId)) throw new Error('LIFECYCLE_CANDIDATE_ALREADY_TASKED')
+
+    candidates.set(input.candidate.id, clone({ ...input.candidate, version: input.expectedVersion + 1 }))
+    tasks.set(input.task.id, clone(input.task))
+    tasksByCandidateId.add(input.task.candidateId)
+  }
+
   async function listTasks(input: {
     personId: string
     scopes: PrivacyScope[]
@@ -786,6 +914,8 @@ export function createMemoryLifecycleStore(): LifecycleStore {
     insertTask,
     updateTask,
     getTask,
+    getTaskByCandidateId,
     listTasks,
+    acceptCandidate,
   }
 }

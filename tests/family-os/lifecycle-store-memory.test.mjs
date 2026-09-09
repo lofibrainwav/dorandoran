@@ -307,3 +307,84 @@ test('records returned by get/list are defensive copies — mutating them does n
   const readAgain = await store.getCapture({ id: 'cap-1', personId: 'julie', scopes: ['family'] })
   assert.equal(readAgain.statedText, capture().statedText)
 })
+
+// ---- getTaskByCandidateId ----
+
+test('getTaskByCandidateId finds a task by its candidateId, scoped like every other read', async () => {
+  const store = createMemoryLifecycleStore()
+  await store.insertTask(taskRecord({ id: 'task-a', candidateId: 'cand-a', personId: 'julie', privacyScope: 'family' }))
+
+  const found = await store.getTaskByCandidateId({ candidateId: 'cand-a', personId: 'julie', scopes: ['family'] })
+  assert.equal(found.id, 'task-a')
+
+  assert.equal(await store.getTaskByCandidateId({ candidateId: 'cand-a', personId: 'jay', scopes: ['family'] }), null)
+  assert.equal(await store.getTaskByCandidateId({ candidateId: 'cand-a', personId: 'julie', scopes: [] }), null)
+  assert.equal(await store.getTaskByCandidateId({ candidateId: 'cand-missing', personId: 'julie', scopes: ['family'] }), null)
+})
+
+// ---- acceptCandidate: atomic accept (stage both, commit only if both validations pass) ----
+
+test('acceptCandidate commits the candidate decision and the new task together', async () => {
+  const store = createMemoryLifecycleStore()
+  await store.insertCandidate(candidateRecord({ id: 'cand-z', version: 1 }))
+  const decision = { by: 'julie', at: '2026-09-08T10:05:00.000Z', kind: 'accept', evidenceRef: 'ev-1' }
+
+  await store.acceptCandidate({
+    candidate: candidateRecord({ id: 'cand-z', version: 1, decision, opportunity: opportunity({ decision }) }),
+    expectedVersion: 1,
+    task: taskRecord({ id: 'task-z', candidateId: 'cand-z' }),
+  })
+
+  const candidate = await store.getCandidate({ id: 'cand-z', personId: 'julie', scopes: ['family'] })
+  assert.equal(candidate.version, 2)
+  assert.equal(candidate.decision.kind, 'accept')
+
+  const task = await store.getTask({ id: 'task-z', personId: 'julie', scopes: ['family'] })
+  assert.ok(task)
+  const byCandidateId = await store.getTaskByCandidateId({ candidateId: 'cand-z', personId: 'julie', scopes: ['family'] })
+  assert.equal(byCandidateId.id, 'task-z')
+})
+
+test('acceptCandidate raises LIFECYCLE_VERSION_CONFLICT and inserts no task when expectedVersion is stale', async () => {
+  const store = createMemoryLifecycleStore()
+  await store.insertCandidate(candidateRecord({ id: 'cand-y', version: 1 }))
+
+  await assert.rejects(
+    () =>
+      store.acceptCandidate({
+        candidate: candidateRecord({ id: 'cand-y', version: 1 }),
+        expectedVersion: 99,
+        task: taskRecord({ id: 'task-y', candidateId: 'cand-y' }),
+      }),
+    /LIFECYCLE_VERSION_CONFLICT/,
+  )
+
+  assert.equal(await store.getTask({ id: 'task-y', personId: 'julie', scopes: ['family'] }), null)
+  const candidate = await store.getCandidate({ id: 'cand-y', personId: 'julie', scopes: ['family'] })
+  assert.equal(candidate.version, 1)
+  assert.equal(candidate.decision, undefined)
+})
+
+test('a forced task-insert failure inside acceptCandidate leaves the candidate exactly as it was — no partial state', async () => {
+  const store = createMemoryLifecycleStore()
+  await store.insertCandidate(candidateRecord({ id: 'cand-x', version: 1 }))
+  // A task already exists for this candidateId, so the task-side validation inside
+  // acceptCandidate is guaranteed to fail, forcing the insert to fail.
+  await store.insertTask(taskRecord({ id: 'task-existing', candidateId: 'cand-x' }))
+
+  const decision = { by: 'julie', at: '2026-09-08T10:05:00.000Z', kind: 'accept', evidenceRef: 'ev-1' }
+  await assert.rejects(
+    () =>
+      store.acceptCandidate({
+        candidate: candidateRecord({ id: 'cand-x', version: 1, decision, opportunity: opportunity({ decision }) }),
+        expectedVersion: 1,
+        task: taskRecord({ id: 'task-new', candidateId: 'cand-x' }),
+      }),
+    /LIFECYCLE_CANDIDATE_ALREADY_TASKED/,
+  )
+
+  const stillUndecided = await store.getCandidate({ id: 'cand-x', personId: 'julie', scopes: ['family'] })
+  assert.equal(stillUndecided.decision, undefined)
+  assert.equal(stillUndecided.version, 1)
+  assert.equal(await store.getTask({ id: 'task-new', personId: 'julie', scopes: ['family'] }), null)
+})

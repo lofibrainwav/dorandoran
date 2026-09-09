@@ -131,6 +131,43 @@ test('professional-scope items are never readable outside their own lane', () =>
   )
 })
 
+test('an adult may read personal-scope items in a child\'s lane too — mirrors the proxy-write rule', () => {
+  assert.equal(
+    canReadLifecycleItem({
+      item: { personId: 'jayden', privacyScope: 'personal', access: 'child' },
+      viewer: { personId: 'jay', access: 'adult' },
+    }),
+    true,
+  )
+})
+
+test('personal-scope items in an adult\'s lane stay invisible to another adult (access unspecified fails closed too)', () => {
+  assert.equal(
+    canReadLifecycleItem({
+      item: { personId: 'julie', privacyScope: 'personal', access: 'adult' },
+      viewer: { personId: 'jay', access: 'adult' },
+    }),
+    false,
+  )
+  assert.equal(
+    canReadLifecycleItem({
+      item: { personId: 'julie', privacyScope: 'personal' },
+      viewer: { personId: 'jay', access: 'adult' },
+    }),
+    false,
+  )
+})
+
+test('professional stays owner-only even for a child\'s lane', () => {
+  assert.equal(
+    canReadLifecycleItem({
+      item: { personId: 'jayden', privacyScope: 'professional', access: 'child' },
+      viewer: { personId: 'jay', access: 'adult' },
+    }),
+    false,
+  )
+})
+
 // ---- Boundary ③ projection: projectFamilyLifecycle ----
 
 test('projection keeps only family-scope items', () => {

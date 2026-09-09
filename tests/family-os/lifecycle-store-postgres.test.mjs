@@ -24,6 +24,26 @@ function createFakeQuery(script) {
   return { query, calls }
 }
 
+/** A fake `transaction` that mirrors the real BEGIN/COMMIT/ROLLBACK shape: it records a `BEGIN`
+ * call, hands the scripted fake query to `fn`, then records `COMMIT` on success or `ROLLBACK` (and
+ * rethrows unchanged) on failure — exactly like `createLifecycleStoreFromEnv`'s real
+ * `pool.connect()` + BEGIN/COMMIT/ROLLBACK implementation, without ever touching a real database. */
+function createFakeTransaction(script) {
+  const { query, calls } = createFakeQuery(script)
+  async function transaction(fn) {
+    calls.push({ text: 'BEGIN', params: [] })
+    try {
+      const result = await fn(query)
+      calls.push({ text: 'COMMIT', params: [] })
+      return result
+    } catch (error) {
+      calls.push({ text: 'ROLLBACK', params: [] })
+      throw error
+    }
+  }
+  return { transaction, calls }
+}
+
 /** A fake `query` that actually applies the `id = $1 AND person_id = $2 AND privacy_scope =
  * ANY($3)` by-id filter against a small in-memory table per SQL table name — a faithful enough
  * simulation of the real WHERE clause to prove the scope boundary holds end to end, still without
@@ -466,4 +486,114 @@ test('createLifecycleStoreFromEnv never imports pg until a query actually runs',
 
 test('closeLifecycleStorePool resolves cleanly even when no pool was ever created', async () => {
   await assert.doesNotReject(() => closeLifecycleStorePool())
+})
+
+// ---- acceptCandidate: atomic accept (candidate UPDATE + task INSERT in one transaction) ----
+
+test('acceptCandidate fails closed to LIFECYCLE_TRANSACTION_UNAVAILABLE when no transaction runner is injected', async () => {
+  const { query } = createFakeQuery([])
+  const store = createPostgresLifecycleStore({ query })
+  await assert.rejects(
+    () => store.acceptCandidate({ candidate: candidateRecord(), expectedVersion: 1, task: taskRecord() }),
+    /LIFECYCLE_TRANSACTION_UNAVAILABLE/,
+  )
+})
+
+test('acceptCandidate runs BEGIN, UPDATE candidate, INSERT task, COMMIT — in that order, on one connection', async () => {
+  const { transaction, calls } = createFakeTransaction([
+    { rows: [], rowCount: 1 }, // UPDATE lifecycle_candidate
+    { rows: [], rowCount: 1 }, // INSERT lifecycle_task
+  ])
+  const unusedQuery = async () => {
+    throw new Error('acceptCandidate must run everything through the transaction query, never the bare one')
+  }
+  const store = createPostgresLifecycleStore({ query: unusedQuery, transaction })
+
+  await store.acceptCandidate({ candidate: candidateRecord(), expectedVersion: 1, task: taskRecord() })
+
+  assert.equal(calls.length, 4)
+  assert.equal(calls[0].text, 'BEGIN')
+  assert.match(calls[1].text, /UPDATE lifecycle_candidate/)
+  assert.match(calls[1].text, /AND version = /)
+  assert.match(calls[2].text, /INSERT INTO lifecycle_task/)
+  assert.equal(calls[3].text, 'COMMIT')
+})
+
+test('acceptCandidate rolls back and never commits when the candidate version check fails, and never attempts the insert', async () => {
+  const { transaction, calls } = createFakeTransaction([{ rows: [], rowCount: 0 }])
+  const store = createPostgresLifecycleStore({
+    query: async () => {
+      throw new Error('unused')
+    },
+    transaction,
+  })
+
+  await assert.rejects(
+    () => store.acceptCandidate({ candidate: candidateRecord(), expectedVersion: 1, task: taskRecord() }),
+    /LIFECYCLE_VERSION_CONFLICT/,
+  )
+
+  assert.equal(calls.length, 3)
+  assert.equal(calls[0].text, 'BEGIN')
+  assert.match(calls[1].text, /UPDATE lifecycle_candidate/)
+  assert.equal(calls[2].text, 'ROLLBACK')
+})
+
+test('acceptCandidate rolls back and leaves the candidate change undone when the task insert fails', async () => {
+  const taskAlreadyExists = Object.assign(new Error('duplicate key'), {
+    code: '23505',
+    constraint: 'lifecycle_task_candidate_id_key',
+  })
+  const { transaction, calls } = createFakeTransaction([
+    { rows: [], rowCount: 1 }, // UPDATE succeeds
+    { error: taskAlreadyExists }, // INSERT fails
+  ])
+  const store = createPostgresLifecycleStore({
+    query: async () => {
+      throw new Error('unused')
+    },
+    transaction,
+  })
+
+  await assert.rejects(
+    () => store.acceptCandidate({ candidate: candidateRecord(), expectedVersion: 1, task: taskRecord() }),
+    /LIFECYCLE_CANDIDATE_ALREADY_TASKED/,
+  )
+
+  assert.equal(calls.length, 4)
+  assert.equal(calls[0].text, 'BEGIN')
+  assert.match(calls[1].text, /UPDATE lifecycle_candidate/)
+  assert.match(calls[2].text, /INSERT INTO lifecycle_task/)
+  assert.equal(calls[3].text, 'ROLLBACK')
+  // No COMMIT anywhere in the call log — the candidate UPDATE from call #2 was rolled back with it,
+  // even though the fake's UPDATE response alone reported success.
+  assert.ok(!calls.some((call) => call.text === 'COMMIT'))
+})
+
+// ---- getTaskByCandidateId ----
+
+test('getTaskByCandidateId filters by candidate_id, person_id, and privacy_scope = ANY(', async () => {
+  const { query, calls } = createFakeQuery([{ rows: [taskRow()] }])
+  const store = createPostgresLifecycleStore({ query })
+
+  const result = await store.getTaskByCandidateId({ candidateId: 'cand-1', personId: 'julie', scopes: ['family'] })
+
+  assert.match(calls[0].text, /candidate_id = \$1 AND person_id = \$2 AND privacy_scope = ANY\(\$3\)/)
+  assert.deepEqual(calls[0].params, ['cand-1', 'julie', ['family']])
+  assert.equal(result.id, 'task-1')
+})
+
+test('getTaskByCandidateId short-circuits to null on empty scopes, never querying', async () => {
+  const { query, calls } = createFakeQuery([])
+  const store = createPostgresLifecycleStore({ query })
+
+  assert.equal(await store.getTaskByCandidateId({ candidateId: 'cand-1', personId: 'julie', scopes: [] }), null)
+  assert.equal(calls.length, 0)
+})
+
+test('getTaskByCandidateId returns null when no row matches', async () => {
+  const { query } = createFakeQuery([{ rows: [] }])
+  const store = createPostgresLifecycleStore({ query })
+
+  assert.equal(await store.getTaskByCandidateId({ candidateId: 'cand-missing', personId: 'julie', scopes: ['family'] }), null)
 })

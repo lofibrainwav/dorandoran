@@ -219,15 +219,26 @@ export function taskToPlannerWish(task: FamilyBlock): PlannerWish | null {
   }
 }
 
-/** Read-authorization boundary (②). Own lane: everything. Other lane: family-only for adults, nothing for children. */
+/**
+ * Read-authorization boundary (②). Own lane: everything. Other lane, viewed by a child: nothing,
+ * ever. Other lane, viewed by an adult: `family` always, plus `personal` when the lane itself
+ * belongs to a child — this mirrors `validateCaptureWrite`'s adult-proxy-write rule (an adult may
+ * write a child's `personal` capture, so they may also read it back). `professional` is never
+ * visible outside its own lane, regardless of anyone's access.
+ *
+ * `item.access` is the *lane owner's* household access, not the viewer's — it is optional and
+ * fails closed: omitting it (an unknown personId, or a caller that hasn't looked it up) is treated
+ * as "not a child's lane", i.e. the conservative family-only behavior.
+ */
 export function canReadLifecycleItem(input: {
-  item: { personId: string; privacyScope: PrivacyScope }
+  item: { personId: string; privacyScope: PrivacyScope; access?: 'adult' | 'child' }
   viewer: { personId: string; access: 'adult' | 'child' }
 }): boolean {
   if (input.item.personId === input.viewer.personId) return true
   if (input.item.privacyScope === 'professional') return false
   if (input.viewer.access === 'child') return false
-  return input.item.privacyScope === 'family'
+  if (input.item.privacyScope === 'family') return true
+  return input.item.privacyScope === 'personal' && input.item.access === 'child'
 }
 
 /** Projection boundary (③). Fail closed: an item without a scope is not family, ever. */

@@ -116,7 +116,16 @@ function mintRefreshToken() {
       })
       const args = browser ? ['-a', browser, authorizeUrl] : [authorizeUrl]
       spawn('open', args, { detached: true, stdio: 'ignore' }).unref()
-      process.stdout.write('브라우저에서 Google 승인 화면을 여는 중입니다. 승인 후 이 창으로 돌아오십시오.\n')
+      // URL 도 함께 찍는다. `open` 은 detached + stdio ignore 라 실패해도 조용하고,
+      // 그러면 주인은 아무 링크도 없는 터미널을 보며 기다리게 된다. 이 URL 은 비밀이 아니다 —
+      // state 는 1회용이고 흐름을 끝내려면 이 로컬 포트를 가지고 있어야 한다.
+      process.stdout.write([
+        '브라우저에서 Google 승인 화면을 여는 중입니다. 승인 후 이 창으로 돌아오십시오.',
+        '창이 열리지 않으면 아래 주소를 직접 붙여넣으십시오:',
+        '',
+        authorizeUrl,
+        '',
+      ].join('\n'))
     })
 
     server.on('error', (error) => finish(reject, error))

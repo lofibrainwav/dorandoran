@@ -15,10 +15,31 @@ const KNOWN_FIELDS: readonly string[] = [
 
 const LIST_FIELDS: readonly string[] = ['sourceRefs', 'evidenceRefs', 'unknowns']
 
-const FIELD_LINE = /^([A-Za-z][A-Za-z0-9_]*):\s*(.*)$/
-const LIST_ITEM_LINE = /^-\s*(.*)$/
-// `<jay | julie | ...>` — 손대지 않은 템플릿 슬롯. 진술된 값이 아니므로 넘기지 않는다.
-const PLACEHOLDER = /^<.*>$/
+const FIELD_LINE = /^\\?-?\s*([A-Za-z][A-Za-z0-9_]*):\s*(.*)$/
+const LIST_ITEM_LINE = /^\\?-\s*(.*)$/
+
+/**
+ * Drive 는 본문을 마크다운 이스케이프해서 돌려주기도 한다 — 2026-09-09 실측에서
+ * `\<jay | julie\>` · `final\_artifact` · `\[\]` 형태로 왔다. 이스케이프는 전송 아티팩트이지
+ * 내용이 아니므로 판정 전에 풀고, 푼 값을 저장한다. 그대로 두면 Unit 31 이 enum 불일치로
+ * 거부하는데 그것은 우연한 방어이지 정직한 판정이 아니다.
+ */
+function unescapeMarkdown(value: string): string {
+  return value.replace(/\\([-<>_[\]])/g, '$1')
+}
+
+/**
+ * 손대지 않은 템플릿 슬롯. 값 **전체**가 `<...>` 인 경우만 보던 것을, 푼 뒤 `<...>` 를 **포함**하면
+ * 플레이스홀더로 본다 — 실측에서 `sha256:<hex>` 처럼 접두어 붙은 슬롯이 값으로 통과했다.
+ */
+function isPlaceholder(value: string): boolean {
+  return /<[^<>]*>/.test(unescapeMarkdown(value))
+}
+
+/** `[]` 는 "없음" 의 표기이지 항목이 아니다. 실측에서 `unknowns: \[\]` 가 항목 하나가 됐다. */
+function isEmptyListNotation(value: string): boolean {
+  return unescapeMarkdown(value).trim() === '[]'
+}
 
 function isKnownField(name: string): boolean {
   return KNOWN_FIELDS.includes(name)
@@ -60,7 +81,9 @@ function parseTemplateText(text: string): Record<string, unknown> {
       const item = LIST_ITEM_LINE.exec(line)
       if (item) {
         const value = item[1].trim()
-        if (value !== '' && !PLACEHOLDER.test(value)) (record[openList] as string[]).push(value)
+        if (value !== '' && !isPlaceholder(value) && !isEmptyListNotation(value)) {
+          ;(record[openList] as string[]).push(unescapeMarkdown(value))
+        }
         continue
       }
       // 리스트는 다음 필드나 비어있지 않은 다른 줄에서 끝난다. 항목이 없었으면 빈 배열로 남는다.
@@ -71,17 +94,28 @@ function parseTemplateText(text: string): Record<string, unknown> {
     if (!matched) continue
     const [, field, rawValue] = matched
     if (!isKnownField(field)) continue
+
+    // 먼저 쓴 쪽이 이긴다. 템플릿은 같은 필드를 두 번 적는다 — 위는 채우라고 둔 자리,
+    // 아래 EXAMPLE 은 견본이다. HANDOFF RECORD 가 앞이므로 보낸 사람이 채운 것이 남고
+    // 그 아래 견본이 덮지 못한다.
+    if (Object.prototype.hasOwnProperty.call(record, field)) {
+      openList = null
+      continue
+    }
+
     const value = rawValue.trim()
 
     if (isListField(field)) {
       record[field] = []
       openList = field
-      if (value !== '' && !PLACEHOLDER.test(value)) (record[field] as string[]).push(value)
+      if (value !== '' && !isPlaceholder(value) && !isEmptyListNotation(value)) {
+        ;(record[field] as string[]).push(unescapeMarkdown(value))
+      }
       continue
     }
 
-    if (value === '' || PLACEHOLDER.test(value)) continue
-    record[field] = coerceScalar(field, value)
+    if (value === '' || isPlaceholder(value)) continue
+    record[field] = coerceScalar(field, unescapeMarkdown(value))
   }
 
   return record

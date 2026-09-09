@@ -17,4 +17,6 @@ All keys are read server-side only. None is required to render `/`, though reach
 | `DORANDORAN_LOG_DENIED_IDENTITY` | Preview-only discovery log of denied Google subjects | ignored outside `VERCEL_ENV=preview` |
 | `DATABASE_URL` / `POSTGRES_URL` | Postgres for the lifecycle store, `db:migrate` and `outbox:run`. `DATABASE_URL` wins | unset → lifecycle store is `null` (in-memory); the two scripts refuse to run. An `sslmode` of `prefer`/`require`/`verify-ca` is pinned to `verify-full` before pg sees it (spec 43) |
 
+| `DRIVE_OUTBOX_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`, `DRIVE_OUTBOX_FOLDER_<LANE>` | Drive Outbox read credentials and per-lane folder (specs 41, 44) | incomplete → `outbox:run` refuses; unset → lane is off. Mint the refresh token with `pnpm auth:mint -- --services=drive` (spec 44) |
+
 Retired 2026-09-08: `DORANDORAN_ACCESS_CODE`, `DORANDORAN_GATE_KEY` (spec 25H).

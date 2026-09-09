@@ -20,7 +20,8 @@
     "photos:snapshot:refresh": "node --env-file=.env.local scripts/refresh-private-photo-snapshot.mjs",
     "google-household:preview": "node --env-file=.env.local scripts/configure-google-household-preview.mjs",
     "db:migrate": "node scripts/migrate.mjs",
-    "outbox:run": "node --env-file=.env.local scripts/drive-outbox-run.mjs"
+    "outbox:run": "node --env-file=.env.local scripts/drive-outbox-run.mjs",
+    "auth:mint": "node --env-file=.env.local scripts/google-auth-mint.mjs"
   },
   "dependencies": {
     "date-fns": "4.4.0",

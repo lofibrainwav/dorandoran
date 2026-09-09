@@ -20,6 +20,7 @@ import {
 import { createDriveOutboxPorts } from '../lib/server/drive-outbox-ports.ts'
 import { createPostgresDriveOutboxCursorStore } from '../lib/server/drive-outbox-cursor-store.ts'
 import { runDriveOutboxSession } from '../lib/server/drive-outbox-session.ts'
+import { resolvePostgresConnectionString } from '../lib/server/postgres-connection.ts'
 
 const laneArg = process.argv.find((arg) => arg.startsWith('--lane='))
 const lane = laneArg?.split('=').slice(1).join('=').trim()
@@ -33,7 +34,7 @@ if (health === 'off') {
 // `incomplete` 는 여기서 throw 한다 — 절반 설정이 transport 깊은 곳에서 알 수 없는 실패가 되기 전에.
 const config = resolveDriveOutboxRuntimeConfig(process.env, lane)
 
-const connectionString = process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim()
+const connectionString = resolvePostgresConnectionString(process.env)
 // 메모리 커서로 대체하지 않는다. 휘발 커서로 돌면 다음 실행이 outbox 전체를 다시 ingest 하고,
 // 그것이 바로 Unit 39 가 막으려고 존재하는 상태다.
 if (!connectionString) throw new Error('DRIVE_OUTBOX_DATABASE_REQUIRED — set DATABASE_URL; a volatile cursor re-ingests everything')

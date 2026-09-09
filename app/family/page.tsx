@@ -1,7 +1,10 @@
 import { FamilyPlanner } from '@/components/family-planner'
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
-import { parseHouseholdMembership, projectOperatingPresence, resolveHouseholdHome, resolveHouseholdTimeZone, resolveUniqueChildPersonId } from '@/lib/family-os'
+import { LifecycleLane } from '@/components/lifecycle-lane'
+import { cookies } from 'next/headers'
+import { parseHouseholdMembership, projectOperatingPresence, resolveHouseholdHome, resolveHouseholdTimeZone, resolveUniqueChildPersonId, type HouseholdMember } from '@/lib/family-os'
 import { buildFamilyPlanner } from '@/lib/family-os/family-planner'
+import { HOUSEHOLD_SESSION_COOKIE, resolveHouseholdSessionMember } from '@/lib/server/google-household-session'
 import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface'
 import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calendar-operating-source'
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
@@ -15,6 +18,21 @@ export const dynamic = 'force-dynamic'
 
 function householdChildPersonId() {
   try { return resolveUniqueChildPersonId(parseHouseholdMembership(process.env)) } catch { return null }
+}
+function householdMembers(): HouseholdMember[] {
+  try { return parseHouseholdMembership(process.env) } catch { return [] }
+}
+function lifecycleLaneLabel(personId: string): string {
+  return personId.charAt(0).toUpperCase() + personId.slice(1)
+}
+async function resolveLifecycleViewer(membership: HouseholdMember[]): Promise<HouseholdMember | null> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(HOUSEHOLD_SESSION_COOKIE)?.value
+    return await resolveHouseholdSessionMember(token, process.env.DORANDORAN_AUTH_SECRET ?? '', membership, Date.now())
+  } catch {
+    return null
+  }
 }
 function householdHome() {
   try { return resolveHouseholdHome(process.env) } catch {
@@ -35,8 +53,9 @@ export default async function FamilyWeekPage() {
   const timeZone = householdTimeZone()
   const home = householdHome()
   const childPersonId = householdChildPersonId()
+  const membership = householdMembers()
   const modules = [{ id: 'schedule', label: 'Schedule' }, { id: 'school', label: 'School' }, { id: 'activities', label: 'Activities' }]
-  const [operational, [local, temporal, photos], learningBase, approvedReleases] = await Promise.all([
+  const [operational, [local, temporal, photos], learningBase, approvedReleases, lifecycleViewerMember] = await Promise.all([
     childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: 'Jayden', now, timeZone, modules }) : Promise.resolve(null),
     privateEnabled ? Promise.all([
       loadPrivateCalendarOperatingPerson({ personId: 'person-jayden', label: 'Jayden', now, timeZone, modules }),
@@ -45,7 +64,13 @@ export default async function FamilyWeekPage() {
     ]) : Promise.resolve([null, null, null] as const),
     loadJaydenLearningModule(),
     loadJdkApprovedReleases(),
+    resolveLifecycleViewer(membership),
   ])
+  const lifecycleMembers = membership.map((member) => ({
+    personId: member.personId,
+    access: member.access,
+    label: lifecycleLaneLabel(member.personId),
+  }))
   const learning = projectLearningModuleWithApprovedReleases(learningBase, approvedReleases)
   const schedule = selectScheduleResult(operational, local)
   if (schedule) schedule.readModel.modules = [...schedule.readModel.modules, learning]
@@ -59,5 +84,10 @@ export default async function FamilyWeekPage() {
     {schedule ? <FamilyOperatingHero person={schedule.readModel} home={home}
       presence={projectOperatingPresence({ state: 'unknown', observedAt: now.toISOString(), evidenceRefs: [] })}
       monthGrid={temporal?.monthGrid} yearGrid={temporal?.yearGrid} journey={photos?.result?.experience} /> : null}
+    {lifecycleViewerMember ? <section className="lifecycle-lane-section">
+      <p className="eyebrow">CAPTURE → CANDIDATE → TASK</p>
+      <p className="lifecycle-lane-note">사람이 수락한 것만 할 일이 됩니다.</p>
+      <LifecycleLane viewer={{ personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access }} members={lifecycleMembers} />
+    </section> : null}
   </FamilyPlanner>
 }

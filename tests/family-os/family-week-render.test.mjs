@@ -28,7 +28,7 @@ new Function('require', 'module', 'exports', plannerCompiled)((specifier) => {
   throw new Error(`Unmocked planner boundary: ${specifier}`)
 }, plannerModule, plannerModule.exports)
 
-async function renderWeek(mode = 'populated') {
+async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
   const timeZone = 'America/Los_Angeles'
   const date = domain.weekWindowFromLocalDate(new Date(), timeZone).weekStartDate
   const env = {
@@ -48,7 +48,15 @@ async function renderWeek(mode = 'populated') {
     { id: 'all-day-event', summary: 'Shared reminder', description: 'private-provider-description', start: { date }, end: { date: nextDate.toISOString().slice(0, 10) } },
   ]
   const dependencies = {
-    '@/components/family-planner': plannerModule.exports,
+    // `FamilyPlanner` only renders its `children` behind the client-side "더 보기" toggle
+    // (`showContext`, `false` on first paint), so a plain static render of the real component can
+    // never show lifecycle-lane content either — exactly like `FamilyOperatingHero` today. To
+    // assert the *wiring* (page.tsx passes the right element into `children`) rather than the
+    // toggle's own visibility behavior, `exposeChildren` swaps in a stub that renders `children`
+    // unconditionally. The default (real component) path is untouched for every existing test.
+    '@/components/family-planner': exposeChildren
+      ? { FamilyPlanner: ({ children }) => createElement('div', { 'data-children-exposed': 'true' }, children) }
+      : plannerModule.exports,
     '@/lib/family-os/family-planner': plannerDomain,
     'next/link': ({ children }) => createElement('a', null, children),
     '@/components/family-operating-hero': { FamilyOperatingHero: ({ person }) => {
@@ -60,6 +68,16 @@ async function renderWeek(mode = 'populated') {
       parseHouseholdMembership: () => [{ personId: 'child-a', access: 'child' }],
       resolveHouseholdTimeZone: () => timeZone,
       resolveHouseholdHome: () => domain.resolveHouseholdHome({}),
+    },
+    'next/headers': { cookies: async () => ({ get: () => undefined }) },
+    '@/lib/server/google-household-session': {
+      HOUSEHOLD_SESSION_COOKIE: 'dorandoran_household_v1',
+      resolveHouseholdSessionMember: async () =>
+        mode === 'no-lifecycle-viewer' ? null : { personId: 'child-a', access: 'child', googleSub: 'sub-child-a', roles: ['child'], canSignIn: false },
+    },
+    '@/components/lifecycle-lane': {
+      LifecycleLane: ({ viewer, members }) =>
+        createElement('div', { 'data-lifecycle-lane': viewer.personId, 'data-lifecycle-lane-members': members.length }, 'lane fixture'),
     },
     '@/lib/server/private-family-surface': { privateFamilySurfaceEnabled: () => false },
     '@/lib/server/private-calendar-operating-source': { loadPrivateCalendarOperatingPerson: () => { throw new Error('Local private source must remain disabled') } },
@@ -100,6 +118,28 @@ test('the real Family Week page renders every household fact and the all-day/sub
   for (const privateValue of ['private-adult-person-id', 'private-render-fixture-calendar', 'private-provider-description', '/private/', 'calendar:']) {
     assert.equal(html.includes(privateValue), false, `Private field leaked: ${privateValue}`)
   }
+})
+
+test('the page wires the A4 lifecycle lane section into FamilyPlanner children for a resolved viewer', async () => {
+  const html = await renderWeek('populated', { exposeChildren: true })
+  assert.ok(html.includes('CAPTURE'))
+  assert.ok(html.includes('사람이 수락한 것만 할 일이 됩니다.'))
+  assert.ok(html.includes('data-lifecycle-lane="child-a"'), 'LifecycleLane did not receive the resolved viewer')
+  assert.ok(html.includes('data-lifecycle-lane-members="1"'), 'LifecycleLane did not receive the household membership')
+})
+
+test('the page renders no lifecycle lane section when there is no resolved household session', async () => {
+  const html = await renderWeek('no-lifecycle-viewer', { exposeChildren: true })
+  assert.equal(html.includes('data-lifecycle-lane'), false)
+})
+
+test('the real (unexposed) page still renders successfully with a resolved viewer wired in', async () => {
+  // Confirms the new imports/session-resolution wiring do not break the real, default-collapsed
+  // render — lifecycle-lane content is legitimately absent here (same as FamilyOperatingHero)
+  // because `showContext` starts `false`.
+  const html = await renderWeek()
+  assert.ok(html.includes('빈 시간에 자동 배치'))
+  assert.equal(html.includes('data-lifecycle-lane'), false)
 })
 
 test('the rendered week distinguishes failed/unconfigured sources from an observed empty week', async () => {

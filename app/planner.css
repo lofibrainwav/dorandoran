@@ -5,3 +5,34 @@
 @media(max-width:760px){.family-planner{padding:0 14px 20px}.planner-header{min-height:76px}.planner-brand{font-size:21px}.brand-sun{font-size:38px}.planner-week-label{display:none}.connection-button{font-size:10px;padding:9px 12px}.planner-intro{grid-template-columns:1fr;gap:24px;padding:28px 0}.planner-intro h1{font-size:38px}.intro-copy{font-size:12px}.planner-map-canvas{height:190px}.family-legend{gap:16px;overflow-x:auto;padding:12px;justify-content:space-between}.family-legend>span{gap:6px;flex-shrink:0}.family-legend i{width:26px;height:26px;font-size:10px}.family-legend b{font-size:10px}.family-legend small{font-size:8px}.planner-workspace{grid-template-columns:1fr}.memo-panel{position:static;padding:18px}.memo-panel textarea{min-height:140px}.memo-empty{display:none}.memo-policy{display:inline-block;margin-bottom:0}.memo-heading{margin-bottom:10px}.memo-hint{font-size:10px}.wish-list{max-height:180px}.local-note{font-size:9px}.week-panel{padding:18px 10px 12px}.week-toolbar h2{font-size:18px}.week-toolbar h2 span{font-size:10px;display:block;margin:5px 0 0}.week-summary{gap:13px;font-size:9px}.action-section{margin-top:28px}.action-title h2{font-size:18px;line-height:1.5}.action-layout{grid-template-columns:1fr 1fr;gap:10px}.selected-event,.preparation-card{padding:15px}.selected-event h3{font-size:16px}.preparation-card label{font-size:10px}.connection-panel{grid-template-columns:1fr;gap:12px}.connection-panel article+article{border-top:1px solid #d9e1d4;padding-top:15px}.planner-footer{font-size:8px;gap:12px}.planner-footer button{font-size:8px!important}.mobile-only{display:block}}
 @media(prefers-reduced-motion:reduce){.family-planner *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 .family-planner .connection-button{white-space:nowrap;flex-shrink:0}.family-planner .planner-header-actions{flex-shrink:0}
+.lifecycle-lane-section{margin-top:24px}
+.lifecycle-lane-note{font-size:10px;color:var(--soft-ink);margin:2px 0 16px}
+.lifecycle-lane{border:1px solid var(--planner-line);border-radius:14px;background:#fff;padding:16px}
+.lifecycle-lane-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.lifecycle-lane-tab{border:1px solid var(--planner-line);background:#f7f9f6;color:var(--soft-ink);border-radius:20px;padding:6px 14px;font-size:11px}
+.lifecycle-lane-tab.is-active{background:#315d50;border-color:#315d50;color:#fff}
+.lifecycle-capture{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.lifecycle-capture input[type="text"],.lifecycle-capture input:not([type]),#lifecycle-capture-text{flex:1 1 220px;min-width:180px;border:1px solid var(--planner-line);border-radius:8px;padding:8px 10px;font-size:12px}
+.lifecycle-capture select{border:1px solid var(--planner-line);border-radius:8px;padding:8px 10px;font-size:11px;background:#fff}
+.lifecycle-propose-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--soft-ink)}
+.lifecycle-propose-fields{display:flex;gap:8px}
+.lifecycle-propose-fields input{width:70px;border:1px solid var(--planner-line);border-radius:8px;padding:8px;font-size:11px}
+.lifecycle-capture button[type="submit"]{border:0;background:#315d50;color:#fff;border-radius:8px;padding:9px 16px;font-size:11px;font-weight:600}
+.lifecycle-error{margin:8px 0}
+.lifecycle-section{margin-top:20px;padding-top:16px;border-top:1px solid var(--planner-line)}
+.lifecycle-empty{font-size:11px;color:var(--soft-ink)}
+.lifecycle-candidate-list,.lifecycle-task-list{display:grid;gap:10px}
+.lifecycle-candidate,.lifecycle-task{border:1px solid var(--planner-line);border-radius:10px;padding:10px 12px;background:#fcfdfb}
+.lifecycle-candidate-main,.lifecycle-task-main{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.lifecycle-candidate-main strong,.lifecycle-task-main strong{flex:1 1 160px;font-size:12px}
+.lifecycle-badge{font-size:9px;color:#526e66;background:#eef3ec;border-radius:20px;padding:3px 8px}
+.lifecycle-candidate-actions,.lifecycle-task-actions{display:flex;gap:8px;margin-top:8px}
+.lifecycle-candidate-actions button,.lifecycle-task-actions button{border:1px solid var(--planner-line);background:#f7f9f6;border-radius:7px;padding:6px 12px;font-size:11px;color:#315d50}
+.lifecycle-done-note{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.lifecycle-done-note input{flex:1 1 160px;border:1px solid var(--planner-line);border-radius:8px;padding:7px 9px;font-size:11px}
+.lifecycle-family-toggle{border:1px solid var(--planner-line);background:#f7f9f6;border-radius:20px;padding:8px 14px;font-size:11px;color:#526e66}
+.lifecycle-family-groups{display:grid;gap:14px;margin-top:12px}
+.lifecycle-family-group h3{font-size:11px;color:var(--soft-ink);margin:0 0 6px}
+.lifecycle-family-group ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lifecycle-family-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--planner-line);border-radius:8px;padding:8px 10px;font-size:11px}
+@media(max-width:760px){.lifecycle-capture{flex-direction:column;align-items:stretch}.lifecycle-capture select,.lifecycle-propose-fields{width:100%}.lifecycle-propose-fields{flex-direction:column}}

@@ -16,11 +16,14 @@ HyoDo rules:
 
 External action authority:
 - Read, analyze, generate, and private storage may be automated only within their existing scope and privacy rules.
-- `email_send` is a human authority boundary. An agent, automation, scheduler, test, preview, or system process can never approve an email send on behalf of a person.
-- A valid email-send approval must be explicit, current, unconsumed, and bound to the exact action, recipient fingerprint, and content fingerprint. Changing the recipient or content invalidates the approval.
+- The canonical per-action human-gate matrix currently includes `gmail/send`, `files/share`, `payments/execute`, and `publishing/publish`.
+- Standing consent can never promote one of those consequential actions to `auto`; the action must stop at a human gate.
+- `email_send` additionally requires a current, unconsumed adult-human approval bound to the exact action, recipient fingerprint, and content fingerprint. Changing recipient or content invalidates approval.
+- An agent, automation, scheduler, test, preview, or system process can never approve an email send on behalf of a person.
 - Test, preview, acceptance, rehearsal, and dry-run paths are read-only and must perform zero external sends.
 - If an email send outcome is uncertain, stop. Never retry merely to obtain a successful readback.
-- Other consequential external actions such as invitations, filings, submissions, purchases, or public posts require their own explicit authority policy before automation.
+- Calendar writes and private file writes retain their existing domain policies; they are not silently promoted into this matrix.
+- Invitations, filings, job/application submissions, purchases, or other new consequential external actions require an explicit authority policy before automation is added.
 
 Drift control:
 - one active feature spec at a time

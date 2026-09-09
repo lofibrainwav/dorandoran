@@ -23,7 +23,14 @@ export const DEFAULT_OUTBOX_MIME_TYPES: readonly string[] = [
   'application/json',
 ]
 
-export type OutboxSkipReason = 'already_processed' | 'unsupported_type'
+export type OutboxSkipReason = 'already_processed' | 'unsupported_type' | 'template_file'
+
+/**
+ * 핸드오프 템플릿은 설계상 outbox 안에 산다 — 에이전트가 그것을 찾는 곳이 거기다.
+ * 따라서 매 실행마다 영원히 목록에 잡힌다. 읽는 것은 애초에 의도된 적이 없다.
+ * (2026-09-09 실측: 세 outbox 폴더의 유일한 파일이 각각 이 템플릿이었다.)
+ */
+const TEMPLATE_NAME_PATTERN = /dorandoran[_\s-]*handoff[_\s-]*template/i
 
 export interface OutboxSkip {
   fileId: string
@@ -105,6 +112,10 @@ export function planDriveOutboxIntake(input: {
   for (const file of input.files) {
     if (processed.has(file.fileId)) {
       skipped.push({ fileId: file.fileId, reason: 'already_processed' })
+      continue
+    }
+    if (TEMPLATE_NAME_PATTERN.test(file.name)) {
+      skipped.push({ fileId: file.fileId, reason: 'template_file' })
       continue
     }
     if (!accepted.has(file.mimeType)) {

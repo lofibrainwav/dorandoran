@@ -6,11 +6,15 @@ import {
   createDailyArtifactCapsule,
 } from '../../lib/family-os/artifact-registry.ts'
 
+// Unit 33: 계약상 digest 는 sha256 소문자 hex 64자여야 한다. 테스트 의도(서로 다른 해시)는
+// 문자로 구분하고 형식은 계약을 지킨다.
+const digestOf = (char) => `sha256:${char.repeat(64)}`
+
 function artifact(overrides = {}) {
   return {
     id: 'artifact-1',
     kind: 'document',
-    digest: 'sha256:a',
+    digest: digestOf('a'),
     observedAt: '2026-09-08T10:00:00Z',
     state: 'confirmed',
     provenance: { sourceRef: 'private:source-1', evidenceRefs: ['evidence-1'] },
@@ -39,10 +43,10 @@ test('same id and digest converge while provenance is deterministically retained
 })
 
 test('same id with different digests is a conflict and neither observation wins', () => {
-  const result = buildArtifactRegistry([artifact(), artifact({ digest: 'sha256:b' })])
+  const result = buildArtifactRegistry([artifact(), artifact({ digest: digestOf('b') })])
   assert.equal(result.artifacts.length, 1)
   assert.equal(result.artifacts[0].state, 'conflict')
-  assert.deepEqual(result.artifacts[0].digests, ['sha256:a', 'sha256:b'])
+  assert.deepEqual(result.artifacts[0].digests, [digestOf('a'), digestOf('b')])
   assert.deepEqual(result.conflicts, ['artifact-1'])
 })
 
@@ -53,17 +57,17 @@ test('malformed timestamps and missing digests fail closed', () => {
 
 test('reconcile emits added, updated, unchanged, stale, and conflict as typed statuses', () => {
   const before = buildArtifactRegistry([
-    artifact({ id: 'same', digest: 'sha256:same' }),
-    artifact({ id: 'updated', digest: 'sha256:old' }),
+    artifact({ id: 'same', digest: digestOf('d') }),
+    artifact({ id: 'updated', digest: digestOf('e') }),
     artifact({ id: 'stale', observedAt: '2026-09-01T10:00:00Z' }),
   ])
   const after = buildArtifactRegistry([
-    artifact({ id: 'same', digest: 'sha256:same' }),
-    artifact({ id: 'updated', digest: 'sha256:new' }),
+    artifact({ id: 'same', digest: digestOf('d') }),
+    artifact({ id: 'updated', digest: digestOf('f') }),
     artifact({ id: 'stale', observedAt: '2026-09-01T10:00:00Z' }),
     artifact({ id: 'added' }),
-    artifact({ id: 'conflict', digest: 'sha256:one' }),
-    artifact({ id: 'conflict', digest: 'sha256:two' }),
+    artifact({ id: 'conflict', digest: digestOf('0') }),
+    artifact({ id: 'conflict', digest: digestOf('1') }),
   ])
   const result = reconcileArtifactRegistries({
     before, after, cutoff: '2026-09-02T00:00:00Z', now: '2026-09-08T00:00:00Z',
@@ -108,8 +112,8 @@ test('daily capsule is versioned, stable-sorted, and privacy-safe', () => {
   const registry = buildArtifactRegistry([
     artifact({ id: 'z', kind: 'photo', state: 'unknown', uri: 'secret://z' }),
     artifact({ id: 'a', kind: 'file', state: 'stale' }),
-    artifact({ id: 'c', kind: 'file', digest: 'sha256:c' }),
-    artifact({ id: 'c', kind: 'file', digest: 'sha256:conflict' }),
+    artifact({ id: 'c', kind: 'file', digest: digestOf('c') }),
+    artifact({ id: 'c', kind: 'file', digest: digestOf('2') }),
   ])
   const capsule = createDailyArtifactCapsule({ date: '2026-09-08', registry })
   assert.deepEqual(capsule, {
@@ -128,4 +132,22 @@ test('daily capsule is versioned, stable-sorted, and privacy-safe', () => {
 
 test('daily capsule rejects malformed dates and does not collapse unsafe states', () => {
   assert.throws(() => createDailyArtifactCapsule({ date: 'tomorrow', registry: buildArtifactRegistry([]) }), /ARTIFACT_CAPSULE_DATE_INVALID/)
+})
+
+// ---- Unit 33: digest format validation ----
+
+test('a malformed digest cannot enter the registry', () => {
+  const malformed = ['not-a-hash', 'sha256:abc', `sha256:${'A'.repeat(64)}`, `sha256:${'a'.repeat(63)}`]
+  for (const digest of malformed) {
+    assert.throws(
+      () => buildArtifactRegistry([artifact({ digest })]),
+      /ARTIFACT_DIGEST_INVALID/,
+      `expected ARTIFACT_DIGEST_INVALID for digest ${JSON.stringify(digest)}`,
+    )
+  }
+})
+
+test('a missing digest is still ARTIFACT_DIGEST_REQUIRED, not INVALID', () => {
+  assert.throws(() => buildArtifactRegistry([artifact({ digest: '' })]), /ARTIFACT_DIGEST_REQUIRED/)
+  assert.throws(() => buildArtifactRegistry([artifact({ digest: '   ' })]), /ARTIFACT_DIGEST_REQUIRED/)
 })

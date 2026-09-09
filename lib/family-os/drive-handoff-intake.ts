@@ -172,6 +172,10 @@ function looksSecretLike(value: string): boolean {
   return SECRET_LIKE_PATTERN.test(value)
 }
 
+// Drive 계약이 명명한 유일한 다이제스트 형식(`digest: sha256:<hex>`). 소문자 hex 64자만 받는다 —
+// 계약이 알고리즘을 하나만 지목했으므로 여기서 둘째를 받으면 계약보다 앞서 나가는 것이 된다.
+const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/
+
 // Strict ISO-8601 instant shape (date + time + zone). Rejects human-readable dates like
 // "March 5, 2026" or ambiguous ones like "03/05/2026" that `Date.parse` would otherwise accept.
 const ISO_8601_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/
@@ -265,6 +269,12 @@ export function parseDorandoranHandoff(
 
   const digestResult = readOptionalString(record, 'digest')
   if (!digestResult.ok) return fail('FIELD_INVALID', 'digest')
+  // 계약이 요구하는 것은 존재가 아니라 유효성이다. 형식이 어긋난 digest 를 통과시키면 Unit 30 registry 가
+  // "무효한 해시로 confirmed 된 아티팩트" 를 갖게 된다. 보낸 쪽이 digest 를 주장했는데 틀린 것이므로
+  // artifact 만 조용히 빼지 않고 레코드 전체를 거부한다 — 조용히 빼면 provenance 가 주장을 잃는다.
+  if (digestResult.value !== undefined && !SHA256_DIGEST_PATTERN.test(digestResult.value)) {
+    return fail('FIELD_INVALID', 'digest')
+  }
   const digest = digestResult.value
 
   const evidenceRefsResult = readStringArray(record, 'evidenceRefs')

@@ -73,6 +73,17 @@ function requiredString(value: unknown, code: string): string {
   throw new Error(code)
 }
 
+// Drive 계약: 유효한 digest 가 없으면 Artifact Registry 진입 금지. 부재(REQUIRED)와 무효(INVALID)는
+// 다른 사건이라 코드를 나눈다 — 전자는 "해시를 붙여라", 후자는 "붙인 해시가 형식에 안 맞는다".
+// 호출자를 믿지 않고 여기서도 본다: 계약이 금지 주체로 지목한 것이 registry 자신이다.
+const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/
+
+function artifactDigest(value: unknown): string {
+  const text = requiredString(value, 'ARTIFACT_DIGEST_REQUIRED')
+  if (!SHA256_DIGEST_PATTERN.test(text)) throw new Error('ARTIFACT_DIGEST_INVALID')
+  return text
+}
+
 function validTimestamp(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '' && Number.isFinite(Date.parse(value))
 }
@@ -99,7 +110,7 @@ function normalize(input: ArtifactObservationInput): ArtifactObservationInput & 
     ...input,
     id: requiredString(input.id, 'ARTIFACT_ID_REQUIRED'),
     kind: requiredString(input.kind, 'ARTIFACT_KIND_REQUIRED'),
-    digest: requiredString(input.digest, 'ARTIFACT_DIGEST_REQUIRED'),
+    digest: artifactDigest(input.digest),
     observedAt: timestamp(input.observedAt, 'ARTIFACT_OBSERVED_AT_INVALID'),
     state: state(input.state),
   }

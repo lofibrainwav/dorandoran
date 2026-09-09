@@ -5,6 +5,13 @@ export type AuthorityDecision = {
   reason: string
 }
 
+export function requiresExplicitHumanGate(
+  domain: ConsentGrant['domain'],
+  action: ConsentGrant['actions'][number],
+): boolean {
+  return domain === 'gmail' && action === 'send'
+}
+
 export function resolveAuthority(input: {
   capable: boolean
   subjectId: string
@@ -27,6 +34,9 @@ export function resolveAuthority(input: {
     return { state: 'gate_required', reason: 'ACTION_NOT_GRANTED' }
   }
   if (grant.authority === 'blocked') return { state: 'blocked', reason: 'CONSENT_BLOCKED' }
+  if (requiresExplicitHumanGate(input.domain, input.action)) {
+    return { state: 'gate_required', reason: 'HUMAN_GATE_REQUIRED' }
+  }
   if (grant.authority === 'gate_required') return { state: 'gate_required', reason: 'HUMAN_GATE_REQUIRED' }
   return { state: 'auto', reason: 'AUTHORIZED' }
 }

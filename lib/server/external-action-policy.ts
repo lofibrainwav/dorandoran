@@ -1,3 +1,5 @@
+import { requiresExplicitHumanGate } from '../family-os/authority.ts'
+
 export type EmailSendRequest = {
   kind: 'email_send'
   actionId: string
@@ -46,7 +48,8 @@ export function decideExternalAction({
   approval: HumanApproval | null
   nowEpochMs: number
 }): ExternalActionDecision {
-  if (request.kind !== 'email_send') return { kind: 'allow' }
+  const action = request.kind === 'email_send' ? 'send' : 'draft'
+  if (!requiresExplicitHumanGate('gmail', action)) return { kind: 'allow' }
 
   if (!approval || approval.approvedByType !== 'human' || !approval.approvedByPersonId) {
     return { kind: 'deny', reason: 'HUMAN_APPROVAL_REQUIRED' }

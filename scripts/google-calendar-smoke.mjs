@@ -5,9 +5,20 @@ import {
   normalizeGoogleCalendarApiEvent,
 } from '../lib/family-os/index.ts'
 
-const clientPath = process.env.GOOGLE_CALENDAR_CLIENT_SECRET_PATH
-const tokenPath = process.env.GOOGLE_CALENDAR_TOKEN_PATH
-const calendarId = process.env.GOOGLE_CALENDAR_TARGET_ID
+const sourceArg = process.argv.find((arg) => arg.startsWith('--source='))
+const sourceKey = sourceArg?.split('=')[1]?.trim().toLowerCase()
+const sourcePrefix = sourceKey
+  ? `GOOGLE_CALENDAR_SOURCE_${sourceKey.toUpperCase().replace(/[^A-Z0-9_]/g, '_')}`
+  : null
+const clientPath = sourcePrefix
+  ? process.env[`${sourcePrefix}_CLIENT_SECRET_PATH`]
+  : process.env.GOOGLE_CALENDAR_CLIENT_SECRET_PATH
+const tokenPath = sourcePrefix
+  ? process.env[`${sourcePrefix}_TOKEN_PATH`]
+  : process.env.GOOGLE_CALENDAR_TOKEN_PATH
+const calendarId = sourcePrefix
+  ? process.env[`${sourcePrefix}_TARGET_ID`]
+  : process.env.GOOGLE_CALENDAR_TARGET_ID
 
 if (!clientPath || !tokenPath || !calendarId) {
   throw new Error('GOOGLE_CALENDAR_LOCAL_SMOKE_ENV_MISSING')

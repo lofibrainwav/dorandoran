@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { FamilyGlobe } from './family-globe'
 import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
 import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PREFIX, type LifecycleTaskForPlanner } from '@/lib/family-os/lifecycle-planner-bridge'
+import type { PlannerRecommendation } from '@/lib/family-os/planner-recommendations'
 import type { HouseholdHome } from '@/lib/family-os/household-home'
 
 type Saved = { memo: string; plans: PlannedTimebox[]; durations: Record<string, number> }
@@ -40,6 +41,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [showConnections, setShowConnections] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
+  const [recommendations, setRecommendations] = useState<PlannerRecommendation[]>([])
+  const [recommendationBusy, setRecommendationBusy] = useState(false)
   // 로그인 viewer가 있을 때만, 본인 lane(person=)의 수락한 task를 읽어 planner wish로 합류시킨다.
   // 실패(비로그인·네트워크·서버 오류)해도 memo만으로 조용히 계속 동작한다 — planner를 깨뜨리지 않는다.
   const [lifecycleWishes, setLifecycleWishes] = useState<PlannerWish[]>([])
@@ -72,6 +75,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     () => mergePlannerWishes(parsePlannerMemo(saved.memo), lifecycleWishes).map((wish) => ({ ...wish, minutes: saved.durations[wish.id] ?? wish.minutes })),
     [saved, lifecycleWishes],
   )
+  const wishById = useMemo(() => new Map(wishes.map((wish) => [wish.id, wish])), [wishes])
   const plans = saved.plans
   const collision = (plan: PlannedTimebox) => !model.known || !model.days.some((day) => day.date === plan.date && day.gaps.some((gap) => plan.startMinute >= gap.startMinute && plan.startMinute + plan.minutes <= gap.endMinute))
   const collidingPlans = plans.filter(collision)
@@ -108,6 +112,37 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     const result = schedulePlannerWishes(wishes, latest)
     save({ ...saved, plans: result.plans })
     setMessage(`${result.plans.length}개를 빈 시간에 배치했어요.${result.unplaced.length ? ` ${result.unplaced.length}개는 맞는 시간이 없어 메모에 남겨두었습니다.` : ''} 기존 일정은 바꾸지 않았어요.`)
+  }
+  async function showRecommendations() {
+    if (!model.known || !wishes.length) return
+    setRecommendationBusy(true)
+    try {
+      const { recommendPlannerWishes } = await import('@/lib/family-os/planner-recommendations')
+      setRecommendations(recommendPlannerWishes(wishes, model, plans))
+      setMessage('지금 일정에 넣을 수 있는 일을 골라 주세요. 실제 배치는 선택할 때 최신 일정을 다시 확인합니다.')
+    } catch {
+      setRecommendations([])
+      setMessage('추천을 준비하지 못했습니다. 기존 자동 배치를 사용해 주세요.')
+    } finally { setRecommendationBusy(false) }
+  }
+  async function placeRecommendation(recommendation: PlannerRecommendation) {
+    if (busy || recommendationBusy) return
+    const wish = wishById.get(recommendation.wishId)
+    if (!wish) { setMessage('이 추천의 원래 일을 찾지 못했습니다. 다시 추천해 주세요.'); return }
+    setRecommendationBusy(true)
+    const latest = await refresh()
+    if (!latest) { setRecommendationBusy(false); return }
+    if (latest.weekStart !== model.weekStart) { setMessage('새로운 주가 시작됐습니다. 이번 주 메모를 입력해 주세요.'); setRecommendationBusy(false); return }
+    const result = schedulePlannerWishes([wish], latest, plans)
+    if (result.plans.length !== 1) {
+      setMessage('최신 일정에는 이 일을 넣을 수 있는 시간이 없어 기존 계획을 그대로 유지했어요.')
+      setRecommendationBusy(false)
+      return
+    }
+    save({ ...saved, plans: [...plans, ...result.plans] })
+    setRecommendations(recommendations.filter((item) => item.wishId !== wish.id))
+    setMessage(`${wish.title}을(를) 최신 일정 기준으로 빈 시간에 넣었어요. 캘린더 원본은 바뀌지 않았습니다.`)
+    setRecommendationBusy(false)
   }
   async function download() {
     if (busy) return
@@ -148,6 +183,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <p className="memo-hint">시간을 적지 않으면 <b>30분 예상</b>으로 시작해요. 아래에서 바꿀 수 있어요.</p>
           {lifecycleNotice ? <p className="memo-hint">{lifecycleNotice}</p> : null}
           {wishes.length ? <div className="wish-list">{wishes.map((wish) => <label key={wish.id} className="wish-row"><span><b>{wish.required ? '해야' : '하고 싶어'}</b>{wish.title}<small>{wish.id.startsWith(LIFECYCLE_WISH_ID_PREFIX) ? `수락한 일 · ${wish.owner}` : wish.estimated && !saved.durations[wish.id] ? '예상 시간 · 확인해 주세요' : wish.owner}</small></span><input aria-label={`${wish.title} 소요시간`} type="number" min="5" max="900" step="5" value={wish.minutes} onChange={(event) => save({ ...saved, durations: { ...saved.durations, [wish.id]: Number(event.target.value) } })} /><small>분</small></label>)}</div> : <div className="memo-empty"><span>〰</span><p>머릿속에 있던 것들을<br />여기에 내려놓으세요.</p></div>}
+          <button className="recommend-button" disabled={!model.known || !wishes.length || recommendationBusy} onClick={() => void showRecommendations()}>✦ 지금 넣을 일 추천</button>
+          {recommendations.length ? <section className="recommendations" aria-label="지금 넣을 일 추천"><h3>지금 넣기 좋은 일</h3><p>선택한 한 가지만 최신 일정을 확인한 뒤 배치합니다.</p>{recommendations.map((recommendation) => <article className="recommendation-card" key={recommendation.wishId}><div><strong>{recommendation.title}</strong><small>{recommendation.owner} · {recommendation.label} · {recommendation.confidence === 'high' ? '확신 높음' : '확인 필요'}</small><span>{recommendation.fitReason.join(' · ')}</span></div><button aria-label={`${recommendation.title} 추천 선택`} disabled={recommendationBusy} onClick={() => void placeRecommendation(recommendation)}>이 일 넣기</button></article>)}</section> : null}
           <button className="auto-plan-button" disabled={!model.known || !wishes.length} onClick={arrange}>✦ {plans.length ? '시간표 다시 짜기' : '빈 시간에 자동 배치'} <span>→</span></button>
           <p className="memo-policy">기존 일정 앞뒤 15분 여유 · 할 일 사이 10분 쉼<br />필수 항목 우선 · 종일 일정이 있는 날은 자동 배치 제외</p>
           <p className="local-note">이 브라우저에 저장 · 가족 계정 간 동기화 전</p>

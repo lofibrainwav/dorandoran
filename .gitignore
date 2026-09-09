@@ -30,3 +30,8 @@ next-env.d.ts
 .hyodo/mcp-access.jsonl
 .hyodo/pairing.json
 .hyodo/*.lock
+
+# 로컬 에이전트 도구 잔재 (커밋 금지)
+.agents/
+.claude/
+skills-lock.json

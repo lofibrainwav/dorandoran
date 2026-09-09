@@ -2,15 +2,9 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'db', 'migrations')
+import { resolvePostgresConnectionString } from '../lib/server/postgres-connection.ts'
 
-function resolveConnectionString(env) {
-  const fromDatabaseUrl = env.DATABASE_URL?.trim()
-  if (fromDatabaseUrl) return fromDatabaseUrl
-  const fromPostgresUrl = env.POSTGRES_URL?.trim()
-  if (fromPostgresUrl) return fromPostgresUrl
-  return null
-}
+const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'db', 'migrations')
 
 async function loadMigrationFiles() {
   const entries = await readdir(MIGRATIONS_DIR)
@@ -29,7 +23,7 @@ export function redactConnectionStrings(text) {
 
 export async function runMigrations(input = {}) {
   const env = input.env ?? process.env
-  const connectionString = resolveConnectionString(env)
+  const connectionString = resolvePostgresConnectionString(env)
   if (!connectionString) {
     throw Object.assign(new Error('DATABASE_URL_OR_POSTGRES_URL_REQUIRED'), { code: 'DATABASE_URL_OR_POSTGRES_URL_REQUIRED' })
   }
@@ -72,7 +66,7 @@ export async function runMigrations(input = {}) {
 }
 
 async function main() {
-  const connectionString = resolveConnectionString(process.env)
+  const connectionString = resolvePostgresConnectionString(process.env)
   if (!connectionString) {
     console.error('db:migrate refused to run: set DATABASE_URL (or POSTGRES_URL) to a Postgres connection string first.')
     process.exitCode = 2

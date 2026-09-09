@@ -1,6 +1,7 @@
 import type { Pool as PgPool } from 'pg'
 import type { EvidenceRef, FamilyBlock, JobMode, Opportunity, PrivacyScope, WorkState } from '../family-os/contracts.ts'
 import type { CaptureEvent } from '../family-os/lifecycle.ts'
+import { resolvePostgresConnectionString } from './postgres-connection.ts'
 
 export interface CandidateRecord {
   id: string
@@ -691,15 +692,19 @@ const activePools = new Set<PgPool>()
  * with no URL) never requires `pg` to be resolvable, e.g. in an edge runtime.
  *
  * TLS is not configured here at all: it is controlled entirely by the injected URL's own
- * `sslmode` (a Neon pooled connection string already sets `sslmode=require`). Note that pg
- * currently treats `sslmode=require` as `verify-full` — it does validate the server certificate —
- * not as an unauthenticated opportunistic-TLS mode. */
+ * `sslmode` (a Neon pooled connection string already sets `sslmode=require`). pg 8 treats
+ * `require` as `verify-full` — it does validate the server certificate — but that aliasing is a
+ * property of the library version, not of the URL, and pg 9 drops it. `pinPostgresSslMode` writes
+ * today's meaning into the string so a dependency bump cannot quietly remove the verification. */
 export function createLifecycleStoreFromEnv(env: {
   DATABASE_URL?: string
   POSTGRES_URL?: string
 }): LifecycleStore | null {
-  const connectionString = env.DATABASE_URL?.trim() || env.POSTGRES_URL?.trim()
-  if (!connectionString) return null
+  const resolved = resolvePostgresConnectionString(env)
+  if (resolved === null) return null
+  // 위의 좁힘은 아래 hoisted 함수 선언 안에서 유지되지 않는다 — 호출 시점을 보장할 수 없어
+  // TS 가 선언된 타입으로 되돌린다. 좁혀진 값을 const 로 한 번 받아 클로저가 string 만 보게 한다.
+  const connectionString: string = resolved
 
   let pool: PgPool | null = null
   async function ensurePool(): Promise<PgPool> {

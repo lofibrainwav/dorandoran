@@ -45,6 +45,10 @@ function loadMembership(): HouseholdMember[] | null {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   if (PUBLIC_ACCESS_PATHS.has(pathname)) return protectedHeaders(NextResponse.next())
+  if (process.env.NODE_ENV !== 'production' && process.env.CHAD_LOCAL_PREVIEW === '1' &&
+      (request.nextUrl.hostname === '127.0.0.1' || request.nextUrl.hostname === 'localhost')) {
+    return protectedHeaders(NextResponse.next())
+  }
 
   const googleConfig = googleAuthConfiguration()
   const membership = googleConfig.complete ? loadMembership() : null

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { FamilyGlobe } from './family-globe'
 import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
 import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PREFIX, type LifecycleTaskForPlanner } from '@/lib/family-os/lifecycle-planner-bridge'
@@ -22,23 +22,82 @@ function readSaved(raw: string): Saved {
   } catch { return EMPTY }
 }
 
-const ownerLabel = { child: 'Jayden', adult: '보호자', family: '가족 · 대상 미배정' }
-
 export interface FamilyPlannerLifecycleViewer { personId: string; access: 'adult' | 'child' }
 
-export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, lifecycleViewer, children }: {
+type LifecycleCandidateSummary = { id: string; state: string; opportunity: { title: string } }
+type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string }
+type DriveChatResponse = {
+  status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
+  artifacts?: Array<{ id: string; kind: string; observedAt: string; state: string; sourceSystem: string; domain: string }>
+}
+type GmailChatResponse = { status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'; messages?: Array<{ messageId: string; observedAt: string; senderDomain?: string }> }
+type DriveArtifactState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
+
+function PlannerModal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', onKeyDown) }
+  }, [open, onClose])
+  if (!open) return null
+  return <div className="planner-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="planner-modal" role="dialog" aria-modal="true" aria-label={title}>
+      <header className="planner-modal-header"><h2>{title}</h2><button className="planner-modal-close" onClick={onClose} aria-label={`${title} 닫기`}>×</button></header>
+      <div className="planner-modal-body">{children}</div>
+    </section>
+  </div>
+}
+
+function readOnlyChatReply(input: string, model: FamilyPlannerModel, next: PlannerEvent | undefined, todayEvents: PlannerEvent[], wishes: PlannerWish[], candidates: LifecycleCandidateSummary[]): string {
+  const prompt = input.toLowerCase()
+  if (prompt.includes('drive') || prompt.includes('artifact') || prompt.includes('아티팩트')) {
+    return 'Drive·Artifact는 현재 읽기 화면 경로가 연결되지 않았습니다. 가짜 파일을 만들지 않고 연결 전 상태로 남겼습니다. 다음 단계에서 기존 Drive Outbox와 Artifact Registry를 읽기 전용 카드로 연결하겠습니다.'
+  }
+  if (prompt.includes('gmail') || prompt.includes('메일') || prompt.includes('이메일')) {
+    return 'Gmail은 현재 이 화면의 읽기 경로가 연결되지 않았습니다. 메일 본문이나 발신자를 추정하지 않았습니다. 연결되면 먼저 읽기·요약만 제공하고 발송은 별도 승인으로 막겠습니다.'
+  }
+  if (prompt.includes('후보') || prompt.includes('승인') || prompt.includes('candidate')) {
+    return candidates.length
+      ? `승인 대기 Candidate ${candidates.length}개가 있습니다: ${candidates.map((candidate) => candidate.opportunity.title).join(', ')}. 아직 Task로 확정하지 않았습니다.`
+      : '현재 읽힌 승인 대기 Candidate가 없습니다. 관찰되지 않은 것을 비어 있다고 단정하지 않도록, 연결 실패와 빈 목록은 별도로 표시합니다.'
+  }
+  if (prompt.includes('할 일') || prompt.includes('task') || prompt.includes('작업')) {
+    return wishes.length
+      ? `사람이 승인한 Planner 대상이 ${wishes.length}개 있습니다: ${wishes.map((wish) => wish.title).join(', ')}. 캘린더 원본을 바꾸지 않고 빈 시간 제안만 할 수 있습니다.`
+      : '현재 사람이 승인한 Planner 대상은 없습니다. 메모를 적거나 Candidate를 승인하면 다음 단계로 연결할 수 있습니다.'
+  }
+  if (prompt.includes('일정') || prompt.includes('캘린더') || prompt.includes('이번 주') || prompt.includes('오늘')) {
+    if (!model.known) return 'Calendar source를 현재 확인하지 못했습니다. 일정이 없다고 확정하지 않고 자동 배치도 중지했습니다.'
+    return `이번 주에는 ${model.eventCount}개 일정이 읽혔고, 오늘은 ${todayEvents.length}개입니다. ${next ? `다음 일정은 ${next.title} · ${next.date} · ${minuteClock(next.startMinute)}입니다.` : '확인된 다음 일정은 없습니다.'}`
+  }
+  return '현재 읽기 전용 범위는 Calendar·수락한 Task·Candidate입니다. “이번 주 일정”, “승인 대기 후보”, “할 일”, “Drive 아티팩트”, “Gmail”처럼 물어보시면 연결 상태와 확인된 정보만 답하겠습니다.'
+}
+
+export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, lifecycleViewer, memberLabels = {}, children }: {
   model: FamilyPlannerModel; home: HouseholdHome; appleStatus: string; learningStatus: string
-  lifecycleViewer?: FamilyPlannerLifecycleViewer | null; children?: ReactNode
+  lifecycleViewer?: FamilyPlannerLifecycleViewer | null; memberLabels?: Record<string, string>; children?: ReactNode
 }) {
   const [freshModel, setFreshModel] = useState<FamilyPlannerModel | null>(null)
   const [busy, setBusy] = useState(false)
   const model = freshModel ?? initialModel
+  const semanticOwnerLabels = { child: '가족 구성원', adult: '보호자', family: '가족 · 대상 미배정' } as const
+  const eventOwnerLabel = (event: PlannerEvent) => event.ownerPersonId && memberLabels[event.ownerPersonId] ? memberLabels[event.ownerPersonId] : semanticOwnerLabels[event.owner]
   const key = `dorandoran-week-planner:${model.weekStart}`
   const raw = useSyncExternalStore(subscribe, () => { try { return localStorage.getItem(key) ?? '' } catch { return '' } }, () => '')
   const saved = useMemo(() => readSaved(raw), [raw])
   const [message, setMessage] = useState('')
   const [selected, setSelected] = useState<PlannerEvent | null>(null)
+  const [showEventDetails, setShowEventDetails] = useState(false)
   const [showConnections, setShowConnections] = useState(false)
+  const [showArtifacts, setShowArtifacts] = useState(false)
+  const [showMemo, setShowMemo] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [chatBusy, setChatBusy] = useState(false)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ id: 1, role: 'assistant', text: '안녕하세요. 지금은 읽기 전용입니다. 일정·수락한 일·승인 대기 후보의 현재 상태를 확인해 드릴게요.' }])
   const [showContext, setShowContext] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [recommendations, setRecommendations] = useState<PlannerRecommendation[]>([])
@@ -47,6 +106,9 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   // 실패(비로그인·네트워크·서버 오류)해도 memo만으로 조용히 계속 동작한다 — planner를 깨뜨리지 않는다.
   const [lifecycleWishes, setLifecycleWishes] = useState<PlannerWish[]>([])
   const [lifecycleNotice, setLifecycleNotice] = useState('')
+  const [pendingCandidates, setPendingCandidates] = useState<LifecycleCandidateSummary[]>([])
+  const [driveArtifactState, setDriveArtifactState] = useState<DriveArtifactState>('idle')
+  const [driveArtifacts, setDriveArtifacts] = useState<NonNullable<DriveChatResponse['artifacts']>>([])
   useEffect(() => {
     if (!lifecycleViewer) return
     let cancelled = false
@@ -71,6 +133,42 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     void run()
     return () => { cancelled = true; controller.abort() }
   }, [lifecycleViewer])
+  useEffect(() => {
+    if (!lifecycleViewer) {
+      return
+    }
+    let cancelled = false
+    fetch('/api/chat/drive?lane=10_JAY', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(20000) })
+      .then(async (response) => {
+        const data = (await response.json()) as DriveChatResponse
+        if (cancelled) return
+        if (response.status === 401) { setDriveArtifactState('not_connected'); setDriveArtifacts([]); return }
+        if (data.status === 'not_connected') { setDriveArtifactState('not_connected'); setDriveArtifacts([]); return }
+        if (data.status === 'incomplete') { setDriveArtifactState('incomplete'); setDriveArtifacts([]); return }
+        if (data.status !== 'connected') { setDriveArtifactState('unavailable'); setDriveArtifacts([]); return }
+        setDriveArtifactState('connected')
+        setDriveArtifacts(data.artifacts ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) { setDriveArtifactState('unavailable'); setDriveArtifacts([]) }
+      })
+    return () => { cancelled = true }
+  }, [lifecycleViewer])
+  useEffect(() => {
+    if (!lifecycleViewer) return
+    let cancelled = false
+    fetch(`/api/lifecycle/candidates?person=${encodeURIComponent(lifecycleViewer.personId)}`, {
+      credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error('UNAVAILABLE')
+      const data = (await response.json()) as { candidates?: LifecycleCandidateSummary[] }
+      if (!Array.isArray(data.candidates)) throw new Error('UNAVAILABLE')
+      if (!cancelled) setPendingCandidates(data.candidates.filter((candidate) => candidate.state === 'proposed'))
+    }).catch(() => {
+      if (!cancelled) setPendingCandidates([])
+    })
+    return () => { cancelled = true }
+  }, [lifecycleViewer])
   const wishes = useMemo(
     () => mergePlannerWishes(parsePlannerMemo(saved.memo), lifecycleWishes).map((wish) => ({ ...wish, minutes: saved.durations[wish.id] ?? wish.minutes })),
     [saved, lifecycleWishes],
@@ -81,6 +179,80 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const collidingPlans = plans.filter(collision)
   const attention = model.days.reduce((sum, day) => sum + day.notices.length, 0)
   const next = model.days.filter((day) => !day.past).flatMap((day) => day.events).find((event) => !event.allDay)
+  const activeEvent = selected ?? next
+  const preparationGroups = [{ label: '준비', who: '함께 확인', items: ['필요한 준비물이 있는지 확인', '맡을 사람과 준비 시간 정하기'] }, { label: '이동', who: '이동 담당 확인', items: ['예정 장소와 출발 시각 확인', '앞 일정과의 이동 여유 확인'] }, { label: '가족', who: '서로 맞춰보기', items: ['다른 가족의 개인 일정 확인', '일정 뒤 휴식 시간 남기기'] }]
+  const today = model.days.find((day) => day.today)
+  const displayDays = useMemo(() => {
+    const todayIndex = model.days.findIndex((day) => day.today)
+    return todayIndex > 0 ? [...model.days.slice(todayIndex), ...model.days.slice(0, todayIndex)] : model.days
+  }, [model.days])
+  const todayEvents = today?.events ?? []
+  const nextWhen = next ? `${next.date} · ${minuteClock(next.startMinute)}–${minuteClock(next.endMinute)}` : '확인된 다음 일정 없음'
+  const visibleDriveArtifactState = lifecycleViewer
+    ? driveArtifactState === 'idle' ? 'loading' : driveArtifactState
+    : 'idle'
+  const visibleDriveArtifacts = lifecycleViewer ? driveArtifacts : []
+  const artifactStatusLabel = visibleDriveArtifactState === 'connected'
+    ? `FINAL Artifact ${visibleDriveArtifacts.length}개 확인`
+    : visibleDriveArtifactState === 'loading'
+      ? 'Artifact 확인 중'
+      : visibleDriveArtifactState === 'not_connected'
+        ? '로그인 후 확인'
+        : visibleDriveArtifactState === 'incomplete'
+          ? 'Drive 설정 불완전'
+          : visibleDriveArtifactState === 'unavailable'
+            ? 'Drive 조회 실패'
+            : '연결 전'
+  const selectEvent = (event: PlannerEvent) => { setSelected(event); setShowEventDetails(true) }
+  async function askChat(prompt: string) {
+    const trimmed = prompt.trim()
+    if (!trimmed || chatBusy) return
+    const isDriveQuestion = /drive|artifact|아티팩트|파일|결과물/i.test(trimmed)
+    const isGmailQuestion = /gmail|메일|이메일/i.test(trimmed)
+    setChatInput('')
+    setChatMessages((messages) => [...messages, { id: Date.now(), role: 'user', text: trimmed }])
+    setChatBusy(isDriveQuestion || isGmailQuestion)
+    let reply: string
+    if (isDriveQuestion) {
+      try {
+        const response = await fetch('/api/chat/drive?lane=10_JAY', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(20000) })
+        const data = (await response.json()) as DriveChatResponse
+        if (response.status === 401) reply = 'Drive를 확인하려면 먼저 승인된 가족 로그인 세션이 필요합니다. 로그인 전 상태를 빈 파일 목록으로 바꾸지 않았습니다.'
+        else if (data.status === 'not_connected') reply = 'Drive Outbox가 아직 연결되지 않았습니다. 파일이 없다고 단정하지 않았습니다.'
+        else if (data.status === 'incomplete') reply = 'Drive 연결 설정이 일부만 되어 있습니다. 안전을 위해 조회를 중지했습니다.'
+        else if (data.status !== 'connected') reply = 'Drive를 확인하지 못했습니다. 원문을 추정하거나 가짜 Artifact를 만들지 않았습니다.'
+        else if (!data.artifacts?.length) reply = 'Drive Outbox는 확인했지만 현재 읽을 수 있는 FINAL Artifact가 없습니다. 템플릿·불완전한 파일은 Artifact로 확정하지 않았습니다.'
+        else reply = `Drive에서 FINAL Artifact ${data.artifacts.length}개를 확인했습니다: ${data.artifacts.map((artifact) => `${artifact.kind} · ${artifact.state}`).join(', ')}.`
+      } catch {
+        reply = 'Drive를 확인하지 못했습니다. 연결 실패를 빈 목록으로 바꾸지 않았습니다.'
+      }
+    } else if (isGmailQuestion) {
+      try {
+        const response = await fetch('/api/chat/gmail', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(20000) })
+        const data = (await response.json()) as GmailChatResponse
+        if (response.status === 401) reply = 'Gmail을 확인하려면 먼저 승인된 가족 로그인 세션이 필요합니다. 메일이 없다고 단정하지 않았습니다.'
+        else if (data.status === 'not_connected') reply = 'Gmail 읽기 연결이 아직 설정되지 않았습니다. 메일 본문이나 발신자를 추정하지 않았습니다.'
+        else if (data.status === 'incomplete') reply = 'Gmail 연결 설정이 일부만 되어 있어 조회를 중지했습니다.'
+        else if (data.status !== 'connected') reply = 'Gmail을 확인하지 못했습니다. 실패를 빈 메일함으로 바꾸지 않았습니다.'
+        else if (!data.messages?.length) reply = '최근 7일 Inbox에서 확인된 메일이 없습니다. 제목·본문은 읽지 않고 메타데이터만 확인했습니다.'
+        else {
+          const domains = [...new Set(data.messages.map((message) => message.senderDomain).filter(Boolean))]
+          reply = `최근 7일 Inbox에서 ${data.messages.length}건을 확인했습니다.${domains.length ? ` 발신 도메인: ${domains.join(', ')}.` : ''} 제목·본문은 노출하지 않았습니다.`
+        }
+      } catch {
+        reply = 'Gmail을 확인하지 못했습니다. 실패를 빈 메일함으로 바꾸지 않았습니다.'
+      }
+    } else {
+      reply = readOnlyChatReply(trimmed, model, next, todayEvents, lifecycleWishes, pendingCandidates)
+    }
+    setChatMessages((messages) => [...messages, { id: Date.now() + 1, role: 'assistant', text: reply }])
+    setChatInput('')
+    setChatBusy(false)
+  }
+  function submitChat(event: FormEvent) {
+    event.preventDefault()
+    void askChat(chatInput)
+  }
   function save(value: Saved) {
     try { localStorage.setItem(key, JSON.stringify(value)); window.dispatchEvent(new Event('family-planner-change')) }
     catch { setMessage('이 브라우저에 저장할 수 없습니다. 저장 공간 설정을 확인해 주세요.') }
@@ -154,7 +326,9 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     setMessage('계획 파일을 내려받았습니다. Google Calendar의 가져오기 또는 Apple Calendar에서 파일을 열면 반영됩니다. 아직 캘린더에 저장된 것은 아닙니다.')
   }
-  const dateRange = `${model.days[0].date.slice(5).replace('-', '.')} — ${model.days[6].date.slice(5).replace('-', '.')}`
+  const dateRange = today
+    ? `${today.date.slice(5).replace('-', '.')} 기준 · ${model.days[0].date.slice(5).replace('-', '.')} — ${model.days[6].date.slice(5).replace('-', '.')}`
+    : `${model.days[0].date.slice(5).replace('-', '.')} — ${model.days[6].date.slice(5).replace('-', '.')}`
 
   return <main className="family-planner">
     <div className="planner-shell">
@@ -162,59 +336,104 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         <a className="planner-brand" href="/family"><span className="brand-sun" aria-hidden="true">✺</span><span>도란도란<small>OUR FAMILY, A LITTLE CLOSER</small></span></a>
         <div className="planner-header-actions"><span className="planner-week-label">FAMILY OS / {model.weekStart.slice(0, 4)}</span><button onClick={() => setShowConnections((value) => !value)} aria-expanded={showConnections} className="connection-button"><span className={model.known ? 'status-dot' : 'status-dot status-dot--amber'} /> 연결된 생활 <span>↗</span></button></div>
       </header>
-      <section className="planner-intro">
-        <div><p className="eyebrow">SMALL STEPS. BRIGHTER DAYS.</p><h1>우리 가족의 한 주,<br /><em>함께 여유롭게.</em></h1><p className="intro-copy">해야 할 일도, 하고 싶은 일도.<br className="mobile-only" /> 메모해 두면 우리 일정 사이에 자리를 찾아요.</p></div>
-        <aside className="planner-map"><div className="map-heading"><span>⌖ {home.label}</span><small>가족 생활권 · 실시간 위치 아님</small></div><div className="planner-map-canvas"><FamilyGlobe timeScale="today" home={home} /></div></aside>
+      <section className="operational-home" aria-labelledby="operational-home-title">
+        <div className="operational-home-heading"><div><p className="eyebrow">DORANDORAN OPERATING HOME</p><h1 id="operational-home-title">오늘의 운영판</h1><p>지금 일어나는 일과 다음에 할 일을 한곳에서 확인합니다.</p></div><span className={model.known ? 'operational-source operational-source--ready' : 'operational-source'}><i className="status-dot" /> {model.known ? '실제 일정 기준' : '일정 확인 필요'}</span></div>
+        <nav className="operational-nav" aria-label="운영판 섹션">
+          <button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>Calendar <span>오늘 · 주 · 월</span></button>
+          <button onClick={() => setShowContext(true)} disabled={!children}>Tasks & Candidates <span>{children ? '승인과 실행' : '연결 전'}</span></button>
+          <button onClick={() => setShowConnections(true)}>Google & Apple <span>연결 상태</span></button>
+          <button onClick={() => setShowChat(true)}>Doran Chat <span>읽기 전용</span></button>
+          <button onClick={() => setShowArtifacts(true)} disabled={visibleDriveArtifactState === 'idle'}>Artifacts <span>{artifactStatusLabel}</span></button>
+        </nav>
+        <div className="operational-grid">
+          <article className="operational-card operational-card--next"><small>다음 일정</small><strong>{next?.title ?? '다음 일정이 없습니다'}</strong><dl><div><dt>누가</dt><dd>{next ? eventOwnerLabel(next) : '미확인'}</dd></div><div><dt>무엇을</dt><dd>{next?.title ?? '미확인'}</dd></div><div><dt>언제</dt><dd>{nextWhen}</dd></div><div><dt>어디서</dt><dd>{next?.place ?? '미확인'}</dd></div><div><dt>왜</dt><dd>원본 일정에 기록되지 않음</dd></div><div><dt>어떻게</dt><dd>일정 상세에서 준비 확인</dd></div></dl>{next ? <button onClick={() => selectEvent(next)}>일정 상세 열기 →</button> : null}</article>
+          <article className="operational-card"><small>오늘</small><strong>{todayEvents.length}개 일정 · {lifecycleWishes.length}개 수락한 일</strong><p>{attention ? `${attention}곳에서 이동·겹침 확인이 필요합니다.` : '일정 사이의 여유를 확인하세요.'}</p><button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>캘린더 보기 →</button></article>
+          {pendingCandidates.length ? <article className="operational-card operational-card--attention"><small>확인 필요</small><strong>{pendingCandidates.length}개 Candidate 승인 대기</strong><p>{pendingCandidates[0].opportunity.title}</p><button onClick={() => setShowContext(true)}>승인 목록 열기 →</button></article> : null}
+          {lifecycleWishes.length ? <article className="operational-card"><small>수락한 Task</small><strong>{lifecycleWishes.length}개가 Planner에 대기 중</strong><p>사람이 승인한 일만 일정 배치 대상으로 들어갑니다.</p><button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>시간 배치 보기 →</button></article> : null}
+          <article className={`operational-card ${visibleDriveArtifactState === 'connected' && visibleDriveArtifacts.length ? 'operational-card--attention' : ''}`}><small>Artifacts</small><strong>{artifactStatusLabel}</strong><p>{visibleDriveArtifacts.length ? `${visibleDriveArtifacts.slice(0, 2).map((artifact) => artifact.kind).join(' · ')}${visibleDriveArtifacts.length > 2 ? ' 외' : ''}` : 'Drive 원문은 보관하고 운영판에는 안전한 요약만 표시합니다.'}</p><button onClick={() => setShowArtifacts(true)} disabled={visibleDriveArtifactState === 'idle'}>Artifact 보기 →</button></article>
+        </div>
       </section>
-      {showConnections ? <section className="connection-panel" aria-label="연결 상태">
-        <article><strong>Google Calendar</strong><span>{model.known ? '실제 일정 읽음 · 기존 일정 고정' : '일정을 확인할 수 없음 · 자동 배치 중지'}</span><p>연결된 가족 운영 캘린더를 기준으로 합니다. 개인별 다른 캘린더까지 비어 있다는 뜻은 아닙니다.</p></article>
-        <article><strong>Apple 생태계</strong><span>{appleStatus}</span><p>Photos는 허용된 로컬 스냅샷 경로입니다. Apple Calendar·미리 알림·실시간 위치의 서버 동기화는 아직 연결되지 않았습니다.</p></article>
-        <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Google Tasks·Gmail·Apple 미리 알림의 할 일을 자동으로 읽는 연결은 아직 없습니다.</p></article>
-      </section> : null}
-      <div className="family-legend" aria-label="가족과 역할">
-        <span className="legend-child"><i>J</i><b>Jayden<small>배우고 자라기</small></b></span><span className="legend-parent"><i>J</i><b>Julie<small>준비와 조율</small></b></span><span className="legend-physical"><i>J</i><b>Jay<small>이동과 실행</small></b></span><span className="legend-chad"><i>✦</i><b>Chad<small>계획 도우미</small></b></span><span className="legend-together"><i>♡</i><b>Together<small>함께하는 시간</small></b></span>
-        <div className="legend-key"><span>▣ 캘린더 고정</span><span>┄ 새 계획</span></div>
-      </div>
-      <div className="planner-workspace">
-        <aside className="memo-panel" aria-label="우리 가족 메모">
-          <div className="memo-heading"><span>✎</span><div><h2>일단, 적어두세요.</h2><p>해야 하는 일 · 하고 싶은 일</p></div></div>
+      <details className="planner-context"><summary>생활권 · 시간 맥락 보기 <span>+</span></summary><section className="planner-intro">
+        <div><p className="eyebrow">SMALL STEPS. BRIGHTER DAYS.</p><h2>우리 가족의 한 주,<br /><em>함께 여유롭게.</em></h2><p className="intro-copy">해야 할 일도, 하고 싶은 일도.<br className="mobile-only" /> 메모해 두면 우리 일정 사이에 자리를 찾아요.</p></div>
+        <aside className="planner-map"><div className="map-heading"><span>⌖ {home.label}</span><small>가족 생활권 · 실시간 위치 아님</small></div><div className="planner-map-canvas"><FamilyGlobe timeScale="today" home={home} /></div></aside>
+      </section></details>
+      <PlannerModal open={showConnections} title="연결된 생활" onClose={() => setShowConnections(false)}>
+        <div className="connection-panel">
+          <article><strong>Google Calendar</strong><span>{model.known ? '실제 일정 읽음 · 기존 일정 고정' : '일정을 확인할 수 없음 · 자동 배치 중지'}</span><p>연결된 가족 운영 캘린더를 기준으로 합니다. 개인별 다른 캘린더까지 비어 있다는 뜻은 아닙니다.</p></article>
+          <article><strong>Apple 생태계</strong><span>{appleStatus}</span><p>Photos는 허용된 로컬 스냅샷 경로입니다. Apple Calendar·미리 알림·실시간 위치의 서버 동기화는 아직 연결되지 않았습니다.</p></article>
+          <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Google Tasks·Gmail·Apple 미리 알림의 할 일을 자동으로 읽는 연결은 아직 없습니다.</p></article>
+        </div>
+      </PlannerModal>
+      <PlannerModal open={showArtifacts} title="Drive Artifacts" onClose={() => setShowArtifacts(false)}>
+        <div className="artifact-panel">
+          <p className="chat-scope"><span className="status-dot" /> {artifactStatusLabel} · 읽기 전용</p>
+          {visibleDriveArtifactState === 'connected' && visibleDriveArtifacts.length ? <div className="artifact-list">{visibleDriveArtifacts.map((artifact) => <article className="artifact-row" key={artifact.id}><div><strong>{artifact.kind}</strong><span>{artifact.state} · {artifact.sourceSystem} · {artifact.domain}</span></div><small>{artifact.observedAt}</small></article>)}</div> : <p className="modal-empty">{visibleDriveArtifactState === 'idle' ? '승인된 가족 로그인 후 Drive 상태를 확인할 수 있습니다.' : visibleDriveArtifactState === 'not_connected' ? 'Drive를 확인하려면 승인된 가족 로그인 세션이 필요합니다.' : visibleDriveArtifactState === 'incomplete' ? 'Drive 연결 설정이 일부만 되어 있어 조회하지 않았습니다.' : visibleDriveArtifactState === 'unavailable' ? 'Drive를 확인하지 못했습니다. 빈 목록으로 축약하지 않았습니다.' : visibleDriveArtifactState === 'loading' ? 'Drive Artifact를 확인하고 있습니다…' : '현재 읽을 수 있는 FINAL Artifact가 없습니다.'}</p>}
+        </div>
+      </PlannerModal>
+      <PlannerModal open={showMemo} title="일단, 적어두세요." onClose={() => setShowMemo(false)}>
+        <div className="memo-modal">
+          <p className="chat-scope"><span className="status-dot" /> 생각·할 일 기록 · 아직 캘린더에 확정하지 않음</p>
           <label className="sr-only" htmlFor="family-memo">가족 할 일 메모</label>
-          <textarea id="family-memo" maxLength={10000} value={saved.memo} onChange={(event) => save({ ...saved, memo: event.target.value, durations: {} })} placeholder={'한 줄에 하나씩 편하게 적어보세요\n\n예) 해야 할 학교 준비 20분\n@Jayden 책 읽기 30분\n함께 산책 40분\n쥴리와 이야기 나누기'} />
-          <p className="memo-hint">시간을 적지 않으면 <b>30분 예상</b>으로 시작해요. 아래에서 바꿀 수 있어요.</p>
+          <textarea id="family-memo" maxLength={10000} value={saved.memo} onChange={(event) => save({ ...saved, memo: event.target.value, durations: {} })} placeholder={'한 줄에 하나씩 편하게 적어보세요\n\n예) 해야 할 학교 준비 20분\n@구성원 책 읽기 30분\n함께 산책 40분\n가족과 이야기 나누기'} />
+          <p className="memo-hint">시간을 적지 않으면 <b>30분 예상</b>으로 시작해요. 캘린더에 넣기 전 바꿀 수 있어요.</p>
           {lifecycleNotice ? <p className="memo-hint">{lifecycleNotice}</p> : null}
           {wishes.length ? <div className="wish-list">{wishes.map((wish) => <label key={wish.id} className="wish-row"><span><b>{wish.required ? '해야' : '하고 싶어'}</b>{wish.title}<small>{wish.id.startsWith(LIFECYCLE_WISH_ID_PREFIX) ? `수락한 일 · ${wish.owner}` : wish.estimated && !saved.durations[wish.id] ? '예상 시간 · 확인해 주세요' : wish.owner}</small></span><input aria-label={`${wish.title} 소요시간`} type="number" min="5" max="900" step="5" value={wish.minutes} onChange={(event) => save({ ...saved, durations: { ...saved.durations, [wish.id]: Number(event.target.value) } })} /><small>분</small></label>)}</div> : <div className="memo-empty"><span>〰</span><p>머릿속에 있던 것들을<br />여기에 내려놓으세요.</p></div>}
           <button className="recommend-button" disabled={!model.known || !wishes.length || recommendationBusy} onClick={() => void showRecommendations()}>✦ 지금 넣을 일 추천</button>
           {recommendations.length ? <section className="recommendations" aria-label="지금 넣을 일 추천"><h3>지금 넣기 좋은 일</h3><p>선택한 한 가지만 최신 일정을 확인한 뒤 배치합니다.</p>{recommendations.map((recommendation) => <article className="recommendation-card" key={recommendation.wishId}><div><strong>{recommendation.title}</strong><small>{recommendation.owner} · {recommendation.label} · {recommendation.confidence === 'high' ? '확신 높음' : '확인 필요'}</small><span>{recommendation.fitReason.join(' · ')}</span></div><button aria-label={`${recommendation.title} 추천 선택`} disabled={recommendationBusy} onClick={() => void placeRecommendation(recommendation)}>이 일 넣기</button></article>)}</section> : null}
           <button className="auto-plan-button" disabled={!model.known || !wishes.length} onClick={arrange}>✦ {plans.length ? '시간표 다시 짜기' : '빈 시간에 자동 배치'} <span>→</span></button>
           <p className="memo-policy">기존 일정 앞뒤 15분 여유 · 할 일 사이 10분 쉼<br />필수 항목 우선 · 종일 일정이 있는 날은 자동 배치 제외</p>
-          <p className="local-note">이 브라우저에 저장 · 가족 계정 간 동기화 전</p>
+        </div>
+      </PlannerModal>
+      <PlannerModal open={showChat} title="Doran Chat" onClose={() => setShowChat(false)}>
+        <div className="chat-panel">
+          <p className="chat-scope"><span className="status-dot" /> 읽기 전용 · 외부 변경 없음</p>
+          <div className="chat-thread" role="log" aria-live="polite">
+            {chatMessages.map((message) => <div className={`chat-message chat-message--${message.role}`} key={message.id}><span>{message.role === 'user' ? '형' : '도란'}</span><p>{message.text}</p></div>)}
+          </div>
+          <div className="chat-prompts" aria-label="질문 예시">
+            {['이번 주 일정 확인해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
+          </div>
+          <form className="chat-composer" onSubmit={submitChat}><label className="sr-only" htmlFor="doran-chat-input">도란에게 물어보기</label><input id="doran-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="이번 주 일정이나 승인 대기를 물어보세요" disabled={chatBusy} /><button type="submit" disabled={!chatInput.trim() || chatBusy}>{chatBusy ? '확인 중…' : '보내기'}</button></form>
+        </div>
+      </PlannerModal>
+      <div className="planner-workspace">
+        <aside className="memo-panel memo-panel--launcher" aria-label="우리 가족 메모">
+          <div className="memo-launcher-label"><span aria-hidden="true">✎</span><div><h2>일단, 적어두세요.</h2><p>{wishes.length ? `${wishes.length}개 메모 · Planner 대기` : '메모 없음'}</p></div></div>
+          <button className="memo-launcher-button" onClick={() => setShowMemo(true)}>열기 <span>↗</span></button>
+          <span className="sr-only">빈 시간에 자동 배치</span>
         </aside>
-        <section className="week-panel" aria-label="이번 주 타임박스 플래너">
+        <section className="week-panel" id="calendar" aria-label="이번 주 타임박스 플래너">
           <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button></div>
           <div className="week-summary"><span><i className="status-dot" />{model.known ? `${model.eventCount}개 실제 일정` : '일정 확인 필요'}</span><span>{plans.length}개 새 계획</span><span>{attention ? `${attention}곳 시간 조율 확인` : '일정 사이에 여유를 남겨요'}</span></div>
           <p role="status" aria-live="polite" className={message ? 'planner-message' : 'planner-message-empty'}>{message}</p>
           {collidingPlans.length ? <p className="planner-warning">⚠ 일정이 바뀌었거나 이미 지난 시간이 포함된 계획 {collidingPlans.length}개가 있습니다. 다시 배치해 주세요.</p> : null}
           {!model.known ? <p className="planner-warning">일정이 확인되지 않아 빈 시간으로 간주하지 않습니다. 연결을 확인하면 자동 배치할 수 있어요.</p> : null}
           <div className="week-scroll"><div className="timebox-grid">
-            <div className="grid-corner">TIME</div>{model.days.map((day) => <div key={day.date} className={`day-heading ${day.today ? 'is-today' : ''}`}><span>{day.weekday}</span><strong>{day.dayNumber}</strong>{day.today ? <small>TODAY</small> : null}</div>)}
-            <div className="period-label all-day-label">종일</div>{model.days.map((day) => <div className="all-day-cell" key={`all-${day.date}`}>{day.events.filter((event) => event.allDay).map((event) => <button key={event.id} className="all-day-event" onClick={() => setSelected(event)}>{event.title}</button>)}{day.notices.length ? <span className="day-notice">△ {day.notices.some((notice) => notice.kind === 'overlap') ? '겹치는 시간 확인' : `${day.notices[0].minutes}분 전환 · 확인`}</span> : null}</div>)}
-            {DAY_PERIODS.map((period) => <div className="period-row" key={period.id}><div className="period-label"><span>{period.icon}</span><b>{period.label}</b><small>{minuteClock(period.start)}<br />{minuteClock(period.end)}</small></div>{model.days.map((day) => {
+            <div className="grid-corner">TIME</div>{displayDays.map((day) => <div key={day.date} className={`day-heading ${day.today ? 'is-today' : ''} ${day.dayKind === 'sunday' ? 'is-sunday' : ''} ${day.dayKind === 'saturday' ? 'is-saturday' : ''}`}><span>{day.weekday}</span><strong>{day.dayNumber}</strong>{day.today ? <small>TODAY</small> : null}</div>)}
+            <div className="period-label all-day-label">종일</div>{displayDays.map((day) => <div className="all-day-cell" key={`all-${day.date}`}>{day.events.filter((event) => event.allDay).map((event) => <button key={event.id} className="all-day-event" onClick={() => selectEvent(event)}>{event.title}</button>)}{day.notices.length ? <span className="day-notice">△ {day.notices.some((notice) => notice.kind === 'overlap') ? '겹치는 시간 확인' : `${day.notices[0].minutes}분 전환 · 확인`}</span> : null}</div>)}
+            {DAY_PERIODS.map((period) => <div className="period-row" key={period.id}><div className="period-label"><span>{period.icon}</span><b>{period.label}</b><small>{minuteClock(period.start)}<br />{minuteClock(period.end)}</small></div>{displayDays.map((day) => {
               const events = day.events.filter((event) => !event.allDay && event.startMinute < period.end && event.endMinute > period.start)
               const dayPlans = plans.filter((plan) => plan.date === day.date && plan.startMinute >= period.start && plan.startMinute < period.end)
               const gap = day.gaps.find((item) => item.startMinute >= period.start && item.startMinute < period.end)
-              return <div key={day.date} className={`timebox-cell ${day.past ? 'is-past' : ''} ${day.today ? 'is-today' : ''}`}>{events.map((event) => <button key={event.id} className={`calendar-block block-${event.owner}`} onClick={() => setSelected(event)}><span className="block-time">{event.continued || event.startMinute < period.start ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`} <i>▣</i></span><strong>{event.title}</strong><small>{ownerLabel[event.owner]}</small></button>)}{dayPlans.map((plan) => <article key={plan.id} className={`draft-block ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}{gap && !dayPlans.length ? <div className="gap-block"><span>＋</span><b>{gap.minutes}분의 여유</b><small>{minuteClock(gap.startMinute)}–{minuteClock(gap.endMinute)}</small><p>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</p></div> : !events.length && !dayPlans.length ? <span className="quiet-cell">{day.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</span> : null}</div>
+              return <div key={day.date} className={`timebox-cell ${day.past ? 'is-past' : ''} ${day.today ? 'is-today' : ''}`}>{events.map((event) => <button key={event.id} className={`calendar-block block-${event.owner}`} onClick={() => selectEvent(event)}><span className="block-time">{event.continued || event.startMinute < period.start ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`} <i>▣</i></span><strong>{event.title}</strong><small>{eventOwnerLabel(event)}</small></button>)}{dayPlans.map((plan) => <article key={plan.id} className={`draft-block ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}{gap && !dayPlans.length ? <div className="gap-block"><span>＋</span><b>{gap.minutes}분의 여유</b><small>{minuteClock(gap.startMinute)}–{minuteClock(gap.endMinute)}</small><p>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</p></div> : !events.length && !dayPlans.length ? <span className="quiet-cell">{day.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</span> : null}</div>
             })}</div>)}
           </div></div>
           <p className="calendar-footnote">▣ 기존 Google Calendar 일정은 고정됩니다. 새 계획은 내보내기 후 캘린더에서 가져오면 반영됩니다. 여유 시간은 연결된 캘린더 기준이며 가족 모두의 가용성을 확정하지 않습니다.</p>
         </section>
       </div>
-      <section className="action-section" aria-label="일정에서 준비까지">
-        <div className="action-title"><span>↳</span><div><p className="eyebrow">FROM CALENDAR TO CARE</p><h2>하나의 일정, 함께 준비하는 작은 일들.</h2><p>캘린더 블록을 누르면 그 일정의 준비를 확인할 수 있어요.</p></div></div>
-        <div className="action-layout"><article className="selected-event"><small>{selected ? '선택한 일정' : '다가오는 일정'}</small><h3>{(selected ?? next)?.title ?? '확인된 다음 일정이 없습니다'}</h3><p>{(selected ?? next) ? `${(selected ?? next)!.date} · ${minuteClock((selected ?? next)!.startMinute)}` : '새 일정을 확인하면 여기에 표시됩니다.'}</p>{(selected ?? next)?.place ? <><span>{(selected ?? next)!.place}</span><div className="map-links"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((selected ?? next)!.place!)}`} target="_blank" rel="noreferrer">Google 지도 ↗</a><a href={`https://maps.apple.com/?q=${encodeURIComponent((selected ?? next)!.place!)}`} target="_blank" rel="noreferrer">Apple 지도 ↗</a></div></> : <small>예정 장소 미확인</small>}</article>
-          {[{ label: '준비', who: '함께 확인', items: ['필요한 준비물이 있는지 확인', '맡을 사람과 준비 시간 정하기'] }, { label: '이동', who: '이동 담당 확인', items: ['예정 장소와 출발 시각 확인', '앞 일정과의 이동 여유 확인'] }, { label: '가족', who: '서로 맞춰보기', items: ['다른 가족의 개인 일정 확인', '일정 뒤 휴식 시간 남기기'] }].map((group) => <article className="preparation-card" key={group.label}><div><h3>{group.label}</h3><small>{group.who} · 제안</small></div>{group.items.map((item) => { const id = `${(selected ?? next)?.id ?? 'none'}-${item}`; return <label key={item}><input type="checkbox" disabled={!(selected ?? next)} checked={!!completed[id]} onChange={(event) => setCompleted({ ...completed, [id]: event.target.checked })} /><span>{item}</span></label> })}</article>)}
-        </div><p className="preparation-note">준비 항목은 확인을 돕는 제안이며, 원본 일정에서 확인된 지시나 담당자 배정이 아닙니다.</p>
-      </section>
-      {children ? <section className="advanced-context"><button className="export-button" onClick={() => setShowContext((value) => !value)} aria-expanded={showContext}>추억 · 월간 · 연간 맥락 {showContext ? '닫기 −' : '더 보기 +'}</button>{showContext ? children : null}</section> : null}
+      {activeEvent ? <section className="action-launcher" aria-label="일정에서 준비까지">
+        <div><p className="eyebrow">FROM CALENDAR TO CARE</p><h2>일정에서 준비까지</h2><p>{activeEvent.title}의 준비 항목을 확인해 보세요.</p></div>
+        <button className="action-launcher-button" onClick={() => setShowEventDetails(true)}>일정 상세 열기 <span>→</span></button>
+      </section> : null}
+      <PlannerModal open={showEventDetails} title={activeEvent?.title ?? '일정 상세'} onClose={() => setShowEventDetails(false)}>
+        {activeEvent ? <>
+          <div className="event-detail-summary"><small>선택한 일정</small><strong>{activeEvent.date} · {minuteClock(activeEvent.startMinute)}–{minuteClock(activeEvent.endMinute)}</strong><span>{eventOwnerLabel(activeEvent)}{activeEvent.place ? ` · ${activeEvent.place}` : ' · 예정 장소 미확인'}</span>{activeEvent.place ? <div className="map-links"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeEvent.place)}`} target="_blank" rel="noreferrer">Google 지도 ↗</a><a href={`https://maps.apple.com/?q=${encodeURIComponent(activeEvent.place)}`} target="_blank" rel="noreferrer">Apple 지도 ↗</a></div> : null}</div>
+          <div className="modal-preparation-grid">{preparationGroups.map((group) => <article className="preparation-card" key={group.label}><div><h3>{group.label}</h3><small>{group.who} · 제안</small></div>{group.items.map((item) => { const id = `${activeEvent.id}-${item}`; return <label key={item}><input type="checkbox" checked={!!completed[id]} onChange={(event) => setCompleted({ ...completed, [id]: event.target.checked })} /><span>{item}</span></label> })}</article>)}</div>
+          <p className="preparation-note">준비 항목은 확인을 돕는 제안이며, 원본 일정에서 확인된 지시나 담당자 배정이 아닙니다.</p>
+        </> : <p className="modal-empty">캘린더에서 먼저 일정을 선택해 주세요.</p>}
+      </PlannerModal>
+      <PlannerModal open={showContext} title="추억 · 월간 · 연간 맥락" onClose={() => setShowContext(false)}>{children}</PlannerModal>
+      {children ? <section className="advanced-context"><button className="export-button" onClick={() => setShowContext(true)} aria-expanded={showContext}>추억 · 월간 · 연간 맥락 더 보기 +</button></section> : null}
       <footer className="planner-footer"><span>도란도란 · Same team. Brighter tomorrow.</span><button onClick={() => { setShowConnections(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>Google & Apple 연결 상태 ↗</button></footer>
     </div>
   </main>

@@ -2,12 +2,23 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  parseHouseholdDisplayNames,
   parseHouseholdMembership,
   resolveHouseholdMember,
   resolveOperationalFamilyCalendar,
   parseCalendarSubjectRules,
   resolveCalendarEventSubject,
 } from '../../lib/family-os/index.ts'
+
+test('display-name overrides are optional UI metadata and do not require identity fields', () => {
+  assert.deepEqual(parseHouseholdDisplayNames({
+    DORANDORAN_HOUSEHOLD_DISPLAY_NAMES_JSON: JSON.stringify({ jayden: 'Jayden', jay: 'Jay', julie: 'Julie' }),
+  }), { jayden: 'Jayden', jay: 'Jay', julie: 'Julie' })
+})
+
+test('malformed display-name overrides fail closed', () => {
+  assert.throws(() => parseHouseholdDisplayNames({ DORANDORAN_HOUSEHOLD_DISPLAY_NAMES_JSON: '[]' }), /INVALID_HOUSEHOLD_DISPLAY_NAMES_JSON/)
+})
 
 test('household membership authorizes only explicit Google sub identities', () => {
   const env = {
@@ -28,6 +39,19 @@ test('household membership authorizes only explicit Google sub identities', () =
   assert.deepEqual(adult.roles, ['admin', 'transport'])
 
   assert.equal(resolveHouseholdMember({ sub: 'unknown', email: 'display@example.invalid' }, membership), null)
+})
+
+test('membership displayName is carried as UI metadata without changing identity authority', () => {
+  const membership = parseHouseholdMembership({
+    DORANDORAN_HOUSEHOLD_MEMBERS_JSON: JSON.stringify([
+      { personId: 'person-a', displayName: 'Ari', googleSub: 'sub-a', access: 'adult', roles: ['admin'] },
+    ]),
+  })
+
+  assert.deepEqual(membership[0], {
+    personId: 'person-a', displayName: 'Ari', googleSub: 'sub-a', access: 'adult', roles: ['admin'], canSignIn: true,
+  })
+  assert.equal(resolveHouseholdMember({ sub: 'sub-a' }, membership)?.personId, 'person-a')
 })
 
 test('child identity remains known but cannot enter management surface', () => {

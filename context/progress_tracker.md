@@ -11,6 +11,12 @@ Units 29–32 landed on `main` today, all through PR + Greenfield Quality + HyoD
 
 Regression count is 522 tests. Unauthenticated `/` and `/family` still 307 → `/signin`; authenticated UI was not re-observed today. The historical notes below do not supersede this handoff.
 
+## UI reality — 2026-09-10
+
+- Family planner first-pass responsive repair is applied in `app/planner.css`: the family-role legend wraps instead of clipping on narrow screens, and the Sunday-first time grid keeps an explicit horizontal navigation surface with snap behavior and a sticky time axis on mobile.
+- Validation after the UI-only change: lint, typecheck, 652 family/core tests, and production build all pass. No API, auth, or data contract changes.
+- UI progressive disclosure is now wired in `components/family-planner.tsx` and `app/planner.css`: event preparation, connection status, and advanced context open in accessible desktop modals or mobile bottom sheets; the long inline preparation section is reduced to a compact launcher.
+
 ## Current state
 - Greenfield worktree created from `main`.
 - Legacy UI shell removed.

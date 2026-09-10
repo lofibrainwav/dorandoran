@@ -3,6 +3,7 @@ export type HouseholdAccess = 'adult' | 'child'
 
 export interface HouseholdMemberConfig {
   personId: string
+  displayName?: string
   googleSub: string
   access: HouseholdAccess
   roles: HouseholdRole[]
@@ -65,6 +66,7 @@ export function parseHouseholdMembership(
     }
     const record = row as Record<string, unknown>
     const personId = clean(record.personId)
+    const displayName = clean(record.displayName)
     const googleSub = clean(record.googleSub)
     const access = clean(record.access) as HouseholdAccess | null
     const rawRoles = record.roles
@@ -84,12 +86,31 @@ export function parseHouseholdMembership(
     subjects.add(googleSub)
     return {
       personId,
+      ...(displayName ? { displayName } : {}),
       googleSub,
       access,
       roles: roles as HouseholdRole[],
       canSignIn: access === 'adult',
     }
   })
+}
+
+export function parseHouseholdDisplayNames(
+  env: Record<string, string | undefined>,
+): Record<string, string> {
+  const raw = env.DORANDORAN_HOUSEHOLD_DISPLAY_NAMES_JSON?.trim()
+  if (!raw) return {}
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch { throw new Error('INVALID_HOUSEHOLD_DISPLAY_NAMES_JSON') }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('INVALID_HOUSEHOLD_DISPLAY_NAMES_JSON')
+  const result: Record<string, string> = {}
+  for (const [personId, value] of Object.entries(parsed)) {
+    const cleanPersonId = clean(personId)
+    const displayName = clean(value)
+    if (!cleanPersonId || !displayName) throw new Error('INVALID_HOUSEHOLD_DISPLAY_NAME')
+    result[cleanPersonId] = displayName
+  }
+  return result
 }
 
 export function resolveHouseholdMember(

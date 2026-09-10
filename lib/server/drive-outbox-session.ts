@@ -1,4 +1,5 @@
 import { runDriveOutboxIntake, type DriveOutboxPorts, type DriveOutboxRunResult } from '../family-os/drive-outbox-run.ts'
+import type { OutboxEntryResult } from '../family-os/drive-outbox-intake.ts'
 import type { DriveOutboxCursorStore } from './drive-outbox-cursor-store.ts'
 
 /**
@@ -21,6 +22,7 @@ export async function runDriveOutboxSession(input: {
   context: { capturedBy: string; capturedAt: string }
   now: string
   mimeTypes?: readonly string[]
+  onAccepted?: (entry: Extract<OutboxEntryResult, { outcome: 'accepted' }>) => Promise<void>
 }): Promise<DriveOutboxSessionResult> {
   // 커서를 모르는 것은 커서가 빈 것과 다르다. 모른 채로 돌면 outbox 전체를 다시 ingest 하고,
   // 그때는 eventId dedup 하나가 중복된 가정 기록을 막는 유일한 방벽이 된다 — 그대로 두지 않는다.
@@ -38,6 +40,12 @@ export async function runDriveOutboxSession(input: {
   // 기대어 의도를 표현하면 그 의도가 코드에서 사라진다.
   const hasDelta = run.processedFileIds.length > 0 || run.processedEventIds.length > 0
   if (!hasDelta) return { ...run, lane: input.lane, cursorAdvanced: false }
+
+  if (input.onAccepted) {
+    for (const entry of run.entries) {
+      if (entry.outcome === 'accepted') await input.onAccepted(entry)
+    }
+  }
 
   // 여기서 던지면 세션이 실패한다 — 일은 벌어졌는데 기억되지 않은 상태다. 삼키지 않는 이유:
   // 남는 실패 모드가 안전한 쪽이기 때문이다. 다음 실행이 같은 파일을 다시 읽고 같은 레코드를

@@ -1,5 +1,5 @@
 import type { CaptureEvent } from './lifecycle.ts'
-import type { EvidenceRef, EvidenceState, PrivacyScope } from './contracts.ts'
+import type { EvidenceRef, EvidenceState, JobMode, Opportunity, PrivacyScope } from './contracts.ts'
 import type { ArtifactObservationInput } from './artifact-registry.ts'
 
 /**
@@ -54,6 +54,9 @@ export interface DorandoranHandoffRecord {
   inference?: string
   unknowns: string[]
   candidateSuggested: boolean
+  candidateMode?: JobMode
+  estimatedMinutes?: number
+  priority?: Opportunity['priority']
   requestedAction: DriveRequestedAction
   notes?: string
 }
@@ -79,6 +82,7 @@ export interface HandoffProvenance {
 export interface HandoffIntake {
   capture: CaptureEvent
   proposeCandidate: boolean
+  candidateProposal?: { mode: JobMode; estimatedMinutes?: number; priority?: Opportunity['priority'] }
   artifact: ArtifactObservationInput | null
   inference: string | null
   provenance: HandoffProvenance
@@ -144,6 +148,8 @@ const DRIVE_SOURCE_SYSTEMS: readonly DriveSourceSystem[] = [
 const DRIVE_REQUESTED_ACTIONS: readonly DriveRequestedAction[] = [
   'none', 'review', 'accept_candidate', 'schedule', 'archive', 'supersede',
 ]
+const JOB_MODES: readonly JobMode[] = ['digital', 'physical', 'together']
+const PRIORITIES: readonly NonNullable<Opportunity['priority']>[] = ['low', 'medium', 'high']
 
 const ACTIONABLE_CAPTURE_KINDS = new Set<CaptureEvent['kind']>(['want', 'decision', 'final_artifact'])
 
@@ -299,6 +305,29 @@ export function parseDorandoranHandoff(
   if (typeof candidateSuggestedRaw !== 'boolean') return fail(missingOrInvalid(candidateSuggestedRaw), 'candidateSuggested')
   const candidateSuggested = candidateSuggestedRaw
 
+  const candidateModeRaw = record.candidateMode
+  const candidateMode = candidateModeRaw === undefined
+    ? undefined
+    : isOneOf(candidateModeRaw, JOB_MODES) ? candidateModeRaw : null
+  if (candidateMode === null) return fail('FIELD_INVALID', 'candidateMode')
+
+  const estimatedMinutesRaw = record.estimatedMinutes
+  const estimatedMinutes = estimatedMinutesRaw === undefined
+    ? undefined
+    : typeof estimatedMinutesRaw === 'number' && Number.isInteger(estimatedMinutesRaw) && estimatedMinutesRaw >= 0 && estimatedMinutesRaw <= 1440
+      ? estimatedMinutesRaw
+      : null
+  if (estimatedMinutes === null) return fail('FIELD_INVALID', 'estimatedMinutes')
+
+  const priorityRaw = record.priority
+  const priority = priorityRaw === undefined
+    ? undefined
+    : isOneOf(priorityRaw, PRIORITIES) ? priorityRaw : null
+  if (priority === null) return fail('FIELD_INVALID', 'priority')
+  if ((estimatedMinutes !== undefined || priority !== undefined) && candidateMode === undefined) {
+    return fail('FIELD_INVALID', 'candidateMode')
+  }
+
   const requestedActionRaw = record.requestedAction
   if (!isOneOf(requestedActionRaw, DRIVE_REQUESTED_ACTIONS)) {
     return fail(missingOrInvalid(requestedActionRaw), 'requestedAction')
@@ -312,7 +341,7 @@ export function parseDorandoranHandoff(
   const validated: DorandoranHandoffRecord = {
     eventId, occurredAt, person, domain, kind, privacyScope, status, sourceSystem,
     sourceRefs, driveFileId, digest, evidenceRefs, statedText, inference, unknowns,
-    candidateSuggested, requestedAction, notes,
+    candidateSuggested, candidateMode, estimatedMinutes, priority, requestedAction, notes,
   }
 
   // ---- fail-closed business rules ----
@@ -347,6 +376,14 @@ export function parseDorandoranHandoff(
   const proposeCandidateFlag =
     ACTIONABLE_CAPTURE_KINDS.has(mappedKind) &&
     (validated.candidateSuggested || (validated.sourceSystem === 'human' && validated.requestedAction === 'accept_candidate'))
+
+  const candidateProposal = proposeCandidateFlag && validated.candidateMode !== undefined
+    ? {
+        mode: validated.candidateMode,
+        ...(validated.estimatedMinutes === undefined ? {} : { estimatedMinutes: validated.estimatedMinutes }),
+        ...(validated.priority === undefined ? {} : { priority: validated.priority }),
+      }
+    : undefined
 
   const capture: CaptureEvent = {
     id: validated.eventId,
@@ -389,6 +426,7 @@ export function parseDorandoranHandoff(
     intake: {
       capture,
       proposeCandidate: proposeCandidateFlag,
+      ...(candidateProposal === undefined ? {} : { candidateProposal }),
       artifact,
       inference: validated.inference ?? null,
       provenance,

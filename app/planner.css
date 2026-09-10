@@ -61,3 +61,4 @@
 .day-heading.is-today{background:#e6f0e5;color:#3d6950}
 .day-heading.is-today strong{color:inherit}
 .chat-capture-controls{display:grid;gap:10px;padding-top:2px}.chat-capture-fields{display:flex;flex-wrap:wrap;gap:8px}.chat-capture-fields label{display:grid;gap:4px;color:#66818a;font-size:10px}.chat-capture-fields select{border:1px solid #cfded5;border-radius:8px;background:#fff;color:var(--ink);padding:7px 9px;font-size:11px}.chat-capture-propose{display:flex;align-items:center;gap:7px;color:#66818a;font-size:10px}.chat-capture-propose input{accent-color:#315d50}.chat-capture-button{justify-self:start;border:1px solid #315d50;border-radius:9px;background:#fff;color:#315d50;padding:8px 13px;font-size:11px!important}.chat-capture-button:disabled{border-color:#b3c4bc;color:#9cada5}
+.connection-panel{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}

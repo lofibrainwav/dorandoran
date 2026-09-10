@@ -21,7 +21,8 @@
     "google-household:preview": "node --env-file=.env.local scripts/configure-google-household-preview.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "outbox:run": "node --env-file=.env.local scripts/drive-outbox-run.mjs",
-    "auth:mint": "node --env-file=.env.local scripts/google-auth-mint.mjs"
+    "auth:mint": "node --env-file=.env.local scripts/google-auth-mint.mjs",
+    "google:gmail:smoke": "node --env-file=.env.local scripts/google-gmail-smoke.mjs"
   },
   "dependencies": {
     "date-fns": "4.4.0",

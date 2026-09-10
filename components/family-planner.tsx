@@ -7,6 +7,7 @@ import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PR
 import type { PlannerRecommendation } from '@/lib/family-os/planner-recommendations'
 import type { HouseholdHome } from '@/lib/family-os/household-home'
 import type { FamilyDailyCapsule } from '@/lib/family-os/daily-capsule'
+import { appendPlannerChatProposal, isPlannerSchedulingRequest } from '@/lib/family-os/chat-planner-intent'
 
 type Saved = { memo: string; plans: PlannedTimebox[]; durations: Record<string, number> }
 const EMPTY: Saved = { memo: '', plans: [], durations: {} }
@@ -291,11 +292,16 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     const isDriveQuestion = /drive|artifact|아티팩트|파일|결과물/i.test(trimmed)
     const isGmailQuestion = /gmail|메일|이메일/i.test(trimmed)
     const isCapsuleQuestion = /capsule|캡슐|하루 요약|하루 정리|오늘 기록/i.test(trimmed)
+    const isSchedulingRequest = isPlannerSchedulingRequest(trimmed)
     setChatInput('')
     setChatMessages((messages) => [...messages, { id: Date.now(), role: 'user', text: trimmed }])
-    setChatBusy(isDriveQuestion || isGmailQuestion || isCapsuleQuestion)
+    setChatBusy(isDriveQuestion || isGmailQuestion || isCapsuleQuestion || isSchedulingRequest)
     let reply: string
-    if (isCapsuleQuestion) {
+    if (isSchedulingRequest) {
+      save({ ...saved, memo: appendPlannerChatProposal(saved.memo, trimmed), durations: {} })
+      setShowMemo(true)
+      reply = '일정 원본은 바꾸지 않고 Planner 제안으로 적어두었습니다. 캘린더를 다시 확인한 뒤 “빈 시간에 자동 배치”를 눌러 반영하세요.'
+    } else if (isCapsuleQuestion) {
       try {
         const response = await fetch(`/api/family/daily-capsule?date=${encodeURIComponent(localDateForTimeZone(model.timeZone))}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000) })
         const data = (await response.json()) as DailyCapsuleChatResponse
@@ -553,7 +559,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
             {chatMessages.map((message) => <div className={`chat-message chat-message--${message.role}`} key={message.id}><span>{message.role === 'user' ? '형' : '도란'}</span><p>{message.text}</p></div>)}
           </div>
           <div className="chat-prompts" aria-label="질문 예시">
-            {['이번 주 일정 확인해줘', '오늘 Capsule 요약해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
+            {['이번 주 일정 확인해줘', '산책 30분 시간표에 넣어줘', '오늘 Capsule 요약해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
           </div>
           <form className="chat-composer" onSubmit={submitChat}><label className="sr-only" htmlFor="doran-chat-input">도란에게 물어보기</label><input id="doran-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="이번 주 일정이나 승인 대기를 물어보세요" disabled={chatBusy} /><button type="submit" disabled={!chatInput.trim() || chatBusy}>{chatBusy ? '확인 중…' : '보내기'}</button></form>
           {lifecycleViewer ? <div className="chat-capture-controls" aria-label="메모 저장 설정">

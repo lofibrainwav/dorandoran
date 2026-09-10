@@ -9,6 +9,7 @@ import * as domain from '../../lib/family-os/index.ts'
 import * as plannerDomain from '../../lib/family-os/family-planner.ts'
 import * as plannerBridgeDomain from '../../lib/family-os/lifecycle-planner-bridge.ts'
 import * as plannerRecommendationDomain from '../../lib/family-os/planner-recommendations.ts'
+import * as chatPlannerIntentDomain from '../../lib/family-os/chat-planner-intent.ts'
 import { loadPrivateOperationalFamilyCalendarPerson } from '../../lib/server/private-operational-family-calendar-source.ts'
 import { selectScheduleResult } from '../../lib/server/schedule-result-selection.ts'
 
@@ -27,6 +28,7 @@ new Function('require', 'module', 'exports', plannerCompiled)((specifier) => {
   if (specifier === '@/lib/family-os/family-planner') return plannerDomain
   if (specifier === '@/lib/family-os/lifecycle-planner-bridge') return plannerBridgeDomain
   if (specifier === '@/lib/family-os/planner-recommendations') return plannerRecommendationDomain
+  if (specifier === '@/lib/family-os/chat-planner-intent') return chatPlannerIntentDomain
   if (specifier === './family-globe') return { FamilyGlobe: () => createElement('div', { 'aria-label': 'map fixture' }) }
   if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier)
   throw new Error(`Unmocked planner boundary: ${specifier}`)

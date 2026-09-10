@@ -335,7 +335,27 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         reply = 'Gmail을 확인하지 못했습니다. 실패를 빈 메일함으로 바꾸지 않았습니다.'
       }
     } else {
-      reply = readOnlyChatReply(trimmed, model, next, todayEvents, lifecycleWishes, pendingCandidates)
+      try {
+        const contextSummary = [
+          `오늘 날짜 기준 주간 일정 수: ${model.eventCount}`,
+          `오늘 일정 수: ${todayEvents.length}`,
+          `다음 일정: ${next ? `${next.title}, ${next.date}, ${minuteClock(next.startMinute)}` : '확인된 일정 없음'}`,
+          `사람이 승인한 Planner 대상 수: ${lifecycleWishes.length}`,
+          `승인 대기 Candidate 수: ${pendingCandidates.length}`,
+        ].join('\n')
+        const response = await fetch('/api/chat', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: trimmed, context: contextSummary }),
+          signal: AbortSignal.timeout(18_000),
+        })
+        const data = await response.json() as { mode?: string; reply?: string }
+        reply = response.ok && data.mode === 'ai' && typeof data.reply === 'string'
+          ? data.reply
+          : readOnlyChatReply(trimmed, model, next, todayEvents, lifecycleWishes, pendingCandidates)
+      } catch {
+        reply = readOnlyChatReply(trimmed, model, next, todayEvents, lifecycleWishes, pendingCandidates)
+      }
     }
     setChatMessages((messages) => [...messages, { id: Date.now() + 1, role: 'assistant', text: reply }])
     setChatInput('')

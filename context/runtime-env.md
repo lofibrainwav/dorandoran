@@ -20,5 +20,6 @@ All keys are read server-side only. None is required to render `/`, though reach
 
 | `DRIVE_OUTBOX_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`, `DRIVE_OUTBOX_FOLDER_<LANE>` | Drive Outbox read credentials and per-lane folder (specs 41, 44) | incomplete → `outbox:run` refuses; unset → lane is off. Mint the refresh token with `pnpm auth:mint -- --services=drive` (spec 44) |
 | `GOOGLE_HOUSEHOLD_GMAIL_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN` | Bounded Gmail metadata read credentials | incomplete → Gmail read refuses; unset → Gmail is not connected. Token must include `gmail.readonly`; send/draft are not enabled |
+| `DORAN_CHAT_API_URL` / `DORAN_CHAT_API_KEY` / `DORAN_CHAT_MODEL` | Optional read-only Doran Chat provider | all unset → deterministic in-app fallback; partial or non-HTTPS endpoint → AI fallback with explicit readiness reason. The AI route has no lifecycle, Drive, Gmail, Calendar, or external-write tools |
 
 Retired 2026-09-08: `DORANDORAN_ACCESS_CODE`, `DORANDORAN_GATE_KEY` (spec 25H).

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Map as MapLibreMap, Marker, Popup, NavigationControl } from 'maplibre-gl'
 import { scheduleGlobeProjection } from '@/lib/client/maplibre-globe'
+import { nextMapReadiness } from '@/lib/client/map-readiness'
 import { familyMapStyle } from '@/lib/client/family-map-style'
 import type { TimeScale } from '@/lib/family-os/zoom-contract'
 import { cameraForTimeScale, DEFAULT_HOUSEHOLD_HOME, type HouseholdHome } from '@/lib/family-os/household-home'
@@ -34,12 +35,17 @@ export function FamilyGlobe({
     const host = hostRef.current
     if (!host || mapRef.current) return
 
-    let failed = false
-    const markUnavailable = () => {
-      failed = true
-      host.dataset.globeFallback = 'true'
-      setStatus('unavailable')
+    // 판정은 순수 함수에 맡긴다(lib/client/map-readiness.ts). 여기서 직접 결론을 내면
+    // "아직 안 그려졌다" 와 "이 브라우저는 못 한다" 가 다시 한 덩어리가 된다.
+    const apply = (event: 'load' | 'error' | 'timeout') => {
+      setStatus((current) => {
+        const next = nextMapReadiness(current, event, document.visibilityState === 'hidden')
+        if (next === 'unavailable') host.dataset.globeFallback = 'true'
+        else delete host.dataset.globeFallback
+        return next
+      })
     }
+    const markUnavailable = () => apply('error')
 
     let map: MapLibreMap
     try {
@@ -60,15 +66,22 @@ export function FamilyGlobe({
 
     mapRef.current = map
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
-    const timeout = window.setTimeout(markUnavailable, 12000)
+    // 숨은 탭에서는 시간이 지나도 판정하지 않고, 문서가 보이게 되면 다시 재어 본다 —
+    // 배경 탭으로 열어둔 것이 "지도를 못 띄우는 브라우저" 가 되어서는 안 된다.
+    let timeout = window.setTimeout(() => apply('timeout'), 12000)
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      window.clearTimeout(timeout)
+      timeout = window.setTimeout(() => apply('timeout'), 12000)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     map.on('load', () => {
       window.clearTimeout(timeout)
-      if (failed) return
-      delete host.dataset.globeFallback
-      setStatus('ready')
+      apply('load')
       map.resize()
     })
-    map.on('error', markUnavailable)
+    map.on('error', () => apply('error'))
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(host)
     let removed = false
@@ -97,6 +110,7 @@ export function FamilyGlobe({
 
     return () => {
       window.clearTimeout(timeout)
+      document.removeEventListener('visibilitychange', onVisible)
       resizeObserver.disconnect()
       cancelProjection()
       removeMap()

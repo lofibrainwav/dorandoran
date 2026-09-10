@@ -3,6 +3,8 @@ import { createFamilyDailyCapsule } from '@/lib/family-os/daily-capsule'
 import { buildArtifactRegistry } from '@/lib/family-os/artifact-registry'
 import { readDriveOutbox } from '@/lib/server/drive-outbox-read'
 import { resolveLifecycleContext } from '@/lib/server/lifecycle-runtime'
+import { createPostgresDailyCapsuleStore } from '@/lib/server/daily-capsule-store'
+import { resolvePostgresConnectionString } from '@/lib/server/postgres-connection'
 
 export const dynamic = 'force-dynamic'
 const headers = { 'Cache-Control': 'private, no-store, max-age=0', 'Referrer-Policy': 'no-referrer' }
@@ -28,6 +30,25 @@ export async function GET(request: NextRequest) {
   if (!date) return Response.json({ error: 'DATE_INVALID' }, { status: 400, headers })
 
   try {
+    const connectionString = resolvePostgresConnectionString({
+      DATABASE_URL: process.env.DATABASE_URL,
+      POSTGRES_URL: process.env.POSTGRES_URL,
+    })
+    if (connectionString) {
+      const { Pool } = await import('pg')
+      const pool = new Pool({ connectionString, max: 1, connectionTimeoutMillis: 5_000 })
+      try {
+        const sealed = await createPostgresDailyCapsuleStore({ query: (text, params) => pool.query(text, params) }).get({
+          householdKey: process.env.DORANDORAN_HOUSEHOLD_KEY?.trim() || 'default',
+          date,
+        })
+        if (sealed) return Response.json({ capsule: sealed.capsule, sources: { lifecycle: 'sealed', artifacts: 'sealed', generatedAt: sealed.generatedAt } }, { status: 200, headers })
+      } catch {
+        // migration 지연으로 기존 live projection까지 중단시키지 않는다.
+      } finally {
+        await pool.end()
+      }
+    }
     const [captures, candidates, tasks, drive] = await Promise.all([
       context.service.listFamilyCaptures(context.viewer, { limit: 500 }),
       context.service.listFamilyCandidates(context.viewer, { limit: 500 }),

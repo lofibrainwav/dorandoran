@@ -7,6 +7,8 @@ import { driveOutboxRuntimeHealth, resolveDriveOutboxRuntimeConfig } from '@/lib
 import { createPostgresDriveHandoffIngestStore } from '@/lib/server/drive-handoff-ingest'
 import { resolvePostgresConnectionString } from '@/lib/server/postgres-connection'
 import { isCronAuthorized } from '@/lib/server/cron-auth'
+import { resolveHouseholdTimeZone } from '@/lib/family-os/household-time-zone'
+import { reconcileAndPersistDailyCapsule } from '@/lib/server/daily-capsule-reconcile'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -112,7 +114,13 @@ export async function GET(request: NextRequest) {
       })
       results.push({ lane, status: 'connected', accepted: count(result, 'accepted'), duplicate: count(result, 'duplicate'), rejected: count(result, 'rejected'), skipped: result.skipped.length, unreadable: result.unreadable.length, cursorAdvanced: result.cursorAdvanced })
     }
-    return Response.json({ status: 'ok', observedAt: now, lanes: results }, { status: 200, headers })
+    const capsule = await reconcileAndPersistDailyCapsule({
+      query: (text, params) => pool.query(text, params),
+      householdKey: process.env.DORANDORAN_HOUSEHOLD_KEY?.trim() || 'default',
+      nowIso: now,
+      timeZone: resolveHouseholdTimeZone(process.env),
+    })
+    return Response.json({ status: 'ok', observedAt: now, lanes: results, capsule: { date: capsule.date, persisted: true } }, { status: 200, headers })
   } catch {
     return Response.json({ error: 'RECONCILE_FAILED' }, { status: 503, headers })
   } finally {

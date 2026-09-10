@@ -1,9 +1,10 @@
-# Artifact Registry, Night Reconcile, and Daily Capsule v0
+# Artifact Registry, Night Reconcile, and Daily Capsule v1
 
 ## Status
 
-This feature defines a pure, deterministic read model. It does not claim that a
-nightly job has been scheduled or that any artifact provider is connected.
+The artifact registry remains a pure deterministic read model. Daily Capsule v1
+adds a durable, privacy-safe projection written by the protected nightly
+reconcile route; it does not make the artifact registry a provider store.
 
 ## Contract
 
@@ -44,10 +45,23 @@ Evidence identity and provenance are retained for future reconciliation, while
 the capsule is deliberately a narrower display/reporting projection. A source
 adapter remains responsible for validating and supplying observations.
 
+## Durable Daily Capsule
+
+`family_daily_capsule` stores one versioned JSON projection per
+`household_key + capsule_date`. The protected reconcile route computes the
+previous household-local day from already-authorized family-scope lifecycle
+rows and upserts the capsule. Re-running the same night is idempotent.
+
+The stored projection contains counts and typed states only. It never stores
+capture text, candidate titles, task blocks, credentials, provider payloads, or
+artifact provenance. Candidate state is re-derived from its existing decision
+and creation timestamp; no lifecycle state is mutated.
+
+The authenticated capsule route prefers a sealed row and falls back to the
+existing live projection while a migration is being rolled out.
+
 ## Out of scope
 
-This is a **v0 read-model boundary**. Future persistence, canonical artifact
-schema, provider adapters, external databases, cron/launchd, scheduler
-emission, dependency additions, and external writes are out of scope. A caller
-may invoke night reconcile explicitly; this slice does not perform that
-invocation automatically.
+Canonical artifact schema, provider adapters, scheduler emission beyond the
+existing protected Vercel cron, dependency additions, and external writes are
+out of scope. Artifact persistence remains a separate future boundary.

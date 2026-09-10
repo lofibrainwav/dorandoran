@@ -41,11 +41,16 @@ test('night reconcile uses household-local previous day and preserves the human 
         rows: [{ opportunity: { id: 'c1', ownerId: 'jay', title: 'Do it', mode: 'digital', evidenceRefs: [] }, decision: null, created_at: '2026-09-10T20:00:00.000Z' }], rowCount: 1,
       }
       if (text.includes('lifecycle_task')) return { rows: [], rowCount: 0 }
+      if (text.includes('drive_artifact_observation')) return {
+        rows: [{ artifact_id: 'drive-file-1', kind: 'career', digest: `sha256:${'a'.repeat(64)}`, observed_at: '2026-09-10T20:00:00.000Z', state: 'confirmed', provenance: { sourceRef: 'drive:file-1', evidenceRefs: [] } }], rowCount: 1,
+      }
       return { rows: [], rowCount: 1 }
     },
   })
   assert.equal(result.date, '2026-09-10')
   assert.equal(result.captures.total, 1)
   assert.equal(result.candidates.byState.proposed, 1)
+  assert.equal(result.artifacts.artifacts.length, 1)
+  assert.equal(result.artifacts.artifacts[0].id, 'drive-file-1')
   assert.equal(calls.at(-1).params[1], '2026-09-10')
 })

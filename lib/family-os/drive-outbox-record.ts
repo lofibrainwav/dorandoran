@@ -10,7 +10,7 @@
 const KNOWN_FIELDS: readonly string[] = [
   'eventId', 'occurredAt', 'person', 'domain', 'kind', 'privacyScope', 'status', 'sourceSystem',
   'sourceRefs', 'driveFileId', 'digest', 'evidenceRefs', 'statedText', 'inference', 'unknowns',
-  'candidateSuggested', 'requestedAction', 'notes',
+  'candidateSuggested', 'candidateMode', 'estimatedMinutes', 'priority', 'requestedAction', 'notes',
 ]
 
 const LIST_FIELDS: readonly string[] = ['sourceRefs', 'evidenceRefs', 'unknowns']
@@ -55,6 +55,10 @@ function isListField(name: string): boolean {
  * 여기서 추측하면 거부되어야 할 입력이 조용히 통과한다.
  */
 function coerceScalar(field: string, value: string): unknown {
+  if (field === 'estimatedMinutes') {
+    const parsed = Number(value.trim())
+    return Number.isFinite(parsed) && Number.isInteger(parsed) ? parsed : value
+  }
   if (field !== 'candidateSuggested') return value
   const lowered = value.trim().toLowerCase()
   if (lowered === 'true') return true

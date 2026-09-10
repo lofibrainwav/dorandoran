@@ -5,7 +5,8 @@ export type HouseholdAccessDecision =
   | { kind: 'redirect'; to: '/signin' | '/family'; status: 307 }
   | { kind: 'unavailable' }
 
-export const PUBLIC_ACCESS_PATHS: ReadonlySet<string> = new Set(['/signin', '/api/auth/google'])
+// The cron handler is public only in the proxy sense: the route itself requires CRON_SECRET.
+export const PUBLIC_ACCESS_PATHS: ReadonlySet<string> = new Set(['/signin', '/api/auth/google', '/api/cron/reconcile'])
 
 const HOME_PATH = '/'
 const HOUSEHOLD_LANDING = '/family'

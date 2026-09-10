@@ -138,9 +138,9 @@ Regression count is 522 tests. Unauthenticated `/` and `/family` still 307 → `
 
 ## Next unit
 
-**DORANDORAN DRIVE OUTBOX E2E — CLOSED** (2026-09-09). Steps 1–6 verified in production; step 7 (cron) intentionally deferred. Next trigger: the first real outbox workload, or activation of nightly reconcile.
+**DORANDORAN DRIVE OUTBOX E2E — NIGHTLY RECONCILE IMPLEMENTED** (2026-09-10). Steps 1–6 were verified in production; step 7 now has a Vercel cron route with CRON_SECRET authorization, idempotent handoff ingest, and cursor advancement only after successful persistence. Production activation still requires the migration and environment secret.
 
 Remaining lanes:
 
-1. **Attach an execution owner when there is workload to justify one.** `runDriveOutboxSession` still has exactly two call sites — its tests and `scripts/drive-outbox-run.mjs`. There is no route and no `vercel.json`, therefore no cron, and that is now a decision rather than a gap. Revisit when a real handoff record arrives from an agent rather than from a smoke test.
+1. **Production activation.** Apply `db/migrations/0003_drive_handoff_ingest.sql`, set the production-only `CRON_SECRET`, deploy the merged main branch, then invoke the route with a non-secret smoke request and inspect the redacted response.
 2. Resolve the macOS Photos human-session boundary: create the empty `DoranDoran` album in a real Photos GUI/TCC-authorized session, place only explicitly approved memories into it, then run `pnpm photos:snapshot:refresh` and verify Past Journey/Globe real-data projection. Keep private Photos/Calendar sources disabled on Vercel.

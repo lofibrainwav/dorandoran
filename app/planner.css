@@ -83,3 +83,8 @@
   .operational-card--next{grid-row:auto}
   .operational-card dl{gap:6px 10px;margin:10px 0 8px}
 }
+/* 날짜의 의미 상태를 위치 기반 nth-child보다 우선한다. 오늘은 주말이어도 오늘 색을 쓴다. */
+.day-heading.is-sunday{background:#fcf0ed;color:#ba7a68}
+.day-heading.is-saturday{background:#edf0f8;color:#7d89ab}
+.day-heading.is-today{background:#e6f0e5;color:#3d6950}
+.day-heading.is-today small{color:#548368}

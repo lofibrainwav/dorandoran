@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { createFamilyDailyCapsule } from '@/lib/family-os/daily-capsule'
+import { buildArtifactRegistry } from '@/lib/family-os/artifact-registry'
+import { readDriveOutbox } from '@/lib/server/drive-outbox-read'
 import { resolveLifecycleContext } from '@/lib/server/lifecycle-runtime'
 
 export const dynamic = 'force-dynamic'
@@ -26,19 +28,21 @@ export async function GET(request: NextRequest) {
   if (!date) return Response.json({ error: 'DATE_INVALID' }, { status: 400, headers })
 
   try {
-    const [captures, candidates, tasks] = await Promise.all([
+    const [captures, candidates, tasks, drive] = await Promise.all([
       context.service.listFamilyCaptures(context.viewer, { limit: 500 }),
       context.service.listFamilyCandidates(context.viewer, { limit: 500 }),
       context.service.listFamilyTasks(context.viewer, { limit: 500 }),
+      readDriveOutbox({ lane: '10_JAY', capturedBy: `doran-capsule:${context.viewer.personId}`, capturedAt: new Date().toISOString() }),
     ])
+    const artifacts = drive.result?.entries.flatMap((entry) => entry.outcome === 'accepted' && entry.intake.artifact && belongsToDate(entry.intake.artifact.observedAt as string, date) ? [entry.intake.artifact] : []) ?? []
     const capsule = createFamilyDailyCapsule({
       date,
-      artifactRegistry: EMPTY_ARTIFACT_REGISTRY,
+      artifactRegistry: artifacts.length ? buildArtifactRegistry(artifacts) : EMPTY_ARTIFACT_REGISTRY,
       captures: captures.filter((capture) => belongsToDate(capture.capturedAt, date)),
       candidates: candidates.filter((candidate) => belongsToDate(candidate.createdAt, date)),
       tasks: tasks.filter((task) => belongsToDate(task.createdAt, date) || belongsToDate(task.updatedAt, date)),
     })
-    return Response.json({ capsule, sources: { lifecycle: 'connected', artifacts: 'not_connected' } }, { status: 200, headers })
+    return Response.json({ capsule, sources: { lifecycle: 'connected', artifacts: drive.status } }, { status: 200, headers })
   } catch {
     return Response.json({ error: 'DAILY_CAPSULE_UNAVAILABLE' }, { status: 503, headers })
   }

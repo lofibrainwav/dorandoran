@@ -73,6 +73,14 @@ export interface ListFamilyTasksInput {
   limit?: number
 }
 
+export interface ListFamilyCapturesInput {
+  limit?: number
+}
+
+export interface ListFamilyCandidatesInput {
+  limit?: number
+}
+
 export interface TransitionTaskInput {
   taskId: string
   personId: string
@@ -92,6 +100,8 @@ export interface LifecycleService {
   decideCandidate(viewer: HouseholdMember, input: DecideCandidateInput): Promise<DecideCandidateResult>
   listTasks(viewer: HouseholdMember, input: ListTasksInput): Promise<TaskRecord[]>
   listFamilyTasks(viewer: HouseholdMember, input: ListFamilyTasksInput): Promise<TaskRecord[]>
+  listFamilyCaptures(viewer: HouseholdMember, input: ListFamilyCapturesInput): Promise<CaptureEvent[]>
+  listFamilyCandidates(viewer: HouseholdMember, input: ListFamilyCandidatesInput): Promise<CandidateWithState[]>
   transitionTask(viewer: HouseholdMember, input: TransitionTaskInput): Promise<TransitionTaskResult>
 }
 
@@ -338,6 +348,33 @@ export function createLifecycleService(deps: LifecycleServiceDeps): LifecycleSer
     return sortByUpdatedAtDescThenIdAsc(readable).slice(0, limit)
   }
 
+  async function listFamilyCaptures(viewer: HouseholdMember, input: ListFamilyCapturesInput): Promise<CaptureEvent[]> {
+    const limit = clampLimit(input.limit)
+    const perMember = await Promise.all(
+      membership.map((member) => store.listCaptures({ personId: member.personId, scopes: ['family'], limit })),
+    )
+    return perMember.flat()
+      .filter((capture) => canRead(viewer, { personId: capture.personId, privacyScope: capture.privacyScope }))
+      .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt) || a.id.localeCompare(b.id))
+      .slice(0, limit)
+  }
+
+  async function listFamilyCandidates(viewer: HouseholdMember, input: ListFamilyCandidatesInput): Promise<CandidateWithState[]> {
+    const limit = clampLimit(input.limit)
+    const nowIso = now()
+    const perMember = await Promise.all(
+      membership.map((member) => store.listCandidates({ personId: member.personId, scopes: ['family'], limit })),
+    )
+    return perMember.flat()
+      .filter((candidate) => canRead(viewer, { personId: candidate.personId, privacyScope: candidate.privacyScope }))
+      .map((candidate) => ({
+        ...candidate,
+        state: deriveCandidateState(candidate.opportunity, { nowIso, createdAtIso: candidate.createdAt }),
+      }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id))
+      .slice(0, limit)
+  }
+
   async function transitionTask(viewer: HouseholdMember, input: TransitionTaskInput): Promise<TransitionTaskResult> {
     const scopes = scopesFor(viewer, input.personId)
     const record = await store.getTask({ id: input.taskId, personId: input.personId, scopes })
@@ -373,6 +410,8 @@ export function createLifecycleService(deps: LifecycleServiceDeps): LifecycleSer
     decideCandidate,
     listTasks,
     listFamilyTasks,
+    listFamilyCaptures,
+    listFamilyCandidates,
     transitionTask,
   }
 }

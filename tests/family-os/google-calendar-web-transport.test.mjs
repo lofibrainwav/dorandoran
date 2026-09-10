@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   resolveGoogleCalendarWebRuntimeConfig,
   calendarWebRuntimeHealth,
+  buildGoogleCalendarEvent,
 } from '../../lib/server/google-calendar-web-transport.ts'
 
 test('web Calendar runtime resolves only a complete server-side OAuth credential set', () => {
@@ -48,4 +49,21 @@ test('web Calendar config does not accept browser login client alone as Calendar
   }
   assert.equal(resolveGoogleCalendarWebRuntimeConfig(env), null)
   assert.equal(calendarWebRuntimeHealth(env), 'off')
+})
+
+test('Calendar write payload is local-timezone aware and idempotency-keyed', () => {
+  assert.deepEqual(buildGoogleCalendarEvent({
+    id: 'draft-wish-2026-09-11-600', title: '산책 30분', date: '2026-09-11', startMinute: 600, minutes: 30, owner: '함께', timeZone: 'America/Los_Angeles',
+  }), {
+    summary: '산책 30분',
+    description: '함께 · Family OS에서 승인한 계획',
+    start: { dateTime: '20260911T100000', timeZone: 'America/Los_Angeles' },
+    end: { dateTime: '20260911T103000', timeZone: 'America/Los_Angeles' },
+    extendedProperties: { private: { dorandoranPlanId: 'draft-wish-2026-09-11-600' } },
+  })
+})
+
+test('Calendar write payload rejects invalid ranges and unsafe timezone values', () => {
+  assert.throws(() => buildGoogleCalendarEvent({ id: 'draft', title: 'x', date: '2026-09-11', startMinute: 1430, minutes: 31, owner: '함께', timeZone: 'America/Los_Angeles' }), /INVALID_CALENDAR_TIMEBOX_DURATION/)
+  assert.throws(() => buildGoogleCalendarEvent({ id: 'draft', title: 'x', date: '2026-09-11', startMinute: 600, minutes: 30, owner: '함께', timeZone: 'America/Los_Angeles;evil' }), /INVALID_TIME_ZONE/)
 })

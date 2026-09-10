@@ -2,7 +2,7 @@
 
 ## Status
 
-v0 transport. **The real Google round trip is unverified from a build seat** — no session here can
+v0 transport. **The real Google round trip was verified on 2026-09-09 (spec 45).** Originally landed unverified — no session here can
 complete an OAuth exchange against the household's Drive. What *is* verified: the request shape,
 pagination handling, the Docs-vs-binary branch, and every failure path, all against an injected
 client. Commander approved landing it on that basis (2026-09-09).
@@ -65,7 +65,7 @@ No OAuth, no token refresh, no credential reading, no write of any kind. `drive.
 
 Every test here uses an injected fake. Nothing in this repository has yet made a real
 `drive.files.list` call. Until a session with working household credentials runs one, the correct
-description of this unit is **"shape-verified, round-trip unverified"**, and the tracker says so.
+description of this unit was **"shape-verified, round-trip unverified"** until 2026-09-09 (spec 45 retired it), and the tracker says so.
 
 ## Out of scope
 

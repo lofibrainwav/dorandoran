@@ -11,8 +11,9 @@
  *   1. 원본에는 `state` 가 없었다 — loopback CSRF 가 열려 있었다 (lib/server/google-auth-callback.ts 참고)
  *   2. 원본은 client 자격을 파일 경로로 받았다. main 은 env 를 쓴다 (Unit 41 에서 이미 교정한 어긋남)
  *
- * VERIFICATION LIMIT: 실제 Google 왕복은 이 좌석에서 검증할 수 없다. 판정 로직
- * (decideGoogleAuthCallback · assertSecretOutPath)은 테스트되고, 이 파일은 그 사이의 미검증 이음매다.
+ * 2026-09-09 실제 왕복 검증 완료(spec 45): drive.readonly 토큰이 발급됐고,
+ * 그 토큰으로 실제 files.list 가 돌았다. 발급된 토큰의 계정은 about.get 으로 직접 확인했다 —
+ * 잘못된 계정의 토큰은 빈 폴더를 돌려주고, 그것은 성공처럼 보이는 실패이기 때문이다.
  *
  * Usage:
  *   node --env-file=.env.local scripts/google-auth-mint.mjs --services=drive

@@ -3,10 +3,10 @@ import type { DriveOutboxPorts } from '../family-os/drive-outbox-run.ts'
 /**
  * Unit 40 — the Drive API ports Unit 37 takes by injection.
  *
- * VERIFICATION LIMIT (stated plainly): every test here uses an injected fake. No session in this
- * repository has yet completed a real `drive.files.list` call against the household's Drive, so
- * the honest description is "shape-verified, round-trip unverified". Commander approved landing it
- * on that basis (2026-09-09).
+ * Every test here uses an injected fake, so the tests prove shape only. The real round trip was
+ * verified separately on 2026-09-09 (spec 45): a live `drive.files.list` against the household's
+ * `10_JAY` outbox returned the two files that were actually there. The earlier caveat on this
+ * module — "shape-verified, round-trip unverified" — no longer holds.
  *
  * Read-only. No OAuth, no token refresh, no credential reading, no write of any kind.
  */

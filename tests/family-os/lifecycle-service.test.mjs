@@ -634,6 +634,28 @@ test('listFamilyTasks applies the read-authorization boundary to the viewer too 
   assert.deepEqual(asChild, [])
 })
 
+test('family capsule inputs keep family captures/candidates scoped and preserve no child-to-adult read', async () => {
+  const { service } = buildService()
+  const jay = viewerFor('jay')
+  const julie = viewerFor('julie')
+
+  await service.capture(jay, {
+    privacyScope: 'family', kind: 'fact', statedText: 'private source text', source: 'human',
+  })
+  await service.capture(julie, {
+    privacyScope: 'family', kind: 'want', statedText: 'another source text', source: 'human',
+    propose: { mode: 'together' },
+  })
+
+  const adultCaptures = await service.listFamilyCaptures(jay, {})
+  const adultCandidates = await service.listFamilyCandidates(jay, {})
+  assert.equal(adultCaptures.length, 2)
+  assert.equal(adultCandidates.length, 1)
+  assert.equal(adultCaptures[0].statedText, 'another source text')
+  assert.equal((await service.listFamilyCaptures(viewerFor('jayden'), {})).length, 0)
+  assert.equal((await service.listFamilyCandidates(viewerFor('jayden'), {})).length, 0)
+})
+
 // ---- decideCandidate: atomic accept + self-healing ----
 
 test('accept is atomic: the accepted candidate and its task exist together, never one without the other', async () => {

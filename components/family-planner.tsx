@@ -26,6 +26,8 @@ export interface FamilyPlannerLifecycleViewer { personId: string; access: 'adult
 
 type LifecycleCandidateSummary = { id: string; state: string; opportunity: { title: string } }
 type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string }
+type ChatCaptureKind = 'want' | 'decision' | 'fact' | 'question' | 'final_artifact'
+type ChatCaptureMode = 'digital' | 'physical' | 'together'
 type DriveChatResponse = {
   status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
   artifacts?: Array<{ id: string; kind: string; observedAt: string; state: string; sourceSystem: string; domain: string }>
@@ -97,6 +99,11 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [showChat, setShowChat] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
+  const [chatCaptureBusy, setChatCaptureBusy] = useState(false)
+  const [chatCaptureKind, setChatCaptureKind] = useState<ChatCaptureKind>('want')
+  const [chatCaptureMode, setChatCaptureMode] = useState<ChatCaptureMode>('together')
+  const [chatCapturePrivacy, setChatCapturePrivacy] = useState<'family' | 'personal'>('family')
+  const [chatProposeCandidate, setChatProposeCandidate] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ id: 1, role: 'assistant', text: '안녕하세요. 지금은 읽기 전용입니다. 일정·수락한 일·승인 대기 후보의 현재 상태를 확인해 드릴게요.' }])
   const [showContext, setShowContext] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
@@ -253,6 +260,36 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     event.preventDefault()
     void askChat(chatInput)
   }
+  async function saveChatCapture() {
+    const statedText = chatInput.trim()
+    if (!lifecycleViewer || !statedText || chatCaptureBusy) return
+    setChatCaptureBusy(true)
+    try {
+      const response = await fetch('/api/chat/capture', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personId: lifecycleViewer.personId,
+          privacyScope: chatCapturePrivacy,
+          kind: chatCaptureKind,
+          statedText,
+          ...(chatProposeCandidate ? { propose: { mode: chatCaptureMode } } : {}),
+        }),
+      })
+      const data = await response.json() as { error?: string; capture?: { id: string }; candidate?: { id: string; opportunity: { title: string } } }
+      if (!response.ok || !data.capture) throw new Error(data.error ?? 'CAPTURE_UNAVAILABLE')
+      setChatMessages((messages) => [...messages, { id: Date.now(), role: 'assistant', text: data.candidate ? '메모를 저장했고 Candidate로 제안했습니다. Task 확정은 승인 후에만 진행됩니다.' : '메모를 Capture로 저장했습니다. 아직 일정이나 Task로 확정하지 않았습니다.' }])
+      if (data.candidate) {
+        setPendingCandidates((candidates) => [...candidates, { id: data.candidate!.id, state: 'proposed', opportunity: data.candidate!.opportunity }])
+      }
+      setChatInput('')
+    } catch (error) {
+      setChatMessages((messages) => [...messages, { id: Date.now(), role: 'assistant', text: error instanceof Error && error.message === 'AUTH_REQUIRED' ? '저장하려면 승인된 가족 로그인 세션이 필요합니다.' : '메모를 저장하지 못했습니다. 원문은 저장된 것으로 표시하지 않았습니다.' }])
+    } finally {
+      setChatCaptureBusy(false)
+    }
+  }
   function save(value: Saved) {
     try { localStorage.setItem(key, JSON.stringify(value)); window.dispatchEvent(new Event('family-planner-change')) }
     catch { setMessage('이 브라우저에 저장할 수 없습니다. 저장 공간 설정을 확인해 주세요.') }
@@ -386,7 +423,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       </PlannerModal>
       <PlannerModal open={showChat} title="Doran Chat" onClose={() => setShowChat(false)}>
         <div className="chat-panel">
-          <p className="chat-scope"><span className="status-dot" /> 읽기 전용 · 외부 변경 없음</p>
+          <p className="chat-scope"><span className="status-dot" /> 확인은 읽기 전용 · 메모 저장은 명시적 버튼으로만 실행</p>
           <div className="chat-thread" role="log" aria-live="polite">
             {chatMessages.map((message) => <div className={`chat-message chat-message--${message.role}`} key={message.id}><span>{message.role === 'user' ? '형' : '도란'}</span><p>{message.text}</p></div>)}
           </div>
@@ -394,6 +431,15 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
             {['이번 주 일정 확인해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
           </div>
           <form className="chat-composer" onSubmit={submitChat}><label className="sr-only" htmlFor="doran-chat-input">도란에게 물어보기</label><input id="doran-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="이번 주 일정이나 승인 대기를 물어보세요" disabled={chatBusy} /><button type="submit" disabled={!chatInput.trim() || chatBusy}>{chatBusy ? '확인 중…' : '보내기'}</button></form>
+          {lifecycleViewer ? <div className="chat-capture-controls" aria-label="메모 저장 설정">
+            <div className="chat-capture-fields">
+              <label>종류<select value={chatCaptureKind} onChange={(event) => setChatCaptureKind(event.target.value as ChatCaptureKind)}><option value="want">하고 싶은 일</option><option value="decision">결정</option><option value="fact">사실</option><option value="question">질문</option><option value="final_artifact">완성 결과물</option></select></label>
+              <label>범위<select value={chatCapturePrivacy} onChange={(event) => setChatCapturePrivacy(event.target.value as 'family' | 'personal')}><option value="family">가족</option><option value="personal">개인</option></select></label>
+              {chatProposeCandidate ? <label>작업 방식<select value={chatCaptureMode} onChange={(event) => setChatCaptureMode(event.target.value as ChatCaptureMode)}><option value="together">함께</option><option value="digital">디지털</option><option value="physical">실행</option></select></label> : null}
+            </div>
+            <label className="chat-capture-propose"><input type="checkbox" checked={chatProposeCandidate} onChange={(event) => setChatProposeCandidate(event.target.checked)} /> 저장과 함께 Candidate로 제안</label>
+            <button type="button" className="chat-capture-button" onClick={() => void saveChatCapture()} disabled={!chatInput.trim() || chatCaptureBusy}>{chatCaptureBusy ? '저장 중…' : '적어두기'}</button>
+          </div> : null}
         </div>
       </PlannerModal>
       <div className="planner-workspace">

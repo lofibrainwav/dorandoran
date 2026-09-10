@@ -10,6 +10,7 @@ import { __setLifecycleStoreForTests } from '../../lib/server/lifecycle-runtime.
 import { createMemoryLifecycleStore } from '../../lib/server/lifecycle-store.ts'
 
 import { POST as captureRoute } from '../../app/api/lifecycle/capture/route.ts'
+import { POST as chatCaptureRoute } from '../../app/api/chat/capture/route.ts'
 import { GET as candidatesRoute } from '../../app/api/lifecycle/candidates/route.ts'
 import { POST as decideRoute } from '../../app/api/lifecycle/candidates/[id]/decide/route.ts'
 import { GET as tasksRoute } from '../../app/api/lifecycle/tasks/route.ts'
@@ -158,6 +159,49 @@ test('POST /capture with propose returns a candidate', async () => {
   const payload = await res.json()
   assert.ok(payload.candidate)
   assert.equal(payload.candidate.sourceCaptureId, payload.capture.id)
+})
+
+test('POST /chat/capture stores an explicit human capture and strips client evidence fields', async () => {
+  const req = await request('julie', {
+    method: 'POST',
+    path: '/api/chat/capture',
+    body: {
+      privacyScope: 'family',
+      kind: 'decision',
+      statedText: '이번 주말은 집에서 쉬기로 했어',
+      source: 'ai',
+      evidenceRefs: ['client-forged-ref'],
+      unknowns: ['client-forged-unknown'],
+    },
+  })
+  const res = await chatCaptureRoute(req)
+  assert.equal(res.status, 201)
+  const payload = await res.json()
+  assert.equal(payload.capture.personId, 'julie')
+  assert.equal(payload.capture.capturedBy, 'julie')
+  assert.equal(payload.capture.source, 'human')
+  assert.deepEqual(payload.capture.evidenceRefs, [])
+  assert.deepEqual(payload.capture.unknowns, [])
+  assert.equal(payload.candidate, undefined)
+})
+
+test('POST /chat/capture with explicit proposal returns a candidate but never a task', async () => {
+  const req = await request('jay', {
+    method: 'POST',
+    path: '/api/chat/capture',
+    body: {
+      privacyScope: 'family',
+      kind: 'want',
+      statedText: '제이든 수영 준비물을 확인하자',
+      propose: { mode: 'together', estimatedMinutes: 15 },
+    },
+  })
+  const res = await chatCaptureRoute(req)
+  assert.equal(res.status, 201)
+  const payload = await res.json()
+  assert.ok(payload.candidate)
+  assert.equal(payload.candidate.sourceCaptureId, payload.capture.id)
+  assert.equal(payload.task, undefined)
 })
 
 // ---- cross-lane read: 404, never 403 ----

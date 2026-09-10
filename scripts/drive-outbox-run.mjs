@@ -2,9 +2,10 @@
 /**
  * Drive Outbox local trigger (Unit 41).
  *
- * VERIFICATION LIMIT: this entry point has never completed a real Google round trip from this
- * repository. Everything it composes is tested (Units 33-40); this file is the untested seam
- * between those pieces and the actual Drive. Running it is how that changes.
+ * Verified end to end on 2026-09-09 (spec 45), against the real Drive and the production Neon
+ * cursor: first run `accepted=1 cursorAdvanced=true`, repeat runs `accepted=0 cursorAdvanced=false`
+ * with the cursor stable. This was the untested seam between Units 33-40 and the actual Drive;
+ * running it is what changed that.
  *
  * Usage:
  *   node --env-file=.env.local scripts/drive-outbox-run.mjs --lane=10_JAY

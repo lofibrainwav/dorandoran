@@ -97,3 +97,17 @@ ways and each mutation was confirmed to fail:
 The production `DATABASE_URL` still says whatever it says. This unit makes the string's meaning
 stable wherever it is read by this repository; it does not edit the Vercel environment variable,
 which is a production mutation and the Commander's call.
+
+
+## Proven against real Neon, 2026-09-09 (spec 45)
+
+The claim this unit rested on — *pinning asks pg for exactly what pg already does, so production
+behaviour is unchanged* — could not be shown by its tests. They compare strings; they cannot say
+whether a real server accepts the pinned string.
+
+The first production use answered it. The household's Neon connection string carries
+`sslmode=require`; `pinPostgresSslMode` rewrote it to `sslmode=verify-full`, and the connection
+**succeeded** against real Neon — schema read, migration applied, cursor written.
+
+So the unit is now verified on both halves: the tests show the rewrite is exact and narrow, and
+production shows the rewritten string is accepted by the server it was always meant for.

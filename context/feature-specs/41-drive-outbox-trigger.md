@@ -79,3 +79,17 @@ decided to put it. Counts answer "did it work"; the content stays in Drive and D
 
 Interactive OAuth (owned by `google-calendar-auth`), scheduling, retry, writing to Drive,
 promoting records into Candidates or Tasks, and any UI.
+
+
+## Verified 2026-09-09 (spec 45)
+
+This entry point was written without ever having been run. It has now been run for real, twice
+against a test cursor database and twice against production Neon:
+
+```
+1st   accepted=1  skipped=1  cursorAdvanced=true
+2nd   accepted=0  skipped=2  cursorAdvanced=false
+```
+
+The `DRIVE_OUTBOX_DATABASE_REQUIRED` refusal, the counts-only output, and the lane env resolution
+all behaved as specified. Full receipt in spec 45.

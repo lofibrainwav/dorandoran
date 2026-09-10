@@ -81,6 +81,6 @@ missing client credentials, unsupported service, a committable out path, and a s
 
 ## Verification limit
 
-The actual Google round trip is unverified. It requires a person with the household's Google
+~~The actual Google round trip is unverified.~~ **Verified 2026-09-09 (spec 45).** Originally: It requires a person with the household's Google
 account in front of a browser — no build seat can do it. The judgement logic is tested; this
 entry point is the untested seam between that logic and Google, and running it is how that changes.

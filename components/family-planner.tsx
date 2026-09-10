@@ -34,6 +34,7 @@ type DriveChatResponse = {
   artifacts?: Array<{ id: string; kind: string; observedAt: string; state: string; sourceSystem: string; domain: string }>
 }
 type GmailChatResponse = { status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'; messages?: Array<{ messageId: string; observedAt: string; senderDomain?: string }> }
+type DailyCapsuleChatResponse = { capsule?: FamilyDailyCapsule; sources?: { artifacts?: string }; error?: string }
 type DriveArtifactState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
 type GmailConnectionState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
 type DailyCapsuleResponse = { capsule?: FamilyDailyCapsule; error?: string }
@@ -289,11 +290,22 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     if (!trimmed || chatBusy) return
     const isDriveQuestion = /drive|artifact|아티팩트|파일|결과물/i.test(trimmed)
     const isGmailQuestion = /gmail|메일|이메일/i.test(trimmed)
+    const isCapsuleQuestion = /capsule|캡슐|하루 요약|하루 정리|오늘 기록/i.test(trimmed)
     setChatInput('')
     setChatMessages((messages) => [...messages, { id: Date.now(), role: 'user', text: trimmed }])
-    setChatBusy(isDriveQuestion || isGmailQuestion)
+    setChatBusy(isDriveQuestion || isGmailQuestion || isCapsuleQuestion)
     let reply: string
-    if (isDriveQuestion) {
+    if (isCapsuleQuestion) {
+      try {
+        const response = await fetch(`/api/family/daily-capsule?date=${encodeURIComponent(localDateForTimeZone(model.timeZone))}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000) })
+        const data = (await response.json()) as DailyCapsuleChatResponse
+        if (response.status === 401) reply = '오늘 Capsule을 확인하려면 먼저 승인된 가족 로그인 세션이 필요합니다.'
+        else if (!response.ok || !data.capsule) reply = '오늘 Capsule을 확인하지 못했습니다. 빈 기록으로 바꾸지 않았습니다.'
+        else reply = `오늘 Capsule은 Capture ${data.capsule.captures.total}건, Candidate ${data.capsule.candidates.total}건, Task ${data.capsule.tasks.total}건, Artifact ${data.capsule.artifacts.artifacts.length}건입니다. ${data.sources?.artifacts === 'connected' ? 'Drive Artifact도 확인했습니다.' : 'Drive Artifact 연결 상태는 별도로 표시됩니다.'}`
+      } catch {
+        reply = '오늘 Capsule을 확인하지 못했습니다. 연결 실패를 빈 기록으로 바꾸지 않았습니다.'
+      }
+    } else if (isDriveQuestion) {
       try {
         const response = await fetch('/api/chat/drive?lane=10_JAY', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(20000) })
         const data = (await response.json()) as DriveChatResponse
@@ -521,7 +533,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
             {chatMessages.map((message) => <div className={`chat-message chat-message--${message.role}`} key={message.id}><span>{message.role === 'user' ? '형' : '도란'}</span><p>{message.text}</p></div>)}
           </div>
           <div className="chat-prompts" aria-label="질문 예시">
-            {['이번 주 일정 확인해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
+            {['이번 주 일정 확인해줘', '오늘 Capsule 요약해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
           </div>
           <form className="chat-composer" onSubmit={submitChat}><label className="sr-only" htmlFor="doran-chat-input">도란에게 물어보기</label><input id="doran-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="이번 주 일정이나 승인 대기를 물어보세요" disabled={chatBusy} /><button type="submit" disabled={!chatInput.trim() || chatBusy}>{chatBusy ? '확인 중…' : '보내기'}</button></form>
           {lifecycleViewer ? <div className="chat-capture-controls" aria-label="메모 저장 설정">

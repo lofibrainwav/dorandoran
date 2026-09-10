@@ -6,6 +6,7 @@ import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, expo
 import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PREFIX, type LifecycleTaskForPlanner } from '@/lib/family-os/lifecycle-planner-bridge'
 import type { PlannerRecommendation } from '@/lib/family-os/planner-recommendations'
 import type { HouseholdHome } from '@/lib/family-os/household-home'
+import type { FamilyDailyCapsule } from '@/lib/family-os/daily-capsule'
 
 type Saved = { memo: string; plans: PlannedTimebox[]; durations: Record<string, number> }
 const EMPTY: Saved = { memo: '', plans: [], durations: {} }
@@ -35,6 +36,13 @@ type DriveChatResponse = {
 type GmailChatResponse = { status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'; messages?: Array<{ messageId: string; observedAt: string; senderDomain?: string }> }
 type DriveArtifactState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
 type GmailConnectionState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
+type DailyCapsuleResponse = { capsule?: FamilyDailyCapsule; error?: string }
+
+function localDateForTimeZone(timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
 
 function PlannerModal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -96,6 +104,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [showEventDetails, setShowEventDetails] = useState(false)
   const [showConnections, setShowConnections] = useState(false)
   const [showArtifacts, setShowArtifacts] = useState(false)
+  const [showCapsule, setShowCapsule] = useState(false)
   const [showMemo, setShowMemo] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -118,6 +127,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [driveArtifactState, setDriveArtifactState] = useState<DriveArtifactState>('idle')
   const [driveArtifacts, setDriveArtifacts] = useState<NonNullable<DriveChatResponse['artifacts']>>([])
   const [gmailConnectionState, setGmailConnectionState] = useState<GmailConnectionState>('idle')
+  const [dailyCapsule, setDailyCapsule] = useState<FamilyDailyCapsule | null>(null)
+  const [dailyCapsuleState, setDailyCapsuleState] = useState<'idle' | 'loading' | 'connected' | 'not_connected' | 'unavailable'>('idle')
   useEffect(() => {
     if (!lifecycleViewer) return
     let cancelled = false
@@ -142,6 +153,28 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     void run()
     return () => { cancelled = true; controller.abort() }
   }, [lifecycleViewer])
+  useEffect(() => {
+    if (!lifecycleViewer) {
+      setDailyCapsule(null)
+      setDailyCapsuleState('idle')
+      return
+    }
+    let cancelled = false
+    setDailyCapsuleState('loading')
+    fetch(`/api/family/daily-capsule?date=${encodeURIComponent(localDateForTimeZone(model.timeZone))}`, {
+      credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000),
+    }).then(async (response) => {
+      const data = (await response.json()) as DailyCapsuleResponse
+      if (cancelled) return
+      if (response.status === 401) { setDailyCapsule(null); setDailyCapsuleState('not_connected'); return }
+      if (!response.ok || !data.capsule) throw new Error(data.error ?? 'UNAVAILABLE')
+      setDailyCapsule(data.capsule)
+      setDailyCapsuleState('connected')
+    }).catch(() => {
+      if (!cancelled) { setDailyCapsule(null); setDailyCapsuleState('unavailable') }
+    })
+    return () => { cancelled = true }
+  }, [lifecycleViewer, model.timeZone])
   useEffect(() => {
     if (!lifecycleViewer) return
     let cancelled = false
@@ -240,6 +273,15 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         ? '설정 일부 누락'
         : gmailConnectionState === 'unavailable'
           ? '상태 확인 실패'
+          : '연결 전'
+  const dailyCapsuleLabel = dailyCapsuleState === 'connected'
+    ? `오늘 기록 ${dailyCapsule?.captures.total ?? 0}건 · Task ${dailyCapsule?.tasks.total ?? 0}건`
+    : dailyCapsuleState === 'loading'
+      ? '오늘 기록 확인 중'
+      : dailyCapsuleState === 'not_connected'
+        ? '로그인 후 확인'
+        : dailyCapsuleState === 'unavailable'
+          ? '오늘 기록 확인 실패'
           : '연결 전'
   const selectEvent = (event: PlannerEvent) => { setSelected(event); setShowEventDetails(true) }
   async function askChat(prompt: string) {
@@ -412,10 +454,12 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <button onClick={() => setShowConnections(true)}>Google & Apple <span>연결 상태</span></button>
           <button onClick={() => setShowChat(true)}>Doran Chat <span>조회 · 메모</span></button>
           <button onClick={() => setShowArtifacts(true)} disabled={visibleDriveArtifactState === 'idle'}>Artifacts <span>{artifactStatusLabel}</span></button>
+          <button onClick={() => setShowCapsule(true)} disabled={dailyCapsuleState === 'idle'}>Daily Capsule <span>{dailyCapsuleLabel}</span></button>
         </nav>
         <div className="operational-grid">
           <article className="operational-card operational-card--next"><small>다음 일정</small><strong>{next?.title ?? '다음 일정이 없습니다'}</strong><dl><div><dt>누가</dt><dd>{next ? eventOwnerLabel(next) : '미확인'}</dd></div><div><dt>무엇을</dt><dd>{next?.title ?? '미확인'}</dd></div><div><dt>언제</dt><dd>{nextWhen}</dd></div><div><dt>어디서</dt><dd>{next?.place ?? '미확인'}</dd></div><div><dt>왜</dt><dd>원본 일정에 기록되지 않음</dd></div><div><dt>어떻게</dt><dd>일정 상세에서 준비 확인</dd></div></dl>{next ? <button onClick={() => selectEvent(next)}>일정 상세 열기 →</button> : null}</article>
           <article className="operational-card"><small>오늘</small><strong>{todayEvents.length}개 일정 · {lifecycleWishes.length}개 수락한 일</strong><p>{attention ? `${attention}곳에서 이동·겹침 확인이 필요합니다.` : '일정 사이의 여유를 확인하세요.'}</p><button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>캘린더 보기 →</button></article>
+          <article className="operational-card"><small>Daily Capsule</small><strong>{dailyCapsuleLabel}</strong><p>오늘의 Capture·Candidate·Task 상태를 원문 없이 요약합니다.</p><button onClick={() => setShowCapsule(true)} disabled={dailyCapsuleState === 'idle'}>오늘 기록 보기 →</button></article>
           {pendingCandidates.length ? <article className="operational-card operational-card--attention"><small>확인 필요</small><strong>{pendingCandidates.length}개 Candidate 승인 대기</strong><p>{pendingCandidates[0].opportunity.title}</p><button onClick={() => setShowContext(true)}>승인 목록 열기 →</button></article> : null}
           {lifecycleWishes.length ? <article className="operational-card"><small>수락한 Task</small><strong>{lifecycleWishes.length}개가 Planner에 대기 중</strong><p>사람이 승인한 일만 일정 배치 대상으로 들어갑니다.</p><button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>시간 배치 보기 →</button></article> : null}
           <article className={`operational-card ${visibleDriveArtifactState === 'connected' && visibleDriveArtifacts.length ? 'operational-card--attention' : ''}`}><small>Artifacts</small><strong>{artifactStatusLabel}</strong><p>{visibleDriveArtifacts.length ? `${visibleDriveArtifacts.slice(0, 2).map((artifact) => artifact.kind).join(' · ')}${visibleDriveArtifacts.length > 2 ? ' 외' : ''}` : 'Drive 원문은 보관하고 운영판에는 안전한 요약만 표시합니다.'}</p><button onClick={() => setShowArtifacts(true)} disabled={visibleDriveArtifactState === 'idle'}>Artifact 보기 →</button></article>
@@ -439,6 +483,22 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <p className="chat-scope"><span className="status-dot" /> {artifactStatusLabel} · 읽기 전용</p>
           {visibleDriveArtifactState === 'connected' && visibleDriveArtifacts.length ? <div className="artifact-list">{visibleDriveArtifacts.map((artifact) => <article className="artifact-row" key={artifact.id}><div><strong>{artifact.kind}</strong><span>{artifact.state} · {artifact.sourceSystem} · {artifact.domain}</span></div><small>{artifact.observedAt}</small></article>)}</div> : <p className="modal-empty">{visibleDriveArtifactState === 'idle' ? '승인된 가족 로그인 후 Drive 상태를 확인할 수 있습니다.' : visibleDriveArtifactState === 'not_connected' ? 'Drive를 확인하려면 승인된 가족 로그인 세션이 필요합니다.' : visibleDriveArtifactState === 'incomplete' ? 'Drive 연결 설정이 일부만 되어 있어 조회하지 않았습니다.' : visibleDriveArtifactState === 'unavailable' ? 'Drive를 확인하지 못했습니다. 빈 목록으로 축약하지 않았습니다.' : visibleDriveArtifactState === 'loading' ? 'Drive Artifact를 확인하고 있습니다…' : '현재 읽을 수 있는 FINAL Artifact가 없습니다.'}</p>}
         </div>
+      </PlannerModal>
+      <PlannerModal open={showCapsule} title="오늘의 Daily Capsule" onClose={() => setShowCapsule(false)}>
+        {dailyCapsuleState === 'connected' && dailyCapsule ? <div className="capsule-panel">
+          <p className="chat-scope"><span className="status-dot" /> {dailyCapsule.date} · privacy-safe 요약 · 읽기 전용</p>
+          <div className="capsule-summary-grid">
+            <article><small>Capture</small><strong>{dailyCapsule.captures.total}건</strong><span>오늘 들어온 기록</span></article>
+            <article><small>Candidate</small><strong>{dailyCapsule.candidates.total}건</strong><span>오늘 제안된 후보</span></article>
+            <article><small>Task</small><strong>{dailyCapsule.tasks.total}건</strong><span>오늘 관찰된 작업</span></article>
+            <article><small>Artifact</small><strong>{dailyCapsule.artifacts.artifacts.length}건</strong><span>확인된 결과물</span></article>
+          </div>
+          <div className="capsule-breakdown">
+            <p><b>Task 상태</b> {Object.entries(dailyCapsule.tasks.byState).map(([state, count]) => `${state} ${count}`).join(' · ')}</p>
+            <p><b>Candidate 상태</b> {Object.entries(dailyCapsule.candidates.byState).map(([state, count]) => `${state} ${count}`).join(' · ')}</p>
+          </div>
+          <p className="preparation-note">이 화면은 원문·evidence ref를 표시하지 않습니다. Task 확정이나 상태 변경은 이 모달에서 실행하지 않습니다.</p>
+        </div> : <p className="modal-empty">{dailyCapsuleState === 'idle' ? '승인된 가족 로그인 후 오늘 기록을 확인할 수 있습니다.' : dailyCapsuleState === 'not_connected' ? '오늘 기록을 확인하려면 승인된 가족 로그인 세션이 필요합니다.' : dailyCapsuleState === 'loading' ? '오늘 기록을 모으고 있습니다…' : '오늘 기록을 확인하지 못했습니다. 빈 기록으로 바꾸지 않았습니다.'}</p>}
       </PlannerModal>
       <PlannerModal open={showMemo} title="일단, 적어두세요." onClose={() => setShowMemo(false)}>
         <div className="memo-modal">

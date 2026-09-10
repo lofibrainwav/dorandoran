@@ -8,6 +8,16 @@
 @media(max-width:760px){.operational-home{margin:20px 0 12px;padding:20px 0 18px}.operational-home-heading{display:block}.operational-home-heading h1{font-size:34px}.operational-home-heading p:last-child{font-size:11px}.operational-source{display:inline-flex;margin-top:14px}.operational-nav{margin:18px -14px 12px;padding:0 14px 3px}.operational-nav button,.operational-nav-muted{font-size:10px;padding:9px 10px}.operational-grid{grid-template-columns:1fr;gap:10px}.operational-card,.operational-card--next{grid-row:auto;min-height:0}.operational-card--next strong{font-size:18px}.operational-card dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px}.operational-card button{margin-top:14px}.planner-context .planner-intro{padding:20px 0 10px}.planner-context .planner-intro h2{font-size:28px}}
 @media(max-width:760px){.chat-thread{max-height:45dvh}.chat-prompts{display:grid;grid-template-columns:1fr 1fr}.chat-prompts button{text-align:left}.chat-composer input{font-size:16px}.chat-composer button{padding:0 12px}}
 @media(prefers-reduced-motion:reduce){.family-planner *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+.capsule-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.capsule-summary-grid article{display:grid;gap:6px;padding:14px;border:1px solid #d8e5dc;border-radius:12px;background:#f7faf6}
+.capsule-summary-grid small{font-size:9px;letter-spacing:1px;color:#668174;text-transform:uppercase}
+.capsule-summary-grid strong{font-size:23px;color:#294c50}
+.capsule-summary-grid span{font-size:9px;color:#70877c;line-height:1.5}
+.capsule-breakdown{display:grid;gap:8px;padding:14px 16px;border-top:1px solid var(--planner-line);border-bottom:1px solid var(--planner-line);color:var(--soft-ink);font-size:10px;line-height:1.7}
+.capsule-breakdown p{margin:0}
+.capsule-breakdown b{color:#315d50;margin-right:6px}
+@media(max-width:760px){.capsule-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.capsule-summary-grid strong{font-size:20px}}
 .family-planner .connection-button{white-space:nowrap;flex-shrink:0}.family-planner .planner-header-actions{flex-shrink:0}
 /* Operational Home accessibility pass: retain the quiet palette while meeting AA contrast for helper text. */
 .family-planner{--soft-ink:#4f6971}.planner-brand small,.planner-week-label{color:#4f6971}.eyebrow{color:#4f706f}.operational-source{color:#795a2e}.operational-source--ready{color:#3e6651}.operational-nav button span,.operational-nav-muted{color:#5e716b}.operational-card small,.operational-card dt{color:#5d726a}.operational-card dd{color:#294c50}.operational-card button,.planner-footer button{color:#4f765d}.quiet-cell{color:#64766d}.calendar-footnote,.planner-footer{color:#5f7164}.action-launcher p:last-child{color:#4f6971}

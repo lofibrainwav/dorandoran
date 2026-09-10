@@ -10,6 +10,7 @@ import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calenda
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
 import { loadPrivateOperationalFamilyCalendarPerson } from '@/lib/server/private-operational-family-calendar-source'
 import { loadPrivatePhotoSnapshot } from '@/lib/server/private-photo-snapshot'
+import { loadGoogleDrivePhotoSnapshot } from '@/lib/server/google-drive-photo-snapshot'
 import { loadJdkApprovedReleases, projectLearningModuleWithApprovedReleases } from '@/lib/server/jdk-approved-releases'
 import { loadJaydenLearningModule } from '@/lib/server/jdk-bridge-transport'
 import { selectScheduleResult } from '@/lib/server/schedule-result-selection'
@@ -59,12 +60,15 @@ export default async function FamilyWeekPage() {
   try { configuredDisplayNames = parseHouseholdDisplayNames(process.env) } catch { console.error('[family-week] Invalid display-name configuration; using membership labels') }
   const memberLabels = Object.fromEntries(membership.map((member) => [member.personId, configuredDisplayNames[member.personId] ?? member.displayName ?? lifecycleLaneLabel(member.personId)]))
   const modules = [{ id: 'schedule', label: 'Schedule' }, { id: 'school', label: 'School' }, { id: 'activities', label: 'Activities' }]
+  const photoSnapshot = privateEnabled
+    ? loadPrivatePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
+    : loadGoogleDrivePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
   const [operational, [local, temporal, photos], learningBase, approvedReleases, lifecycleViewerMember] = await Promise.all([
     childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: memberLabels[childPersonId] ?? lifecycleLaneLabel(childPersonId), now, timeZone, modules }) : Promise.resolve(null),
     privateEnabled ? Promise.all([
       calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, modules }) : Promise.resolve(null),
       calendarPersonId ? loadPrivateCalendarTemporalGrids({ personId: calendarPersonId, now, timeZone }) : Promise.resolve(null),
-      loadPrivatePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 }),
+      photoSnapshot,
     ]) : Promise.resolve([null, null, null] as const),
     loadJaydenLearningModule(),
     loadJdkApprovedReleases(),
@@ -83,7 +87,10 @@ export default async function FamilyWeekPage() {
     known: schedule?.sourceHealth === 'green', childPersonId,
   })
   const appleStatus = photos?.status === 'fresh' && photos.result?.sourceState === 'ready'
-    ? '허용된 사진 메타데이터 읽음' : photos?.status === 'stale' ? '사진 스냅샷 갱신 필요' : 'Apple 메타데이터 서버 연결 전'
+    ? `허용된 사진 메타데이터 읽음 · ${photos.result.selectedCount}건`
+    : photos?.status === 'stale' ? '사진 스냅샷 갱신 필요'
+      : photos?.status === 'invalid' ? '사진 스냅샷을 확인할 수 없음'
+        : 'Apple Photos handoff 설정 전'
   return <FamilyPlanner model={model} home={home} memberLabels={memberLabels} appleStatus={appleStatus} learningStatus={learning.statusLabel ?? '학습 연결 상태 확인 필요'}
     lifecycleViewer={lifecycleViewerMember ? { personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access } : null}>
     {schedule ? <FamilyOperatingHero person={schedule.readModel} home={home}

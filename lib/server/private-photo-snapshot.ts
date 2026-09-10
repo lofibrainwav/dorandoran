@@ -77,7 +77,7 @@ function sanitizeExperience(value: unknown): PrivatePhotoJourneyResult['experien
   }
 }
 
-function sanitizeResult(value: unknown): PrivatePhotoJourneyResult {
+export function sanitizePrivatePhotoJourneyResult(value: unknown): PrivatePhotoJourneyResult {
   if (!value || typeof value !== 'object') throw new Error('PHOTO_SNAPSHOT_RESULT_INVALID')
   const input = value as PrivatePhotoJourneyResult
   if (!['apple-photos-selection', 'apple-photos-album'].includes(input.source)) throw new Error('PHOTO_SNAPSHOT_RESULT_INVALID')
@@ -106,7 +106,7 @@ export async function refreshPrivatePhotoSnapshot(input: {
     env, observedAt: input.observedAt, maxGapMs: input.maxGapMs,
   })
   if (!source) throw new Error('PHOTO_SNAPSHOT_SOURCE_DISABLED')
-  const result = sanitizeResult(source)
+  const result = sanitizePrivatePhotoJourneyResult(source)
   const payload = { version: SNAPSHOT_VERSION, generatedAt: input.observedAt, result }
   await mkdir(dirname(snapshotPath), { recursive: true })
   const tempPath = `${snapshotPath}.tmp-${process.pid}`
@@ -143,7 +143,7 @@ export async function loadPrivatePhotoSnapshot(input: {
     return {
       status: 'fresh',
       generatedAt: parsed.generatedAt,
-      result: sanitizeResult(parsed.result),
+      result: sanitizePrivatePhotoJourneyResult(parsed.result),
     }
   } catch {
     return { status: 'invalid', generatedAt: null, result: null }

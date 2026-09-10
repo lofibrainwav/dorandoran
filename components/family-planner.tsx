@@ -474,6 +474,28 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     setMessage('계획 파일을 내려받았습니다. Google Calendar의 가져오기 또는 Apple Calendar에서 파일을 열면 반영됩니다. 아직 캘린더에 저장된 것은 아닙니다.')
   }
+  async function publishToGoogleCalendar() {
+    if (busy || !plans.length || !model.known || collidingPlans.length) return
+    const latest = await refresh()
+    if (!latest) return
+    if (plans.some((plan) => !latest.days.some((day) => day.date === plan.date && day.gaps.some((gap) => plan.startMinute >= gap.startMinute && plan.startMinute + plan.minutes <= gap.endMinute)))) {
+      setMessage('현재 일정과 충돌하는 계획이 있습니다. 다시 배치해 주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const results = []
+      for (const plan of plans) {
+        const response = await fetch('/api/planner/calendar', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...plan, timeZone: model.timeZone }) })
+        const data = await response.json() as { created?: boolean; error?: string }
+        if (!response.ok) throw new Error(data.error ?? 'CALENDAR_WRITE_FAILED')
+        results.push(data.created === true)
+      }
+      setMessage(`Google Calendar에 ${results.filter(Boolean).length}개 계획을 반영했습니다. 이미 반영된 계획은 중복 생성하지 않았습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error && error.message === 'CALENDAR_WRITE_NOT_ALLOWED' ? 'Calendar 반영은 성인 scheduler/admin만 할 수 있습니다.' : 'Calendar 반영에 실패했습니다. 기존 계획은 유지했습니다.')
+    } finally { setBusy(false) }
+  }
   const dateRange = today
     ? `${today.date.slice(5).replace('-', '.')} 기준 · ${model.days[0].date.slice(5).replace('-', '.')} — ${model.days[6].date.slice(5).replace('-', '.')}`
     : `${model.days[0].date.slice(5).replace('-', '.')} — ${model.days[6].date.slice(5).replace('-', '.')}`
@@ -575,7 +597,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       </PlannerModal>
       <div className="planner-workspace">
         <section className="week-panel" id="calendar" aria-label="이번 주 타임박스 플래너">
-          <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><div className="week-toolbar-actions"><button className="memo-toolbar-button" onClick={() => setShowMemo(true)} aria-haspopup="dialog">✎ 메모{wishes.length ? ` ${wishes.length}` : ''}<span className="sr-only">빈 시간에 자동 배치</span></button><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button></div></div>
+          <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><div className="week-toolbar-actions"><button className="memo-toolbar-button" onClick={() => setShowMemo(true)} aria-haspopup="dialog">✎ 메모{wishes.length ? ` ${wishes.length}` : ''}<span className="sr-only">빈 시간에 자동 배치</span></button><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button><button className="export-button" onClick={() => void publishToGoogleCalendar()} disabled={!plans.length || !model.known || !!collidingPlans.length || busy}>Google Calendar에 반영</button></div></div>
           <div className="week-summary"><span><i className="status-dot" />{model.known ? `${model.eventCount}개 실제 일정` : '일정 확인 필요'}</span><span>{plans.length}개 새 계획</span><span>{attention ? `${attention}곳 시간 조율 확인` : '일정 사이에 여유를 남겨요'}</span></div>
           <p role="status" aria-live="polite" className={message ? 'planner-message' : 'planner-message-empty'}>{message}</p>
           {collidingPlans.length ? <p className="planner-warning">⚠ 일정이 바뀌었거나 이미 지난 시간이 포함된 계획 {collidingPlans.length}개가 있습니다. 다시 배치해 주세요.</p> : null}
@@ -590,7 +612,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
               return <div key={day.date} className={`timebox-cell ${day.past ? 'is-past' : ''} ${day.today ? 'is-today' : ''}`}>{events.map((event) => <button key={event.id} className={`calendar-block block-${event.owner}`} onClick={() => selectEvent(event)}><span className="block-time">{event.continued || event.startMinute < period.start ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`} <i>▣</i></span><strong>{event.title}</strong><small>{eventOwnerLabel(event)}</small></button>)}{dayPlans.map((plan) => <article key={plan.id} className={`draft-block ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}{gap && !dayPlans.length ? <div className="gap-block"><span>＋</span><b>{gap.minutes}분의 여유</b><small>{minuteClock(gap.startMinute)}–{minuteClock(gap.endMinute)}</small><p>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</p></div> : !events.length && !dayPlans.length ? <span className="quiet-cell">{day.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</span> : null}</div>
             })}</div>)}
           </div></div>
-          <p className="calendar-footnote">▣ 기존 Google Calendar 일정은 고정됩니다. 새 계획은 내보내기 후 캘린더에서 가져오면 반영됩니다. 여유 시간은 연결된 캘린더 기준이며 가족 모두의 가용성을 확정하지 않습니다.</p>
+          <p className="calendar-footnote">▣ 기존 Google Calendar 일정은 고정됩니다. 성인 scheduler/admin이 버튼을 눌렀을 때만 새 계획을 반영합니다. 여유 시간은 연결된 캘린더 기준이며 가족 모두의 가용성을 확정하지 않습니다.</p>
         </section>
       </div>
       {activeEvent ? <section className="action-launcher" aria-label="일정에서 준비까지">

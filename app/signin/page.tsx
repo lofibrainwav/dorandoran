@@ -4,9 +4,9 @@ import { headers } from 'next/headers'
 export const dynamic = 'force-dynamic'
 
 function signInMessage(error: string | undefined) {
-  if (error === 'denied') return 'This Google account is not approved for this family space.'
-  if (error === 'google') return 'Google sign-in could not be verified. Please try again.'
-  if (error === 'csrf') return 'The sign-in request expired. Please try again.'
+  if (error === 'denied') return '이 구글 계정은 이 가족 공간에 승인되어 있지 않습니다.'
+  if (error === 'google') return '구글 로그인을 확인하지 못했습니다. 다시 시도해 주세요.'
+  if (error === 'csrf') return '로그인 요청이 만료되었습니다. 다시 시도해 주세요.'
   return null
 }
 
@@ -26,10 +26,18 @@ export default async function SignInPage({
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6 py-12">
       <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/45">DoranDoran Family OS</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">Sign in with Google</h1>
+        <div className="flex items-center gap-3">
+          <span aria-hidden="true" className="text-5xl leading-none text-[#efaa55]">✺</span>
+          <span>
+            <span className="block text-2xl font-extrabold tracking-tight">도란도란</span>
+            <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.2em] text-white/45">
+              Our family, a little closer
+            </span>
+          </span>
+        </div>
+        <h1 className="mt-6 text-3xl font-semibold tracking-tight">구글 계정으로 들어오세요</h1>
         <p className="mt-3 text-sm leading-6 text-white/60">
-          Approved family adults enter the same private household space. No separate site password is needed.
+          승인된 가족만 같은 사적 공간에 들어옵니다. 따로 사이트 비밀번호를 두지 않습니다.
         </p>
 
         {message ? (
@@ -62,7 +70,7 @@ export default async function SignInPage({
           </div>
         ) : (
           <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white/55">
-            Google sign-in is not configured for this deployment yet.
+            이 배포에는 아직 구글 로그인이 설정되지 않았습니다.
           </div>
         )}
 

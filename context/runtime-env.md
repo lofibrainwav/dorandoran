@@ -17,9 +17,12 @@ All keys are read server-side only. None is required to render `/`, though reach
 | `DORANDORAN_JDK_BRIDGE_URL` / `DORANDORAN_JDK_BRIDGE_TOKEN` | Delegated JDK bridge for the Learning module status (spec 09) | unset → `Bridge pending` |
 | `DORANDORAN_LOG_DENIED_IDENTITY` | Preview-only discovery log of denied Google subjects | ignored outside `VERCEL_ENV=preview` |
 | `DATABASE_URL` / `POSTGRES_URL` | Postgres for the lifecycle store, `db:migrate` and `outbox:run`. `DATABASE_URL` wins | unset → lifecycle store is `null` (in-memory); the two scripts refuse to run. An `sslmode` of `prefer`/`require`/`verify-ca` is pinned to `verify-full` before pg sees it (spec 43) |
+| `CRON_SECRET` | Production-only Bearer authority for `/api/cron/reconcile` | unset or mismatched → `401 CRON_UNAUTHORIZED`; never logged or exposed to household UI |
 
 | `DRIVE_OUTBOX_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`, `DRIVE_OUTBOX_FOLDER_<LANE>` | Drive Outbox read credentials and per-lane folder (specs 41, 44) | incomplete → `outbox:run` refuses; unset → lane is off. Mint the refresh token with `pnpm auth:mint -- --services=drive` (spec 44) |
 | `GOOGLE_HOUSEHOLD_GMAIL_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN` | Bounded Gmail metadata read credentials | incomplete → Gmail read refuses; unset → Gmail is not connected. Token must include `gmail.readonly`; send/draft are not enabled |
 | `DORAN_CHAT_API_URL` / `DORAN_CHAT_API_KEY` / `DORAN_CHAT_MODEL` | Optional read-only Doran Chat provider | all unset → deterministic in-app fallback; partial or non-HTTPS endpoint → AI fallback with explicit readiness reason. The AI route has no lifecycle, Drive, Gmail, Calendar, or external-write tools |
+
+| `APPLE_PHOTOS_SELECTION_SOURCE` / `APPLE_PHOTOS_ALBUM_NAME` | Local-only Apple Photos metadata source for an explicit private snapshot refresh | ignored on Vercel; requires the private-family gate and a macOS Photos/TCC-authorized session |
 
 Retired 2026-09-08: `DORANDORAN_ACCESS_CODE`, `DORANDORAN_GATE_KEY` (spec 25H).

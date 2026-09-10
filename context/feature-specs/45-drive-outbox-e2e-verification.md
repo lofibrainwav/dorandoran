@@ -102,14 +102,27 @@ lifecycle_task        0
 tasks. The household's existing tables were unchanged by this verification, and the counts above
 are the evidence rather than the claim.
 
-## Step 7 — cron, intentionally deferred
+## Step 7 — nightly reconcile, production-verified
 
-The only real record in the outbox is the smoke record, and it is already processed. Attaching a
-scheduler now would verify one thing: that an empty lane can be polled reliably. That is not the
-question worth answering.
+`/api/cron/reconcile` is scheduled by `vercel.json` and protected by the production-only
+`CRON_SECRET` Bearer authority. Each accepted Drive handoff is persisted as a scoped Capture and,
+only when the handoff contains an explicit candidate proposal, as a Candidate. The ingest ledger
+and lifecycle rows commit in one transaction; the Drive cursor advances only after the callback
+completes. The route never decides or creates a Task.
 
-Operating model until there is real workload: **manual run plus nightly reconcile.** The trigger
-for revisiting is the first genuine outbox workload, or activation of nightly reconcile.
+Production evidence on 2026-09-10:
+
+```text
+unauthorized request       401 CRON_UNAUTHORIZED
+authenticated request      200
+00_DORANDORAN_FAMILY       connected, skipped=1
+10_JAY                     connected, skipped=2
+20_SHARED_PROJECTS         connected, skipped=1
+```
+
+The current empty workload is truthful: no new Capture/Candidate was invented and no cursor was
+advanced. A future accepted handoff will exercise the same route and persist through the
+idempotent ledger.
 
 ## What is deliberately not in this receipt
 

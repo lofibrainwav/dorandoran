@@ -17,6 +17,7 @@
  *
  * Usage:
  *   node --env-file=.env.local scripts/google-auth-mint.mjs --services=drive
+ *   node --env-file=.env.local scripts/google-auth-mint.mjs --services=gmail
  *
  * 읽기 전용 scope 만 요청한다. 이 도구는 Google 의 어떤 내용도 읽지 않는다 — 권한만 받는다.
  */
@@ -31,10 +32,10 @@ import { google } from 'googleapis'
 
 import { resolveGoogleReadOnlyScopes } from '../lib/family-os/google-source-scopes.ts'
 import { decideGoogleAuthCallback, assertSecretOutPath } from '../lib/server/google-auth-callback.ts'
+import { resolveGoogleAuthMintTarget } from '../lib/server/google-auth-mint-config.ts'
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const CALLBACK_PATH = '/oauth2callback'
-const DEFAULT_OUT = '.env.drive-outbox'
 
 function flag(name, fallback) {
   const found = process.argv.find((arg) => arg.startsWith(`--${name}=`))
@@ -43,20 +44,21 @@ function flag(name, fallback) {
 }
 
 const services = flag('services', 'drive').split(',').map((s) => s.trim()).filter(Boolean)
+const target = resolveGoogleAuthMintTarget(services)
 // 지원하지 않는 서비스는 여기서 죽는다 — 브라우저를 열고 나서 알게 되는 것보다 낫다.
 const scopes = resolveGoogleReadOnlyScopes(services)
 
 // 기본 출력은 `.env*` 이름이라 .gitignore 가 이미 덮는다. 다른 경로를 주면 검사한다.
 const outPath = assertSecretOutPath({
-  outPath: path.resolve(REPO_ROOT, flag('out', DEFAULT_OUT)),
+  outPath: path.resolve(REPO_ROOT, flag('out', target.defaultOut)),
   repoRoot: REPO_ROOT,
 })
 
-const clientId = process.env.DRIVE_OUTBOX_CLIENT_ID?.trim()
-const clientSecret = process.env.DRIVE_OUTBOX_CLIENT_SECRET?.trim()
+const clientId = process.env[target.clientIdEnv]?.trim()
+const clientSecret = process.env[target.clientSecretEnv]?.trim()
 if (!clientId || !clientSecret) {
   throw new Error(
-    'GOOGLE_AUTH_CLIENT_REQUIRED — set DRIVE_OUTBOX_CLIENT_ID and DRIVE_OUTBOX_CLIENT_SECRET (Google Cloud Console → OAuth client, type "Desktop app")',
+    `GOOGLE_AUTH_CLIENT_REQUIRED — set ${target.clientIdEnv} and ${target.clientSecretEnv} (Google Cloud Console → OAuth client, type "Desktop app")`,
   )
 }
 
@@ -146,7 +148,7 @@ if (!refreshToken) {
   throw new Error('GOOGLE_AUTH_NO_REFRESH_TOKEN — revoke this app at myaccount.google.com/permissions and run again')
 }
 
-await writeFile(outPath, `DRIVE_OUTBOX_REFRESH_TOKEN=${refreshToken}\n`, { mode: 0o600 })
+await writeFile(outPath, `${target.refreshTokenEnv}=${refreshToken}\n`, { mode: 0o600 })
 await chmod(outPath, 0o600)
 
 // 토큰 값은 절대 찍지 않는다. 터미널 스크롤백·CI 로그·스크린샷은 아무도 장기 자격증명을
@@ -154,7 +156,7 @@ await chmod(outPath, 0o600)
 const fingerprint = createHash('sha256').update(refreshToken).digest('hex').slice(0, 12)
 process.stdout.write([
   'AUTH_OK',
-  `services      ${services.join(', ')}`,
+  `service       ${target.service}`,
   `scopes        ${scopes.join(' ')}`,
   `written       ${path.relative(REPO_ROOT, outPath) || outPath} (mode 0600)`,
   `fingerprint   sha256:${fingerprint}… (토큰 자체가 아닙니다)`,

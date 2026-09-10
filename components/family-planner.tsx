@@ -568,13 +568,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         </div>
       </PlannerModal>
       <div className="planner-workspace">
-        <aside className="memo-panel memo-panel--launcher" aria-label="우리 가족 메모">
-          <div className="memo-launcher-label"><span aria-hidden="true">✎</span><div><h2>일단, 적어두세요.</h2><p>{wishes.length ? `${wishes.length}개 메모 · Planner 대기` : '메모 없음'}</p></div></div>
-          <button className="memo-launcher-button" onClick={() => setShowMemo(true)}>열기 <span>↗</span></button>
-          <span className="sr-only">빈 시간에 자동 배치</span>
-        </aside>
         <section className="week-panel" id="calendar" aria-label="이번 주 타임박스 플래너">
-          <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button></div>
+          <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><div className="week-toolbar-actions"><button className="memo-toolbar-button" onClick={() => setShowMemo(true)} aria-haspopup="dialog">✎ 메모{wishes.length ? ` ${wishes.length}` : ''}<span className="sr-only">빈 시간에 자동 배치</span></button><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button></div></div>
           <div className="week-summary"><span><i className="status-dot" />{model.known ? `${model.eventCount}개 실제 일정` : '일정 확인 필요'}</span><span>{plans.length}개 새 계획</span><span>{attention ? `${attention}곳 시간 조율 확인` : '일정 사이에 여유를 남겨요'}</span></div>
           <p role="status" aria-live="polite" className={message ? 'planner-message' : 'planner-message-empty'}>{message}</p>
           {collidingPlans.length ? <p className="planner-warning">⚠ 일정이 바뀌었거나 이미 지난 시간이 포함된 계획 {collidingPlans.length}개가 있습니다. 다시 배치해 주세요.</p> : null}

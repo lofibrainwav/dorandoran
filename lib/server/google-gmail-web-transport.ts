@@ -9,6 +9,7 @@ export interface GoogleGmailWebRuntimeConfig {
 }
 
 export type GoogleGmailWebRuntimeHealth = 'off' | 'incomplete' | 'ready'
+export type GmailProfileReader = (config: GoogleGmailWebRuntimeConfig) => Promise<string | undefined>
 
 function clean(value: string | undefined): string | null {
   const trimmed = value?.trim()
@@ -36,6 +37,27 @@ export function resolveGoogleGmailWebRuntimeConfig(env: Record<string, string | 
   if (health === 'incomplete') throw new Error('INCOMPLETE_GOOGLE_GMAIL_WEB_CONFIG')
   const values = rawValues(env)
   return { clientId: values.clientId!, clientSecret: values.clientSecret!, refreshToken: values.refreshToken! }
+}
+
+async function readGmailProfile(config: GoogleGmailWebRuntimeConfig): Promise<string | undefined> {
+  const auth = new google.auth.OAuth2(config.clientId, config.clientSecret)
+  auth.setCredentials({ refresh_token: config.refreshToken })
+  const gmail = google.gmail({ version: 'v1', auth })
+  const profile = await gmail.users.getProfile({ userId: 'me' })
+  return profile.data.emailAddress ?? undefined
+}
+
+/**
+ * Confirms that the configured token can actually read Gmail without fetching inbox messages.
+ * Credential presence alone is not capability evidence: a token can be expired or lack
+ * gmail.readonly while all three environment variables are present.
+ */
+export async function verifyGoogleGmailWebCapability(
+  config: GoogleGmailWebRuntimeConfig,
+  profileReader: GmailProfileReader = readGmailProfile,
+): Promise<void> {
+  const emailAddress = await profileReader(config)
+  if (!emailAddress?.trim()) throw new Error('GMAIL_ACCOUNT_ID_UNOBSERVABLE')
 }
 
 /** Reads bounded Gmail metadata and returns only the existing privacy-safe projection. */

@@ -60,8 +60,16 @@ and creation timestamp; no lifecycle state is mutated.
 The authenticated capsule route prefers a sealed row and falls back to the
 existing live projection while a migration is being rolled out.
 
+Drive handoff `final_artifact` observations are retained separately in
+`drive_artifact_observation` when the handoff is accepted. The row carries the
+source lane, event identity, validated digest, observed time, evidence state,
+provenance, and the original privacy scope. Night reconcile selects only
+`family` observations for the family capsule and rebuilds the deterministic
+registry, preserving digest conflicts rather than choosing a winner.
+
 ## Out of scope
 
-Canonical artifact schema, provider adapters, scheduler emission beyond the
-existing protected Vercel cron, dependency additions, and external writes are
-out of scope. Artifact persistence remains a separate future boundary.
+Canonical provider artifact storage, provider adapters, scheduler emission
+beyond the existing protected Vercel cron, dependency additions, and external
+writes are out of scope. The observation table is a bounded projection input,
+not a replacement for Drive as the artifact source of truth.

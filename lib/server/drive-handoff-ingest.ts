@@ -1,5 +1,6 @@
 import { proposeCandidate, type CaptureEvent } from '../family-os/lifecycle.ts'
 import type { HandoffIntake } from '../family-os/drive-handoff-intake.ts'
+import type { ArtifactObservationInput } from '../family-os/artifact-registry.ts'
 import type { JobMode, Opportunity } from '../family-os/contracts.ts'
 import type { CandidateRecord } from './lifecycle-store.ts'
 
@@ -24,6 +25,11 @@ function clean(value: string, code: string): string {
   const trimmed = value.trim()
   if (!trimmed) throw new Error(code)
   return trimmed
+}
+
+function artifactValue(value: unknown, code: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(code)
+  return value.trim()
 }
 
 function scopedId(lane: string, kind: string, sourceId: string): string {
@@ -65,6 +71,19 @@ function projectCandidate(input: DriveHandoffIngestInput, capture: CaptureEvent)
   }
 }
 
+function projectArtifact(input: DriveHandoffIngestInput): ArtifactObservationInput | null {
+  const artifact = input.intake.artifact
+  if (!artifact) return null
+  return {
+    id: artifactValue(artifact.id, 'DRIVE_HANDOFF_ARTIFACT_ID_REQUIRED'),
+    kind: artifactValue(artifact.kind, 'DRIVE_HANDOFF_ARTIFACT_KIND_REQUIRED'),
+    digest: artifactValue(artifact.digest, 'DRIVE_HANDOFF_ARTIFACT_DIGEST_REQUIRED'),
+    observedAt: artifactValue(artifact.observedAt, 'DRIVE_HANDOFF_ARTIFACT_TIME_REQUIRED'),
+    state: artifactValue(artifact.state, 'DRIVE_HANDOFF_ARTIFACT_STATE_REQUIRED'),
+    provenance: artifact.provenance,
+  }
+}
+
 /**
  * Persists a Drive handoff as Capture and, only when the handoff explicitly supplied proposal
  * details, Candidate. This boundary never writes a decision or Task. The ingest ledger makes
@@ -78,6 +97,7 @@ export function createPostgresDriveHandoffIngestStore(input: {
     async ingest(ingestInput): Promise<DriveHandoffIngestOutcome> {
       const capture = projectCapture(ingestInput)
       const candidate = projectCandidate(ingestInput, capture)
+      const artifact = projectArtifact(ingestInput)
       return input.transaction(async (query) => {
         const ledger = await query(
           `INSERT INTO drive_handoff_ingest (lane, file_id, event_id, capture_id, candidate_id, ingested_at)
@@ -104,6 +124,16 @@ export function createPostgresDriveHandoffIngestStore(input: {
               JSON.stringify(candidate.opportunity), candidate.version, candidate.createdAt, candidate.updatedAt],
           )
         }
+        if (artifact) {
+          await query(
+            `INSERT INTO drive_artifact_observation
+              (lane, event_id, privacy_scope, artifact_id, kind, digest, observed_at, state, provenance, recorded_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)`,
+            [ingestInput.lane, ingestInput.intake.capture.id, ingestInput.intake.capture.privacyScope, artifact.id,
+              artifact.kind, artifact.digest, artifact.observedAt, artifact.state,
+              JSON.stringify(artifact.provenance ?? {}), ingestInput.now],
+          )
+        }
         return 'inserted'
       })
     },
@@ -127,4 +157,3 @@ export function createMemoryDriveHandoffIngestStore(): DriveHandoffIngestStore {
     },
   }
 }
-

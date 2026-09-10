@@ -1,5 +1,6 @@
 import { createFamilyDailyCapsule } from '../family-os/daily-capsule.ts'
 import { deriveCandidateState, type CandidateState } from '../family-os/lifecycle.ts'
+import { buildArtifactRegistry, type ArtifactObservationInput } from '../family-os/artifact-registry.ts'
 import { createPostgresDailyCapsuleStore, type DailyCapsuleQuery } from './daily-capsule-store.ts'
 
 const EMPTY_ARTIFACT_REGISTRY = { version: 1 as const, artifacts: [], conflicts: [] }
@@ -60,9 +61,24 @@ export async function reconcileAndPersistDailyCapsule(input: {
       [input.timeZone, date],
     ),
   ])
+  const artifactRows = await input.query(
+    `SELECT artifact_id, kind, digest, observed_at, state, provenance
+       FROM drive_artifact_observation
+      WHERE privacy_scope = 'family'
+        AND (observed_at AT TIME ZONE $1)::date = $2::date`,
+    [input.timeZone, date],
+  )
+  const artifacts: ArtifactObservationInput[] = artifactRows.rows.map((row) => ({
+    id: String(row.artifact_id),
+    kind: String(row.kind),
+    digest: String(row.digest),
+    observedAt: row.observed_at instanceof Date ? row.observed_at.toISOString() : String(row.observed_at),
+    state: String(row.state),
+    provenance: parseObject(row.provenance),
+  }))
   const capsule = createFamilyDailyCapsule({
     date,
-    artifactRegistry: EMPTY_ARTIFACT_REGISTRY,
+    artifactRegistry: artifacts.length ? buildArtifactRegistry(artifacts) : EMPTY_ARTIFACT_REGISTRY,
     captures: captures.rows.map((row) => ({ kind: row.kind as never })),
     candidates: candidates.rows.map((row) => ({ state: candidateState(row, input.nowIso) })),
     tasks: tasks.rows.map((row) => ({ workState: row.work_state as never })),

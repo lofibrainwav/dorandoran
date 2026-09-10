@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { parseDorandoranHandoff } from '../../lib/family-os/drive-handoff-intake.ts'
-import { createMemoryDriveHandoffIngestStore } from '../../lib/server/drive-handoff-ingest.ts'
+import { createMemoryDriveHandoffIngestStore, createPostgresDriveHandoffIngestStore } from '../../lib/server/drive-handoff-ingest.ts'
 
 const context = { capturedBy: 'test', capturedAt: '2026-09-10T05:00:00.000Z' }
 
@@ -57,3 +57,30 @@ test('scheduled handoff ingest is idempotent and never turns into a decision', a
   assert.equal(await store.ingest(input), 'duplicate')
 })
 
+test('postgres handoff persists a validated artifact observation in the same transaction', async () => {
+  const parsed = parseDorandoranHandoff(record({
+    kind: 'final_artifact',
+    status: 'final',
+    driveFileId: 'drive-final-1',
+    digest: `sha256:${'b'.repeat(64)}`,
+    candidateSuggested: false,
+  }), context)
+  assert.equal(parsed.ok, true)
+  const calls = []
+  const store = createPostgresDriveHandoffIngestStore({
+    query: async (text, params) => {
+      calls.push({ text, params })
+      return { rows: [{ event_id: 'evt-ingest-1' }], rowCount: 1 }
+    },
+    transaction: async (run) => run(async (text, params) => {
+      calls.push({ text, params })
+      return calls.length === 1 ? { rows: [{ event_id: 'evt-ingest-1' }], rowCount: 1 } : { rows: [], rowCount: 1 }
+    }),
+  })
+  await store.ingest({ lane: '10_JAY', fileId: 'file-1', intake: parsed.intake, now: context.capturedAt })
+  const artifactInsert = calls.find((call) => call.text.includes('INSERT INTO drive_artifact_observation'))
+  assert.ok(artifactInsert)
+  assert.equal(artifactInsert.params[2], 'personal')
+  assert.equal(artifactInsert.params[3], 'drive-final-1')
+  assert.equal(artifactInsert.params[5], `sha256:${'b'.repeat(64)}`)
+})

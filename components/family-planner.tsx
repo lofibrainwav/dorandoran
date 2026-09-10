@@ -34,6 +34,7 @@ type DriveChatResponse = {
 }
 type GmailChatResponse = { status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'; messages?: Array<{ messageId: string; observedAt: string; senderDomain?: string }> }
 type DriveArtifactState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
+type GmailConnectionState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
 
 function PlannerModal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -116,6 +117,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [pendingCandidates, setPendingCandidates] = useState<LifecycleCandidateSummary[]>([])
   const [driveArtifactState, setDriveArtifactState] = useState<DriveArtifactState>('idle')
   const [driveArtifacts, setDriveArtifacts] = useState<NonNullable<DriveChatResponse['artifacts']>>([])
+  const [gmailConnectionState, setGmailConnectionState] = useState<GmailConnectionState>('idle')
   useEffect(() => {
     if (!lifecycleViewer) return
     let cancelled = false
@@ -139,6 +141,26 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     }
     void run()
     return () => { cancelled = true; controller.abort() }
+  }, [lifecycleViewer])
+  useEffect(() => {
+    if (!lifecycleViewer) return
+    let cancelled = false
+    setGmailConnectionState('loading')
+    fetch('/api/chat/gmail/status', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) })
+      .then(async (response) => {
+        const data = (await response.json()) as { status?: GmailConnectionState }
+        if (cancelled) return
+        if (response.status === 401) { setGmailConnectionState('not_connected'); return }
+        if (data.status === 'connected' || data.status === 'not_connected' || data.status === 'incomplete') {
+          setGmailConnectionState(data.status)
+          return
+        }
+        setGmailConnectionState('unavailable')
+      })
+      .catch(() => {
+        if (!cancelled) setGmailConnectionState('unavailable')
+      })
+    return () => { cancelled = true }
   }, [lifecycleViewer])
   useEffect(() => {
     if (!lifecycleViewer) {
@@ -210,6 +232,15 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           : visibleDriveArtifactState === 'unavailable'
             ? 'Drive 조회 실패'
             : '연결 전'
+  const gmailStatusLabel = gmailConnectionState === 'connected'
+    ? '읽기 연결됨'
+    : gmailConnectionState === 'loading'
+      ? '연결 상태 확인 중'
+      : gmailConnectionState === 'incomplete'
+        ? '설정 일부 누락'
+        : gmailConnectionState === 'unavailable'
+          ? '상태 확인 실패'
+          : '연결 전'
   const selectEvent = (event: PlannerEvent) => { setSelected(event); setShowEventDetails(true) }
   async function askChat(prompt: string) {
     const trimmed = prompt.trim()
@@ -397,8 +428,10 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       <PlannerModal open={showConnections} title="연결된 생활" onClose={() => setShowConnections(false)}>
         <div className="connection-panel">
           <article><strong>Google Calendar</strong><span>{model.known ? '실제 일정 읽음 · 기존 일정 고정' : '일정을 확인할 수 없음 · 자동 배치 중지'}</span><p>연결된 가족 운영 캘린더를 기준으로 합니다. 개인별 다른 캘린더까지 비어 있다는 뜻은 아닙니다.</p></article>
+          <article><strong>Google Drive</strong><span>{artifactStatusLabel}</span><p>FINAL Artifact는 Drive Outbox 정본에서 읽기 전용으로 투영합니다. 원문과 권한은 Drive에 남습니다.</p></article>
+          <article><strong>Gmail</strong><span>{gmailStatusLabel}</span><p>연결되면 최근 메일의 제한된 메타데이터만 읽습니다. 발송·초안·변경은 이 경로에 없습니다.</p></article>
           <article><strong>Apple 생태계</strong><span>{appleStatus}</span><p>Photos는 허용된 로컬 스냅샷 경로입니다. Apple Calendar·미리 알림·실시간 위치의 서버 동기화는 아직 연결되지 않았습니다.</p></article>
-          <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Google Tasks·Gmail·Apple 미리 알림의 할 일을 자동으로 읽는 연결은 아직 없습니다.</p></article>
+          <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Google Tasks·Apple 미리 알림의 할 일을 자동으로 읽는 연결은 아직 없습니다.</p></article>
         </div>
       </PlannerModal>
       <PlannerModal open={showArtifacts} title="Drive Artifacts" onClose={() => setShowArtifacts(false)}>

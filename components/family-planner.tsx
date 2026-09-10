@@ -75,7 +75,7 @@ function readOnlyChatReply(input: string, model: FamilyPlannerModel, next: Plann
     if (!model.known) return 'Calendar source를 현재 확인하지 못했습니다. 일정이 없다고 확정하지 않고 자동 배치도 중지했습니다.'
     return `이번 주에는 ${model.eventCount}개 일정이 읽혔고, 오늘은 ${todayEvents.length}개입니다. ${next ? `다음 일정은 ${next.title} · ${next.date} · ${minuteClock(next.startMinute)}입니다.` : '확인된 다음 일정은 없습니다.'}`
   }
-  return '현재 읽기 전용 범위는 Calendar·수락한 Task·Candidate입니다. “이번 주 일정”, “승인 대기 후보”, “할 일”, “Drive 아티팩트”, “Gmail”처럼 물어보시면 연결 상태와 확인된 정보만 답하겠습니다.'
+  return '현재 조회 범위는 Calendar·수락한 Task·Candidate입니다. “이번 주 일정”, “승인 대기 후보”, “할 일”, “Drive 아티팩트”, “Gmail”처럼 물어보시면 확인된 정보만 답하고, 메모는 “적어두기”를 눌렀을 때만 저장합니다.'
 }
 
 export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, lifecycleViewer, memberLabels = {}, children }: {
@@ -104,7 +104,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [chatCaptureMode, setChatCaptureMode] = useState<ChatCaptureMode>('together')
   const [chatCapturePrivacy, setChatCapturePrivacy] = useState<'family' | 'personal'>('family')
   const [chatProposeCandidate, setChatProposeCandidate] = useState(false)
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ id: 1, role: 'assistant', text: '안녕하세요. 지금은 읽기 전용입니다. 일정·수락한 일·승인 대기 후보의 현재 상태를 확인해 드릴게요.' }])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ id: 1, role: 'assistant', text: '안녕하세요. 일정·수락한 일·승인 대기의 현재 상태를 확인하고, 원하실 때 메모를 저장할 수 있어요.' }])
   const [showContext, setShowContext] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [recommendations, setRecommendations] = useState<PlannerRecommendation[]>([])
@@ -379,7 +379,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>Calendar <span>오늘 · 주 · 월</span></button>
           <button onClick={() => setShowContext(true)} disabled={!children}>Tasks & Candidates <span>{children ? '승인과 실행' : '연결 전'}</span></button>
           <button onClick={() => setShowConnections(true)}>Google & Apple <span>연결 상태</span></button>
-          <button onClick={() => setShowChat(true)}>Doran Chat <span>읽기 전용</span></button>
+          <button onClick={() => setShowChat(true)}>Doran Chat <span>조회 · 메모</span></button>
           <button onClick={() => setShowArtifacts(true)} disabled={visibleDriveArtifactState === 'idle'}>Artifacts <span>{artifactStatusLabel}</span></button>
         </nav>
         <div className="operational-grid">

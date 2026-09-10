@@ -14,6 +14,14 @@ test('rest survives time-band boundaries and explicit durations are never shorte
   assert.equal(parsePlannerMemo('@제이든 읽기')[0].owner, '제이든')
 })
 
+test('calendar event carries its explicit owner person id without guessing from its title', () => {
+  const model = buildFamilyPlanner({
+    ...input,
+    observations: [obs('2026-09-08T10:00:00-07:00', '2026-09-08T11:00:00-07:00')],
+  })
+  assert.equal(model.days[2].events[0].ownerPersonId, 'child')
+})
+
 test('planner preserves every overlapping date, protects 15-minute buffers, and strips identifiers', () => {
   const model = buildFamilyPlanner({ ...input, observations: [obs('2026-09-08T10:00:00-07:00', '2026-09-08T11:00:00-07:00')] })
   const day = model.days[2]

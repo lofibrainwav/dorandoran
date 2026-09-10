@@ -10,11 +10,11 @@ export const DAY_PERIODS = [
 
 export type PlannerEvent = {
   id: string; title: string; date: string; startMinute: number; endMinute: number;
-  allDay: boolean; continued: boolean; owner: 'child' | 'adult' | 'family'; place?: string
+  allDay: boolean; continued: boolean; owner: 'child' | 'adult' | 'family'; ownerPersonId?: string; place?: string
 }
 export type PlannerGap = { id: string; date: string; startMinute: number; endMinute: number; minutes: number }
 export type PlannerDay = {
-  date: string; weekday: string; dayNumber: number; today: boolean; past: boolean;
+  date: string; weekday: string; dayNumber: number; dayKind: 'weekday' | 'saturday' | 'sunday'; today: boolean; past: boolean;
   events: PlannerEvent[]; gaps: PlannerGap[]; notices: Array<{ kind: 'overlap' | 'tight'; minutes: number }>
 }
 export type FamilyPlannerModel = { weekStart: string; timeZone: string; known: boolean; eventCount: number; days: PlannerDay[] }
@@ -54,6 +54,7 @@ export function buildFamilyPlanner(input: { observations: ContextObservation[]; 
       events.push({ id, title: observation.sixW1H.what?.label ?? '제목 없는 일정', date,
         startMinute: start.date < date ? 0 : start.minute, endMinute: end.date > date ? 1440 : end.minute,
         allDay, continued: start.date < date, owner,
+        ...(subjects.length === 1 ? { ownerPersonId: subjects[0] } : {}),
         ...(observation.sixW1H.where?.label ? { place: observation.sixW1H.where.label } : {}),
       })
     })
@@ -84,7 +85,8 @@ export function buildFamilyPlanner(input: { observations: ContextObservation[]; 
         if (period.end - cursor >= 30) gaps.push({ id: `${date}-${cursor}`, date, startMinute: cursor, endMinute: period.end, minutes: period.end - cursor })
       }
     }
-    return { date, weekday: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][index], dayNumber: day.getUTCDate(), today: date === today.date, past: date < today.date, events, gaps, notices }
+    const dayOfWeek = day.getUTCDay()
+    return { date, weekday: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][dayOfWeek], dayNumber: day.getUTCDate(), dayKind: dayOfWeek === 0 ? 'sunday' : dayOfWeek === 6 ? 'saturday' : 'weekday', today: date === today.date, past: date < today.date, events, gaps, notices }
   })
   return { weekStart: weekStartDate, timeZone: input.timeZone, known: input.known, eventCount: seen.size, days }
 }
@@ -101,7 +103,7 @@ export function parsePlannerMemo(memo: string): PlannerWish[] {
     const explicit = line.match(/\d+(?:\.\d+)?\s*(?:시간|hours?|hr)(?:\s*\d+\s*(?:분|minutes?|mins?))?|\d+\s*(?:분|minutes?|mins?)/i)?.[0]
     const parts = explicit?.match(duration)
     const minutes = parts ? Math.round(Number(parts[1] ?? 0) * 60 + Number(parts[2] ?? 0)) : 30
-    const owner = line.match(/@(Julie|Jayden|Jay|Chad|Together|쥴리|제이든|제이|함께)(?=\s|$|[,;])/i)?.[1] ?? '함께'
+    const owner = line.match(/@([^\s,;]+)/)?.[1] ?? '함께'
     return { id: `wish-${index}`, title: line, minutes, estimated: !explicit, required: /해야|필수|마감|must|!/i.test(line), owner }
   })
 }

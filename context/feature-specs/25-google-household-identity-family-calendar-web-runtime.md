@@ -24,7 +24,7 @@ A future web adapter verifies a Google ID token and emits only normalized identi
 
 ```json
 [
-  {"personId":"adult-a","googleSub":"...","access":"adult","roles":["admin","transport"]},
+  {"personId":"adult-a","displayName":"보호자","googleSub":"...","access":"adult","roles":["admin","transport"]},
   {"personId":"adult-b","googleSub":"...","access":"adult","roles":["admin","scheduler"]},
   {"personId":"child-a","googleSub":"...","access":"child","roles":["child"]}
 ]

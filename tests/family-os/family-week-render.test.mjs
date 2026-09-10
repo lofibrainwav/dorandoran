@@ -69,7 +69,7 @@ async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
     } },
     '@/lib/family-os': {
       ...domain,
-      parseHouseholdMembership: () => [{ personId: 'child-a', access: 'child' }],
+      parseHouseholdMembership: () => [{ personId: 'child-a', displayName: '제이든', access: 'child' }],
       resolveHouseholdTimeZone: () => timeZone,
       resolveHouseholdHome: () => domain.resolveHouseholdHome({}),
     },
@@ -116,7 +116,7 @@ async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
 
 test('the real Family Week page renders every household fact and the all-day/subject labels', async () => {
   const html = await renderWeek()
-  for (const text of ['Child practice', 'Adult appointment', 'Shared reminder', '종일', 'Jayden', '보호자', '3개 실제 일정', '빈 시간에 자동 배치']) {
+  for (const text of ['Child practice', 'Adult appointment', 'Shared reminder', '종일', '제이든', '보호자', '3개 실제 일정', '빈 시간에 자동 배치']) {
     assert.ok(html.includes(text), `Missing visible content: ${text}`)
   }
   for (const privateValue of ['private-adult-person-id', 'private-render-fixture-calendar', 'private-provider-description', '/private/', 'calendar:']) {

@@ -28,10 +28,26 @@ test('홈은 공개가 아니다 — 로그인 없이는 / 도 /signin 으로 �
     decideHouseholdAccess({ pathname: '/', googleComplete: true, membership: [adult], sessionMember: null }),
     { kind: 'redirect', to: '/signin', status: 307 },
   )
+})
+
+// / 는 고정 샘플 데모다. 형 결재로 공개도 아니게 되면서 관객이 사라졌다 —
+// 로그인 안 한 사람은 닿지 못하고, 로그인한 식구는 가짜 일정을 볼 이유가 없다.
+test('로그인한 식구가 / 로 오면 데모가 아니라 자기 주로 간다', () => {
   assert.deepEqual(
     decideHouseholdAccess({ pathname: '/', googleComplete: true, membership: [adult], sessionMember: adult }),
-    { kind: 'next' },
+    { kind: 'redirect', to: '/family', status: 307 },
   )
+})
+
+test('그 전환은 / 에만 적용된다 — 다른 경로는 그대로 통과한다', () => {
+  // 여기서 경로를 가리지 않으면 /family 자신이 자기에게 무한 리다이렉트한다.
+  for (const pathname of ['/family', '/api/lifecycle/tasks', '/anything']) {
+    assert.deepEqual(
+      decideHouseholdAccess({ pathname, googleComplete: true, membership: [adult], sessionMember: adult }),
+      { kind: 'next' },
+      pathname,
+    )
+  }
 })
 
 test('공개 경로는 로그인 문 두 개뿐이다', () => {

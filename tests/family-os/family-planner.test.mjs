@@ -1,9 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildFamilyPlanner, canPlaceTimebox, exportTimeboxes, parsePlannerMemo, schedulePlannerWishes } from '../../lib/family-os/family-planner.ts'
+import { buildFamilyPlanner, canPlaceTimebox, exportTimeboxes, orderedPlannerDays, parsePlannerMemo, schedulePlannerWishes } from '../../lib/family-os/family-planner.ts'
 
 const input = { now: new Date('2026-09-08T15:00:00Z'), timeZone: 'America/Los_Angeles', known: true, childPersonId: 'child' }
 const obs = (start, end, id = 'private-id') => ({ id, kind: 'schedule', evidenceState: 'confirmed', sourceRef: 'private-source', evidenceRefs: ['private-evidence'], sixW1H: { when: { start, end }, what: { label: 'Practice' }, who: { personIds: ['child'] } } })
+
+test('today is highlighted without rotating the Sunday-first calendar order', () => {
+  const model = buildFamilyPlanner({ ...input, now: new Date('2026-09-11T12:00:00-07:00'), observations: [] })
+  assert.deepEqual(orderedPlannerDays(model.days).map((day) => day.date), [
+    '2026-09-06', '2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12',
+  ])
+  assert.equal(orderedPlannerDays(model.days).findIndex((day) => day.today), 5)
+})
 
 test('rest survives time-band boundaries and explicit durations are never shortened', () => {
   const model = buildFamilyPlanner({ ...input, observations: [] })

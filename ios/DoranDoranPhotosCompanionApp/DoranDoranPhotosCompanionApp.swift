@@ -18,6 +18,9 @@ struct DoranDoranPhotosCompanionApp: App {
     var body: some Scene {
         WindowGroup {
             CompanionView(model: model)
+                .onOpenURL { url in
+                    model.handlePairingURL(url)
+                }
         }
     }
 }
@@ -68,6 +71,18 @@ final class CompanionModel: ObservableObject {
                 status = "연결하지 못했습니다. 코드가 만료됐거나 이미 사용됐을 수 있습니다."
             }
         }
+    }
+
+    func handlePairingURL(_ url: URL) {
+        guard url.scheme == "dorandoran",
+              (url.host == "pair" || url.path == "/pair"),
+              let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "code" })?.value,
+              !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            status = "도란도란 연결 링크가 올바르지 않습니다."
+            return
+        }
+        pairingCode = code
+        claim()
     }
 
     private func startStream(deviceId: String, client: ApplePhotoCompanionClient) {

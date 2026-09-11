@@ -43,7 +43,7 @@ final class AppleHomeKitBridge: NSObject, ObservableObject, @preconcurrency HMHo
             home.accessories.map { accessory in
                 AppleDigitalAtomEvent(
                     eventId: accessory.uniqueIdentifier.uuidString,
-                    kind: "home.context",
+                    kind: "home.state",
                     occurredAt: observedAt,
                     metadata: [
                         "homeId": home.uniqueIdentifier.uuidString,

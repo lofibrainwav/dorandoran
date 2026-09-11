@@ -70,4 +70,10 @@ final class AppleHomeKitBridge: NSObject, ObservableObject, @preconcurrency HMHo
             status = "HomeKit 메타데이터 동기화 실패"
         }
     }
+
+    func syncMetadataIfReady() async {
+        guard UserDefaults.standard.string(forKey: "dorandoran.apple.device-id")?.isEmpty == false,
+              manager.authorizationStatus == .authorized else { return }
+        await syncMetadata()
+    }
 }

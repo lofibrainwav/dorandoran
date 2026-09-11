@@ -65,6 +65,13 @@ final class AppleEventKitBridge: ObservableObject {
         }
     }
 
+    func syncMetadataIfReady() async {
+        guard UserDefaults.standard.string(forKey: "dorandoran.apple.device-id")?.isEmpty == false else { return }
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess,
+              EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else { return }
+        await syncMetadataWindow()
+    }
+
     private func readCalendarMetadata() -> [AppleDigitalAtomEvent] {
         let start = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         let end = Calendar.current.date(byAdding: .day, value: 180, to: Date()) ?? Date()

@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>DoranDoran Photos</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>link.dorandoran.photos</string>
 	<key>CFBundleName</key>
@@ -18,6 +20,12 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>도란도란은 가족 사진 원본 없이 시간·위치·종류 메타데이터만 가족 운영판에 연결합니다.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>도란도란은 가족 일정의 제목·시간·장소 메타데이터만 운영판에 연결합니다.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>도란도란은 가족 미리 알림의 제목·마감·완료 상태 메타데이터만 다음 행동 후보로 연결합니다.</string>
+	<key>NSHomeKitUsageDescription</key>
+	<string>도란도란은 가족 집과 기기의 상태 메타데이터를 운영판에 연결합니다.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -27,4 +35,3 @@
 	<dict/>
 </dict>
 </plist>
-

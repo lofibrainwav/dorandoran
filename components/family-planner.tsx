@@ -36,6 +36,8 @@ type DriveChatResponse = {
   artifacts?: Array<{ id: string; kind: string; observedAt: string; state: string; sourceSystem: string; domain: string }>
 }
 type GmailChatResponse = { status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'; messages?: Array<{ messageId: string; observedAt: string; senderDomain?: string }> }
+type AppleDigitalAtomSource = { source: 'calendar' | 'reminders' | 'shortcuts' | 'home'; state: 'connected' | 'stale' | 'unconnected'; eventCount: number; lastObservedAt: string | null }
+type AppleDigitalAtomResponse = { status?: 'connected' | 'partial' | 'unconnected'; sources?: AppleDigitalAtomSource[]; error?: string }
 type DailyCapsuleChatResponse = { capsule?: FamilyDailyCapsule; sources?: { artifacts?: string }; error?: string }
 type DriveArtifactState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
 type GmailConnectionState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
@@ -132,6 +134,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [driveArtifactState, setDriveArtifactState] = useState<DriveArtifactState>('idle')
   const [driveArtifacts, setDriveArtifacts] = useState<NonNullable<DriveChatResponse['artifacts']>>([])
   const [gmailConnectionState, setGmailConnectionState] = useState<GmailConnectionState>('idle')
+  const [appleDigitalAtoms, setAppleDigitalAtoms] = useState<AppleDigitalAtomResponse | null>(null)
   const [dailyCapsule, setDailyCapsule] = useState<FamilyDailyCapsule | null>(null)
   const [dailyCapsuleState, setDailyCapsuleState] = useState<'idle' | 'loading' | 'connected' | 'not_connected' | 'unavailable'>('idle')
   useEffect(() => {
@@ -169,6 +172,25 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     }
     void run()
     return () => { cancelled = true; controller.abort() }
+  }, [activeLifecycleViewer])
+  useEffect(() => {
+    if (!activeLifecycleViewer) {
+      setAppleDigitalAtoms(null)
+      return
+    }
+    let cancelled = false
+    fetch('/api/apple/digital-atoms/read', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) })
+      .then(async (response) => {
+        const data = (await response.json()) as AppleDigitalAtomResponse
+        if (cancelled) return
+        if (response.status === 401) { setAppleDigitalAtoms({ status: 'unconnected' }); return }
+        if (!response.ok || !Array.isArray(data.sources)) throw new Error(data.error ?? 'UNAVAILABLE')
+        setAppleDigitalAtoms(data)
+      })
+      .catch(() => {
+        if (!cancelled) setAppleDigitalAtoms(null)
+      })
+    return () => { cancelled = true }
   }, [activeLifecycleViewer])
   useEffect(() => {
     if (!activeLifecycleViewer) {
@@ -291,6 +313,14 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         : gmailConnectionState === 'unavailable'
           ? '상태 확인 실패'
           : '연결 전'
+  const appleDigitalAtomLabel = appleDigitalAtoms?.status === 'connected'
+    ? 'Apple Digital Atom 연결됨'
+    : appleDigitalAtoms?.status === 'partial'
+      ? 'Apple Digital Atom 일부 연결'
+      : appleDigitalAtoms
+        ? 'Apple Digital Atom 연결 전'
+        : 'Apple Digital Atom 상태 확인 실패'
+  const appleDigitalAtomSourceLabel = (source: AppleDigitalAtomSource) => source.state === 'connected' ? `${source.eventCount}건 · 연결됨` : source.state === 'stale' ? `${source.eventCount}건 · 갱신 필요` : '연결 전'
   const dailyCapsuleLabel = dailyCapsuleState === 'connected'
     ? `오늘 기록 ${dailyCapsule?.captures.total ?? 0}건 · Task ${dailyCapsule?.tasks.total ?? 0}건`
     : dailyCapsuleState === 'loading'
@@ -549,7 +579,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <article><strong>Google Calendar</strong><span>{model.known ? '실제 일정 읽음 · 기존 일정 고정' : '일정을 확인할 수 없음 · 자동 배치 중지'}</span><p>연결된 가족 운영 캘린더를 기준으로 합니다. 개인별 다른 캘린더까지 비어 있다는 뜻은 아닙니다.</p></article>
           <article><strong>Google Drive</strong><span>{artifactStatusLabel}</span><p>FINAL Artifact는 Drive Outbox 정본에서 읽기 전용으로 투영합니다. 원문과 권한은 Drive에 남습니다.</p></article>
           <article><strong>Gmail</strong><span>{gmailStatusLabel}</span><p>연결되면 최근 메일의 제한된 메타데이터만 읽습니다. 발송·초안·변경은 이 경로에 없습니다.</p></article>
-          <article><strong>Apple 생태계</strong><span>{appleStatus}</span><p>Photos는 승인된 iPhone에서 시간·위치·종류 metadata만 스트리밍합니다. 원본 사진은 읽지 않습니다. Apple Calendar·미리 알림·실시간 위치의 서버 동기화는 아직 연결되지 않았습니다.</p><ApplePhotoPairingPanel canPair={activeLifecycleViewer?.access === 'adult'} /></article>
+          <article><strong>Apple 생태계</strong><span>{appleStatus}</span><p>Photos·Calendar·미리 알림·Shortcuts·HomeKit은 승인된 iPhone에서 허용된 메타데이터만 스트리밍합니다. 원본 사진, Reminder 본문, 실시간 위치, HomeKit 제어는 이 경로에 없습니다.</p><div className="apple-digital-atom-status"><strong>{appleDigitalAtomLabel}</strong>{appleDigitalAtoms?.sources?.map((source) => <span key={source.source}>{source.source} · {appleDigitalAtomSourceLabel(source)}</span>)}</div><ApplePhotoPairingPanel canPair={activeLifecycleViewer?.access === 'adult'} /></article>
           <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Google Tasks·Apple 미리 알림의 할 일을 자동으로 읽는 연결은 아직 없습니다.</p></article>
         </div>
       </PlannerModal>

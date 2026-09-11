@@ -13,6 +13,10 @@
 		A10000000000000000000005 /* ApplePhotoPairingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* ApplePhotoPairingClient.swift */; };
 		A10000000000000000000006 /* PhotoKitMetadataChangeStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* PhotoKitMetadataChangeStream.swift */; };
 		A10000000000000000000007 /* PhotoKitMetadataProjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* PhotoKitMetadataProjector.swift */; };
+		A10000000000000000000011 /* AppleDigitalAtomCompanionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* AppleDigitalAtomCompanionClient.swift */; };
+		A10000000000000000000012 /* DoranDoranAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* DoranDoranAppIntents.swift */; };
+		A10000000000000000000013 /* AppleHomeKitBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* AppleHomeKitBridge.swift */; };
+		A10000000000000000000010 /* AppleEventKitBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* AppleEventKitBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +29,11 @@
 		B10000000000000000000007 /* PhotoKitMetadataProjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../DoranDoranPhotosCompanion/Sources/DoranDoranPhotosCompanion/PhotoKitMetadataProjector.swift; sourceTree = "<group>"; };
 		B10000000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000009 /* DoranDoranPhotosCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DoranDoranPhotosCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000011 /* AppleDigitalAtomCompanionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../DoranDoranPhotosCompanion/Sources/DoranDoranPhotosCompanion/AppleDigitalAtomCompanionClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000012 /* DoranDoranAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoranDoranAppIntents.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* AppleHomeKitBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleHomeKitBridge.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* DoranDoranPhotosCompanion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DoranDoranPhotosCompanion.entitlements; sourceTree = "<group>"; };
+		B10000000000000000000010 /* AppleEventKitBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleEventKitBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -33,8 +42,8 @@
 
 /* Begin PBXGroup section */
 		D10000000000000000000001 = {isa = PBXGroup; children = (D10000000000000000000002, D10000000000000000000003, D10000000000000000000004); sourceTree = "<group>"; };
-		D10000000000000000000002 /* App */ = {isa = PBXGroup; children = (B10000000000000000000001, B10000000000000000000008); sourceTree = "<group>"; };
-		D10000000000000000000003 /* Companion Sources */ = {isa = PBXGroup; children = (B10000000000000000000002, B10000000000000000000003, B10000000000000000000004, B10000000000000000000005, B10000000000000000000006, B10000000000000000000007); sourceTree = "<group>"; };
+		D10000000000000000000002 /* App */ = {isa = PBXGroup; children = (B10000000000000000000001, B10000000000000000000008, B10000000000000000000010, B10000000000000000000012, B10000000000000000000013, B10000000000000000000014); sourceTree = "<group>"; };
+		D10000000000000000000003 /* Companion Sources */ = {isa = PBXGroup; children = (B10000000000000000000002, B10000000000000000000003, B10000000000000000000004, B10000000000000000000005, B10000000000000000000006, B10000000000000000000007, B10000000000000000000011); sourceTree = "<group>"; };
 		D10000000000000000000004 /* Products */ = {isa = PBXGroup; children = (B10000000000000000000009); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
@@ -51,14 +60,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C10000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007, A10000000000000000000010, A10000000000000000000011, A10000000000000000000012, A10000000000000000000013); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		F10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = ""; CODE_SIGNING_ALLOWED = YES; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = link.dorandoran.photos; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
 		F10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = ""; CODE_SIGNING_ALLOWED = YES; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = link.dorandoran.photos; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
-		F10000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; CODE_SIGNING_REQUIRED = NO; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = link.dorandoran.photos; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
-		F10000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; CODE_SIGNING_REQUIRED = NO; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = link.dorandoran.photos; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		F10000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = DoranDoranPhotosCompanion.entitlements; CODE_SIGNING_ALLOWED = YES; CODE_SIGNING_REQUIRED = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = T3622MZ7AV; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = link.dorandoran.photos; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		F10000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = DoranDoranPhotosCompanion.entitlements; CODE_SIGNING_ALLOWED = YES; CODE_SIGNING_REQUIRED = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = T3622MZ7AV; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = link.dorandoran.photos; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */

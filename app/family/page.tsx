@@ -70,7 +70,7 @@ export default async function FamilyWeekPage() {
       calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, modules }) : Promise.resolve(null),
       calendarPersonId ? loadPrivateCalendarTemporalGrids({ personId: calendarPersonId, now, timeZone }) : Promise.resolve(null),
       photoSnapshot,
-      privateEnabled ? loadApplePhotoMetadataProjection({ now, maxAgeMs: 24 * 60 * 60 * 1000 }) : Promise.resolve(null),
+      loadApplePhotoMetadataProjection({ now, maxAgeMs: 24 * 60 * 60 * 1000 }),
     ]) : Promise.resolve([null, null, null, null] as const),
     loadJaydenLearningModule(),
     loadJdkApprovedReleases(),
@@ -88,7 +88,7 @@ export default async function FamilyWeekPage() {
     observations: schedule?.householdObservations ?? [], now, timeZone,
     known: schedule?.sourceHealth === 'green', childPersonId,
   })
-  const appleMetadataLive = privateEnabled && applePhotoMetadata?.status === 'live'
+  const appleMetadataLive = applePhotoMetadata?.status === 'live'
   const appleJourney = appleMetadataLive ? applePhotoMetadata.experience : photos?.result?.experience
   const appleStatus = appleMetadataLive
     ? `허용된 사진 메타데이터 읽음 · ${applePhotoMetadata.selectedCount}건`

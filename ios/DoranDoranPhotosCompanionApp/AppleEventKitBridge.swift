@@ -1,4 +1,4 @@
-import EventKit
+@preconcurrency import EventKit
 import Foundation
 import SwiftUI
 
@@ -98,7 +98,7 @@ final class AppleEventKitBridge: ObservableObject {
     private func readReminderMetadata() async -> [AppleDigitalAtomEvent] {
         await withCheckedContinuation { continuation in
             let predicate = store.predicateForReminders(in: nil)
-            store.fetchReminders(matching: predicate) { reminders in
+            let completion: @Sendable ([EKReminder]?) -> Void = { reminders in
                 let formatter = ISO8601DateFormatter()
                 let events = reminders?.compactMap { reminder -> AppleDigitalAtomEvent? in
                     let eventId = reminder.calendarItemIdentifier
@@ -116,6 +116,7 @@ final class AppleEventKitBridge: ObservableObject {
                 } ?? []
                 continuation.resume(returning: events)
             }
+            store.fetchReminders(matching: predicate, completion: completion)
         }
     }
 }

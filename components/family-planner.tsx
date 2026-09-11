@@ -580,7 +580,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <article><strong>Google Drive</strong><span>{artifactStatusLabel}</span><p>FINAL Artifact는 Drive Outbox 정본에서 읽기 전용으로 투영합니다. 원문과 권한은 Drive에 남습니다.</p></article>
           <article><strong>Gmail</strong><span>{gmailStatusLabel}</span><p>연결되면 최근 메일의 제한된 메타데이터만 읽습니다. 발송·초안·변경은 이 경로에 없습니다.</p></article>
           <article><strong>Apple 생태계</strong><span>{appleStatus}</span><p>Photos·Calendar·미리 알림·Shortcuts·HomeKit은 승인된 iPhone에서 허용된 메타데이터만 스트리밍합니다. 원본 사진, Reminder 본문, 실시간 위치, HomeKit 제어는 이 경로에 없습니다.</p><div className="apple-digital-atom-status"><strong>{appleDigitalAtomLabel}</strong>{appleDigitalAtoms?.sources?.map((source) => <span key={source.source}>{source.source} · {appleDigitalAtomSourceLabel(source)}</span>)}</div><ApplePhotoPairingPanel canPair={activeLifecycleViewer?.access === 'adult'} /></article>
-          <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Google Tasks·Apple 미리 알림의 할 일을 자동으로 읽는 연결은 아직 없습니다.</p></article>
+          <article><strong>학습·할 일</strong><span>{learningStatus}</span><p>메모는 이 브라우저에 보관합니다. Apple 미리 알림은 승인된 기기에서 메타데이터만 관찰하며, Doran Task로 자동 확정하지 않습니다. Google Tasks는 아직 별도 연결하지 않습니다.</p></article>
         </div>
       </PlannerModal>
       <PlannerModal open={showArtifacts} title="Drive Artifacts" onClose={() => setShowArtifacts(false)}>

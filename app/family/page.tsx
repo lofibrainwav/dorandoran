@@ -10,6 +10,7 @@ import { loadPrivateCalendarOperatingPerson } from '@/lib/server/private-calenda
 import { loadPrivateCalendarTemporalGrids } from '@/lib/server/private-calendar-temporal-source'
 import { loadPrivateOperationalFamilyCalendarPerson } from '@/lib/server/private-operational-family-calendar-source'
 import { loadPrivatePhotoSnapshot } from '@/lib/server/private-photo-snapshot'
+import { loadApplePhotoMetadataProjection } from '@/lib/server/apple-photo-metadata-read'
 import { loadGoogleDrivePhotoSnapshot } from '@/lib/server/google-drive-photo-snapshot'
 import { loadJdkApprovedReleases, projectLearningModuleWithApprovedReleases } from '@/lib/server/jdk-approved-releases'
 import { loadJaydenLearningModule } from '@/lib/server/jdk-bridge-transport'
@@ -63,13 +64,14 @@ export default async function FamilyWeekPage() {
   const photoSnapshot = privateEnabled
     ? loadPrivatePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
     : loadGoogleDrivePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
-  const [operational, [local, temporal, photos], learningBase, approvedReleases, lifecycleViewerMember] = await Promise.all([
+  const [operational, [local, temporal, photos, applePhotoMetadata], learningBase, approvedReleases, lifecycleViewerMember] = await Promise.all([
     childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: memberLabels[childPersonId] ?? lifecycleLaneLabel(childPersonId), now, timeZone, modules }) : Promise.resolve(null),
     privateEnabled ? Promise.all([
       calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, modules }) : Promise.resolve(null),
       calendarPersonId ? loadPrivateCalendarTemporalGrids({ personId: calendarPersonId, now, timeZone }) : Promise.resolve(null),
       photoSnapshot,
-    ]) : Promise.resolve([null, null, null] as const),
+      privateEnabled ? loadApplePhotoMetadataProjection({ now, maxAgeMs: 24 * 60 * 60 * 1000 }) : Promise.resolve(null),
+    ]) : Promise.resolve([null, null, null, null] as const),
     loadJaydenLearningModule(),
     loadJdkApprovedReleases(),
     resolveLifecycleViewer(membership),
@@ -86,7 +88,11 @@ export default async function FamilyWeekPage() {
     observations: schedule?.householdObservations ?? [], now, timeZone,
     known: schedule?.sourceHealth === 'green', childPersonId,
   })
-  const appleStatus = photos?.status === 'fresh' && photos.result?.sourceState === 'ready'
+  const appleMetadataLive = privateEnabled && applePhotoMetadata?.status === 'live'
+  const appleJourney = appleMetadataLive ? applePhotoMetadata.experience : photos?.result?.experience
+  const appleStatus = appleMetadataLive
+    ? `허용된 사진 메타데이터 읽음 · ${applePhotoMetadata.selectedCount}건`
+    : photos?.status === 'fresh' && photos.result?.sourceState === 'ready'
     ? `허용된 사진 메타데이터 읽음 · ${photos.result.selectedCount}건`
     : photos?.status === 'stale' ? '사진 스냅샷 갱신 필요'
       : photos?.status === 'invalid' ? '사진 스냅샷을 확인할 수 없음'
@@ -95,7 +101,7 @@ export default async function FamilyWeekPage() {
     lifecycleViewer={lifecycleViewerMember ? { personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access } : null}>
     {schedule ? <FamilyOperatingHero person={schedule.readModel} home={home}
       presence={projectOperatingPresence({ state: 'unknown', observedAt: now.toISOString(), evidenceRefs: [] })}
-      monthGrid={temporal?.monthGrid} yearGrid={temporal?.yearGrid} journey={photos?.result?.experience} /> : null}
+      monthGrid={temporal?.monthGrid} yearGrid={temporal?.yearGrid} journey={appleJourney} /> : null}
     <LifecycleLaneBridge
       initialViewer={lifecycleViewerMember ? { personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access } : null}
       members={lifecycleMembers}

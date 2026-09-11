@@ -2,16 +2,20 @@ import type { NextRequest } from 'next/server'
 import { assertSameOrigin, resolveLifecycleContext } from '@/lib/server/lifecycle-runtime'
 import { createPostgresApplePhotoStreamStore } from '@/lib/server/apple-photo-stream-store'
 import { resolvePostgresConnectionString } from '@/lib/server/postgres-connection'
+import { authorizationBearer, deviceAuthSecret, hashApplePhotoDeviceSecret, parseApplePhotoDeviceToken } from '@/lib/server/apple-photo-device-auth'
+import { parseApplePhotoMetadataBatch } from '@/lib/family-os/apple-photo-stream'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'private, no-store, max-age=0', 'Referrer-Policy': 'no-referrer' }
 
-/** Accepts only PhotoKit metadata deltas from an authenticated family session. */
+/** Accepts PhotoKit metadata deltas from either the web family session or a registered device. */
 export async function POST(request: NextRequest) {
-  if (!assertSameOrigin(request)) return Response.json({ error: 'ORIGIN_DENIED' }, { status: 403, headers })
-  const context = await resolveLifecycleContext(request)
-  if ('error' in context) return Response.json({ error: context.error }, { status: context.error === 'AUTH_REQUIRED' ? 401 : 503, headers })
+  const bearer = authorizationBearer(request.headers.get('authorization'))
+  const deviceToken = parseApplePhotoDeviceToken(bearer)
+  if (!deviceToken && !assertSameOrigin(request)) return Response.json({ error: 'ORIGIN_DENIED' }, { status: 403, headers })
+  const context = deviceToken ? null : await resolveLifecycleContext(request)
+  if (context && 'error' in context) return Response.json({ error: context.error }, { status: context.error === 'AUTH_REQUIRED' ? 401 : 503, headers })
 
   let body: unknown
   try {
@@ -26,6 +30,19 @@ export async function POST(request: NextRequest) {
   const { Pool } = await import('pg')
   const pool = new Pool({ connectionString, max: 1, connectionTimeoutMillis: 5_000 })
   try {
+    const batch = parseApplePhotoMetadataBatch(body)
+    if (!batch) return Response.json({ error: 'APPLE_PHOTO_BATCH_INVALID' }, { status: 400, headers })
+    if (deviceToken) {
+      const device = await pool.query(
+        `SELECT device_id, library_scope FROM apple_photo_device
+          WHERE device_id = $1 AND token_hash = $2 AND revoked_at IS NULL`,
+        [deviceToken.deviceId, hashApplePhotoDeviceSecret(bearer ?? '', deviceAuthSecret())],
+      )
+      if (!device.rowCount || device.rows[0].library_scope !== batch.libraryScope || device.rows[0].device_id !== batch.deviceId) {
+        return Response.json({ error: 'APPLE_PHOTO_DEVICE_UNAUTHORIZED' }, { status: 401, headers })
+      }
+      await pool.query('UPDATE apple_photo_device SET last_seen_at = now() WHERE device_id = $1', [deviceToken.deviceId])
+    }
     const store = createPostgresApplePhotoStreamStore({
       query: (text, params) => pool.query(text, params),
       transaction: async (run) => {

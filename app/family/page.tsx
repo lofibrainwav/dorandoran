@@ -66,12 +66,12 @@ export default async function FamilyWeekPage() {
     : loadGoogleDrivePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
   const [operational, [local, temporal, photos, applePhotoMetadata], learningBase, approvedReleases, lifecycleViewerMember] = await Promise.all([
     childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: memberLabels[childPersonId] ?? lifecycleLaneLabel(childPersonId), now, timeZone, modules }) : Promise.resolve(null),
-    privateEnabled ? Promise.all([
-      calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, modules }) : Promise.resolve(null),
-      calendarPersonId ? loadPrivateCalendarTemporalGrids({ personId: calendarPersonId, now, timeZone }) : Promise.resolve(null),
+    Promise.all([
+      privateEnabled && calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, modules }) : Promise.resolve(null),
+      privateEnabled && calendarPersonId ? loadPrivateCalendarTemporalGrids({ personId: calendarPersonId, now, timeZone }) : Promise.resolve(null),
       photoSnapshot,
       loadApplePhotoMetadataProjection({ now, maxAgeMs: 24 * 60 * 60 * 1000 }),
-    ]) : Promise.resolve([null, null, null, null] as const),
+    ]),
     loadJaydenLearningModule(),
     loadJdkApprovedReleases(),
     resolveLifecycleViewer(membership),

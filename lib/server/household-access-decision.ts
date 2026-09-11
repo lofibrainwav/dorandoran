@@ -6,7 +6,16 @@ export type HouseholdAccessDecision =
   | { kind: 'unavailable' }
 
 // The cron handler is public only in the proxy sense: the route itself requires CRON_SECRET.
-export const PUBLIC_ACCESS_PATHS: ReadonlySet<string> = new Set(['/signin', '/api/auth/google', '/api/cron/reconcile'])
+// These API paths pass the browser gate because they perform their own stronger
+// authorization: pairing claim uses a one-time code, and metadata ingest accepts
+// either the web session or a registered device bearer token.
+export const PUBLIC_ACCESS_PATHS: ReadonlySet<string> = new Set([
+  '/signin',
+  '/api/auth/google',
+  '/api/cron/reconcile',
+  '/api/photos/apple/devices/claim',
+  '/api/photos/apple/metadata',
+])
 
 const HOME_PATH = '/'
 const HOUSEHOLD_LANDING = '/family'

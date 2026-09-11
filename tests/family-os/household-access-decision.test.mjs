@@ -53,5 +53,11 @@ test('그 전환은 / 에만 적용된다 — 다른 경로는 그대로 통과�
 test('공개 경로는 로그인 문 두 개뿐이다', () => {
   // 이 집합이 늘어나면 가족의 사적 공간이 그만큼 열린다. 늘리는 것은 결재 사항이지
   // 리팩터링의 부수 효과가 아니다.
-  assert.deepEqual([...PUBLIC_ACCESS_PATHS].sort(), ['/api/auth/google', '/api/cron/reconcile', '/signin'])
+  assert.deepEqual([...PUBLIC_ACCESS_PATHS].sort(), [
+    '/api/auth/google',
+    '/api/cron/reconcile',
+    '/api/photos/apple/devices/claim',
+    '/api/photos/apple/metadata',
+    '/signin',
+  ])
 })

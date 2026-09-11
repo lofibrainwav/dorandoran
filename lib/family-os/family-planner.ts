@@ -19,6 +19,11 @@ export type PlannerDay = {
 }
 export type FamilyPlannerModel = { weekStart: string; timeZone: string; known: boolean; eventCount: number; days: PlannerDay[] }
 
+/** Keep the canonical Sunday-first week order; today is a marker, not a sort key. */
+export function orderedPlannerDays(days: PlannerDay[]): PlannerDay[] {
+  return [...days]
+}
+
 function localParts(iso: string, timeZone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso))
   const value = (type: string) => parts.find((p) => p.type === type)?.value ?? ''

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { FamilyGlobe } from './family-globe'
-import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
+import { DAY_PERIODS, minuteClock, orderedPlannerDays, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
 import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PREFIX, type LifecycleTaskForPlanner } from '@/lib/family-os/lifecycle-planner-bridge'
 import type { PlannerRecommendation } from '@/lib/family-os/planner-recommendations'
 import type { HouseholdHome } from '@/lib/family-os/household-home'
@@ -283,10 +283,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const activeEvent = selected ?? next
   const preparationGroups = [{ label: '준비', who: '함께 확인', items: ['필요한 준비물이 있는지 확인', '맡을 사람과 준비 시간 정하기'] }, { label: '이동', who: '이동 담당 확인', items: ['예정 장소와 출발 시각 확인', '앞 일정과의 이동 여유 확인'] }, { label: '가족', who: '서로 맞춰보기', items: ['다른 가족의 개인 일정 확인', '일정 뒤 휴식 시간 남기기'] }]
   const today = model.days.find((day) => day.today)
-  const displayDays = useMemo(() => {
-    const todayIndex = model.days.findIndex((day) => day.today)
-    return todayIndex > 0 ? [...model.days.slice(todayIndex), ...model.days.slice(0, todayIndex)] : model.days
-  }, [model.days])
+  const displayDays = useMemo(() => orderedPlannerDays(model.days), [model.days])
   const todayEvents = today?.events ?? []
   const nextWhen = next ? `${next.date} · ${minuteClock(next.startMinute)}–${minuteClock(next.endMinute)}` : '확인된 다음 일정 없음'
   const visibleDriveArtifactState = activeLifecycleViewer

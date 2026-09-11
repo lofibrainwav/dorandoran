@@ -35,7 +35,7 @@ new Function('require', 'module', 'exports', plannerCompiled)((specifier) => {
   throw new Error(`Unmocked planner boundary: ${specifier}`)
 }, plannerModule, plannerModule.exports)
 
-async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
+async function renderWeek(mode = 'populated', { exposeChildren = false, exposeAppleStatus = false } = {}) {
   const timeZone = 'America/Los_Angeles'
   const date = domain.weekWindowFromLocalDate(new Date(), timeZone).weekStartDate
   const env = {
@@ -61,8 +61,11 @@ async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
     // assert the *wiring* (page.tsx passes the right element into `children`) rather than the
     // toggle's own visibility behavior, `exposeChildren` swaps in a stub that renders `children`
     // unconditionally. The default (real component) path is untouched for every existing test.
-    '@/components/family-planner': exposeChildren
-      ? { FamilyPlanner: ({ children }) => createElement('div', { 'data-children-exposed': 'true' }, children) }
+    '@/components/family-planner': exposeChildren || exposeAppleStatus
+      ? { FamilyPlanner: ({ children, appleStatus }) => createElement('div', {
+          ...(exposeChildren ? { 'data-children-exposed': 'true' } : {}),
+          ...(exposeAppleStatus ? { 'data-apple-status': appleStatus } : {}),
+        }, children) }
       : plannerModule.exports,
     '@/lib/family-os/family-planner': plannerDomain,
     'next/link': ({ children }) => createElement('a', null, children),
@@ -98,7 +101,7 @@ async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
     '@/lib/server/private-calendar-operating-source': { loadPrivateCalendarOperatingPerson: () => { throw new Error('Local private source must remain disabled') } },
     '@/lib/server/private-calendar-temporal-source': { loadPrivateCalendarTemporalGrids: () => { throw new Error('Local private source must remain disabled') } },
     '@/lib/server/private-photo-snapshot': { loadPrivatePhotoSnapshot: () => { throw new Error('Local private source must remain disabled') } },
-    '@/lib/server/apple-photo-metadata-read': { loadApplePhotoMetadataProjection: async () => ({ status: 'offline', lastSyncedAt: null, selectedCount: 0, experience: { clusters: [], stories: [], unlocatedMemoryCount: 0, ungroupedMemoryCount: 0 } }) },
+    '@/lib/server/apple-photo-metadata-read': { loadApplePhotoMetadataProjection: async () => ({ status: 'live', lastSyncedAt: '2026-09-11T00:00:00.000Z', selectedCount: 500, experience: { clusters: [], stories: [], unlocatedMemoryCount: 0, ungroupedMemoryCount: 0 } }) },
     '@/lib/server/google-drive-photo-snapshot': { loadGoogleDrivePhotoSnapshot: async () => ({ status: 'missing', generatedAt: null, result: null }) },
     '@/lib/server/private-photo-setup-guidance': { projectPrivatePhotoSetupGuidance: () => null },
     '@/lib/server/jdk-bridge-transport': { loadJaydenLearningModule: async () => ({ id: 'learning', label: 'Learning', state: 'blocked' }) },
@@ -135,6 +138,11 @@ test('the real Family Week page renders every household fact and the all-day/sub
   for (const privateValue of ['private-adult-person-id', 'private-render-fixture-calendar', 'private-provider-description', '/private/', 'calendar:']) {
     assert.equal(html.includes(privateValue), false, `Private field leaked: ${privateValue}`)
   }
+})
+
+test('the page surfaces the live Apple metadata projection even when private surfaces are disabled', async () => {
+  const html = await renderWeek('populated', { exposeAppleStatus: true })
+  assert.match(html, /data-apple-status="허용된 사진 메타데이터 읽음 · 500건"/)
 })
 
 test('the page wires the A4 lifecycle lane section into FamilyPlanner children for a resolved viewer', async () => {

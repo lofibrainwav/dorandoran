@@ -117,6 +117,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [chatCapturePrivacy, setChatCapturePrivacy] = useState<'family' | 'personal'>('family')
   const [chatProposeCandidate, setChatProposeCandidate] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ id: 1, role: 'assistant', text: '안녕하세요. 일정·수락한 일·승인 대기의 현재 상태를 확인하고, 원하실 때 메모를 저장할 수 있어요.' }])
+  const [resolvedLifecycleViewer, setResolvedLifecycleViewer] = useState<FamilyPlannerLifecycleViewer | null>(null)
+  const activeLifecycleViewer = lifecycleViewer ?? resolvedLifecycleViewer
   const [showContext, setShowContext] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [recommendations, setRecommendations] = useState<PlannerRecommendation[]>([])
@@ -132,9 +134,21 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [dailyCapsule, setDailyCapsule] = useState<FamilyDailyCapsule | null>(null)
   const [dailyCapsuleState, setDailyCapsuleState] = useState<'idle' | 'loading' | 'connected' | 'not_connected' | 'unavailable'>('idle')
   useEffect(() => {
-    if (!lifecycleViewer) return
+    if (lifecycleViewer || resolvedLifecycleViewer) return
     let cancelled = false
-    const viewer = lifecycleViewer
+    fetch('/api/lifecycle/viewer', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) })
+      .then(async (response) => {
+        if (!response.ok) return
+        const data = (await response.json()) as { viewer?: FamilyPlannerLifecycleViewer }
+        if (!cancelled && data.viewer) setResolvedLifecycleViewer(data.viewer)
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [lifecycleViewer, resolvedLifecycleViewer])
+  useEffect(() => {
+    if (!activeLifecycleViewer) return
+    let cancelled = false
+    const viewer = activeLifecycleViewer
     // unmount·viewer 변경 시 진행 중인 요청 자체를 끊는다 (setState 방지만으로는 네트워크가 계속 흐름).
     const controller = new AbortController()
     async function run() {
@@ -154,9 +168,9 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     }
     void run()
     return () => { cancelled = true; controller.abort() }
-  }, [lifecycleViewer])
+  }, [activeLifecycleViewer])
   useEffect(() => {
-    if (!lifecycleViewer) {
+    if (!activeLifecycleViewer) {
       setDailyCapsule(null)
       setDailyCapsuleState('idle')
       return
@@ -176,9 +190,9 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       if (!cancelled) { setDailyCapsule(null); setDailyCapsuleState('unavailable') }
     })
     return () => { cancelled = true }
-  }, [lifecycleViewer, model.timeZone])
+  }, [activeLifecycleViewer, model.timeZone])
   useEffect(() => {
-    if (!lifecycleViewer) return
+    if (!activeLifecycleViewer) return
     let cancelled = false
     setGmailConnectionState('loading')
     fetch('/api/chat/gmail/status', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) })
@@ -196,9 +210,9 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         if (!cancelled) setGmailConnectionState('unavailable')
       })
     return () => { cancelled = true }
-  }, [lifecycleViewer])
+  }, [activeLifecycleViewer])
   useEffect(() => {
-    if (!lifecycleViewer) {
+    if (!activeLifecycleViewer) {
       return
     }
     let cancelled = false
@@ -217,11 +231,11 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         if (!cancelled) { setDriveArtifactState('unavailable'); setDriveArtifacts([]) }
       })
     return () => { cancelled = true }
-  }, [lifecycleViewer])
+  }, [activeLifecycleViewer])
   useEffect(() => {
-    if (!lifecycleViewer) return
+    if (!activeLifecycleViewer) return
     let cancelled = false
-    fetch(`/api/lifecycle/candidates?person=${encodeURIComponent(lifecycleViewer.personId)}`, {
+    fetch(`/api/lifecycle/candidates?person=${encodeURIComponent(activeLifecycleViewer.personId)}`, {
       credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000),
     }).then(async (response) => {
       if (!response.ok) throw new Error('UNAVAILABLE')
@@ -232,7 +246,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       if (!cancelled) setPendingCandidates([])
     })
     return () => { cancelled = true }
-  }, [lifecycleViewer])
+  }, [activeLifecycleViewer])
   const wishes = useMemo(
     () => mergePlannerWishes(parsePlannerMemo(saved.memo), lifecycleWishes).map((wish) => ({ ...wish, minutes: saved.durations[wish.id] ?? wish.minutes })),
     [saved, lifecycleWishes],
@@ -252,10 +266,10 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   }, [model.days])
   const todayEvents = today?.events ?? []
   const nextWhen = next ? `${next.date} · ${minuteClock(next.startMinute)}–${minuteClock(next.endMinute)}` : '확인된 다음 일정 없음'
-  const visibleDriveArtifactState = lifecycleViewer
+  const visibleDriveArtifactState = activeLifecycleViewer
     ? driveArtifactState === 'idle' ? 'loading' : driveArtifactState
     : 'idle'
-  const visibleDriveArtifacts = lifecycleViewer ? driveArtifacts : []
+  const visibleDriveArtifacts = activeLifecycleViewer ? driveArtifacts : []
   const artifactStatusLabel = visibleDriveArtifactState === 'connected'
     ? `FINAL Artifact ${visibleDriveArtifacts.length}개 확인`
     : visibleDriveArtifactState === 'loading'
@@ -373,7 +387,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   }
   async function saveChatCapture() {
     const statedText = chatInput.trim()
-    if (!lifecycleViewer || !statedText || chatCaptureBusy) return
+    if (!activeLifecycleViewer || !statedText || chatCaptureBusy) return
     setChatCaptureBusy(true)
     try {
       const response = await fetch('/api/chat/capture', {
@@ -381,7 +395,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personId: lifecycleViewer.personId,
+          personId: activeLifecycleViewer.personId,
           privacyScope: chatCapturePrivacy,
           kind: chatCaptureKind,
           statedText,
@@ -584,7 +598,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
             {['이번 주 일정 확인해줘', '산책 30분 시간표에 넣어줘', '오늘 Capsule 요약해줘', '승인 대기 후보 보여줘', 'Drive 아티팩트 상태 알려줘', 'Gmail 연결 상태 알려줘'].map((prompt) => <button type="button" key={prompt} onClick={() => void askChat(prompt)} disabled={chatBusy}>{prompt}</button>)}
           </div>
           <form className="chat-composer" onSubmit={submitChat}><label className="sr-only" htmlFor="doran-chat-input">도란에게 물어보기</label><input id="doran-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="이번 주 일정이나 승인 대기를 물어보세요" disabled={chatBusy} /><button type="submit" disabled={!chatInput.trim() || chatBusy}>{chatBusy ? '확인 중…' : '보내기'}</button></form>
-          {lifecycleViewer ? <div className="chat-capture-controls" aria-label="메모 저장 설정">
+          {activeLifecycleViewer ? <div className="chat-capture-controls" aria-label="메모 저장 설정">
             <div className="chat-capture-fields">
               <label>종류<select value={chatCaptureKind} onChange={(event) => setChatCaptureKind(event.target.value as ChatCaptureKind)}><option value="want">하고 싶은 일</option><option value="decision">결정</option><option value="fact">사실</option><option value="question">질문</option><option value="final_artifact">완성 결과물</option></select></label>
               <label>범위<select value={chatCapturePrivacy} onChange={(event) => setChatCapturePrivacy(event.target.value as 'family' | 'personal')}><option value="family">가족</option><option value="personal">개인</option></select></label>

@@ -85,6 +85,14 @@ async function renderWeek(mode = 'populated', { exposeChildren = false } = {}) {
       LifecycleLane: ({ viewer, members }) =>
         createElement('div', { 'data-lifecycle-lane': viewer.personId, 'data-lifecycle-lane-members': members.length }, 'lane fixture'),
     },
+    '@/components/lifecycle-lane-bridge': {
+      LifecycleLaneBridge: ({ initialViewer, members }) => initialViewer
+        ? createElement('section', null,
+            createElement('p', null, 'CAPTURE → CANDIDATE → TASK'),
+            createElement('p', null, '사람이 수락한 것만 할 일이 됩니다.'),
+            createElement('div', { 'data-lifecycle-lane': initialViewer.personId, 'data-lifecycle-lane-members': members.length }, 'lane fixture'))
+        : null,
+    },
     '@/lib/server/private-family-surface': { privateFamilySurfaceEnabled: () => false },
     '@/lib/server/private-calendar-operating-source': { loadPrivateCalendarOperatingPerson: () => { throw new Error('Local private source must remain disabled') } },
     '@/lib/server/private-calendar-temporal-source': { loadPrivateCalendarTemporalGrids: () => { throw new Error('Local private source must remain disabled') } },

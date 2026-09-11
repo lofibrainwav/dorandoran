@@ -1,6 +1,6 @@
 import { FamilyPlanner } from '@/components/family-planner'
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
-import { LifecycleLane } from '@/components/lifecycle-lane'
+import { LifecycleLaneBridge } from '@/components/lifecycle-lane-bridge'
 import { cookies } from 'next/headers'
 import { parseHouseholdDisplayNames, parseHouseholdMembership, projectOperatingPresence, resolveHouseholdHome, resolveHouseholdTimeZone, resolveUniqueChildPersonId, type HouseholdMember } from '@/lib/family-os'
 import { buildFamilyPlanner } from '@/lib/family-os/family-planner'
@@ -96,10 +96,9 @@ export default async function FamilyWeekPage() {
     {schedule ? <FamilyOperatingHero person={schedule.readModel} home={home}
       presence={projectOperatingPresence({ state: 'unknown', observedAt: now.toISOString(), evidenceRefs: [] })}
       monthGrid={temporal?.monthGrid} yearGrid={temporal?.yearGrid} journey={photos?.result?.experience} /> : null}
-    {lifecycleViewerMember ? <section className="lifecycle-lane-section">
-      <p className="eyebrow">CAPTURE → CANDIDATE → TASK</p>
-      <p className="lifecycle-lane-note">사람이 수락한 것만 할 일이 됩니다.</p>
-      <LifecycleLane viewer={{ personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access }} members={lifecycleMembers} />
-    </section> : null}
+    <LifecycleLaneBridge
+      initialViewer={lifecycleViewerMember ? { personId: lifecycleViewerMember.personId, access: lifecycleViewerMember.access } : null}
+      members={lifecycleMembers}
+    />
   </FamilyPlanner>
 }

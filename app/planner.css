@@ -91,3 +91,12 @@
 .day-heading.is-saturday{background:#edf0f8;color:#7d89ab}
 .day-heading.is-today{background:#e6f0e5;color:#3d6950}
 .day-heading.is-today small{color:#548368}
+.apple-pairing-panel{margin-top:14px;padding-top:14px;border-top:1px solid #d9e1d4;display:grid;gap:8px}
+.apple-pairing-heading{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.apple-pairing-heading strong{font-size:11px!important;margin:0!important}
+.apple-pairing-heading span,.apple-pairing-panel>p,.apple-pairing-panel>small{font-size:9px!important;line-height:1.6;color:#7d8f7b!important}
+.apple-pairing-panel>p{margin:0!important}
+.apple-pairing-code{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;padding:10px;border:1px dashed #a8c2ac;border-radius:9px;background:#f6faf4}
+.apple-pairing-code code{font-size:10px;word-break:break-all;color:#315d50}
+.apple-pairing-code button{border:0;background:transparent;color:#527b5d;font-size:10px!important;font-weight:700}
+.apple-pairing-code small{grid-column:1 / -1;color:#819281;font-size:8px}

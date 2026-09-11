@@ -31,6 +31,7 @@ new Function('require', 'module', 'exports', plannerCompiled)((specifier) => {
   if (specifier === '@/lib/family-os/chat-planner-intent') return chatPlannerIntentDomain
   if (specifier === './family-globe') return { FamilyGlobe: () => createElement('div', { 'aria-label': 'map fixture' }) }
   if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier)
+  if (specifier === './apple-photo-pairing-panel') return { ApplePhotoPairingPanel: () => createElement('div', { 'aria-label': 'apple pairing fixture' }) }
   throw new Error(`Unmocked planner boundary: ${specifier}`)
 }, plannerModule, plannerModule.exports)
 

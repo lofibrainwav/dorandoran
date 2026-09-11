@@ -55,6 +55,7 @@ final class CompanionModel: ObservableObject {
             do {
                 let pairing = try ApplePhotoPairingClient(baseURL: URL(string: "https://dorandoran.link")!)
                 let registration = try await pairing.claimAndStore(pairingCode: code, deviceName: deviceName, tokenStore: tokenStore)
+                UserDefaults.standard.set(registration.deviceId, forKey: "dorandoran.apple.device-id")
                 let ingestClient = try ApplePhotoCompanionClient(baseURL: URL(string: "https://dorandoran.link")!, tokenStore: tokenStore)
                 client = ingestClient
                 deviceId = registration.deviceId
@@ -100,6 +101,8 @@ final class CompanionModel: ObservableObject {
 
 struct CompanionView: View {
     @ObservedObject var model: CompanionModel
+    @StateObject private var eventKit = AppleEventKitBridge()
+    @StateObject private var homeKit = AppleHomeKitBridge()
 
     var body: some View {
         NavigationStack {
@@ -115,6 +118,23 @@ struct CompanionView: View {
                     TextField("기기 이름", text: $model.deviceName)
                     Button(model.connected ? "연결됨" : "연결 코드 사용") { model.claim() }
                         .disabled(model.connected || model.pairingCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Section("Apple Digital Atoms") {
+                    Text(eventKit.calendarStatus)
+                    Text(eventKit.remindersStatus)
+                    Text(eventKit.metadataStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Calendar · Reminders 권한 요청") {
+                        Task { await eventKit.requestAccess() }
+                    }
+                    Button("Calendar · Reminders 메타데이터 동기화") {
+                        Task { await eventKit.syncMetadataWindow() }
+                    }
+                    Text(homeKit.status)
+                    Button("HomeKit 메타데이터 동기화") {
+                        Task { @MainActor in await homeKit.syncMetadata() }
+                    }
                 }
                 Section("상태") {
                     Text(model.status)

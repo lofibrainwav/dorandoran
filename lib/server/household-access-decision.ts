@@ -15,6 +15,7 @@ export const PUBLIC_ACCESS_PATHS: ReadonlySet<string> = new Set([
   '/api/cron/reconcile',
   '/api/photos/apple/devices/claim',
   '/api/photos/apple/metadata',
+  '/api/apple/digital-atoms',
 ])
 
 const HOME_PATH = '/'

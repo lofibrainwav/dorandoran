@@ -2,7 +2,14 @@
 
 ## 상태
 
-구현 중. 서버 계약·metadata-only ingest·Calendar/Reminders companion transport·Shortcuts App Intent·privacy-safe read projection까지 구현했고, 실제 iPhone 권한 승인/서명 설치/production ingest readback은 아직 미검증이다. HomeKit은 entitlement 경계 때문에 다음 단계로 보류한다.
+운영 코드·production 배포 완료, 실기기 readback 대기. 서버 계약·metadata-only ingest·Calendar/Reminders companion transport·Shortcuts App Intent·HomeKit `home.state` read projection과 foreground 동기화까지 `main`에 반영됐다. iPhoneOS 빌드와 앱 설치는 성공했지만, 현재 기기 잠금 상태로 앱 실행이 거부되어 실제 권한 승인·Calendar/Reminders/Shortcuts/HomeKit ingest readback은 아직 미검증이다.
+
+현재 production 기준:
+
+- `main`: `6f909993` (PR #93 병합 후)
+- Apple HomeKit 계약: PR #91에서 `home.state`로 정합화
+- foreground 자동 동기화: PR #92에서 승인된 권한이 있을 때만 실행
+- 원본 사진·바이트·Reminder 본문·Calendar private notes·HomeKit 제어: 계속 비범위
 
 ## 목표
 
@@ -123,7 +130,8 @@ privacyScope
 - [x] private/raw 필드가 서버 projection과 client JSON에 나타나지 않는다. (read model 테스트 통과)
 - [x] Reminder가 사람 승인 없이 Task가 되지 않는다. (adapter는 observation만 생성)
 - [ ] Shortcut 액션 성공 결과가 evidence를 가진 observation으로 보인다. (iPhone Shortcuts 실행 필요)
-- [ ] HomeKit은 초기 단계에서 읽기 전용 상태만 제공한다.
+- [x] HomeKit 계약은 초기 단계에서 읽기 전용 상태만 제공한다. (서버 parser·`home.state` projection·production 배포 완료)
+- [ ] 실제 iPhone에서 HomeKit 권한 승인과 metadata ingest readback을 확인한다. (기기 잠금 해제 필요)
 - [x] `pnpm test`, `pnpm typecheck`, `pnpm lint`가 통과한다. (`723/723`; Node 22 경고는 환경 차이)
 - [ ] `pnpm verify`와 Node 24, 연결된 실제 iPhone readback을 남긴다.
 

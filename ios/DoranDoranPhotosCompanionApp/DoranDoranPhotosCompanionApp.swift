@@ -118,6 +118,7 @@ struct CompanionView: View {
     @ObservedObject var model: CompanionModel
     @StateObject private var eventKit = AppleEventKitBridge()
     @StateObject private var homeKit = AppleHomeKitBridge()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -159,6 +160,13 @@ struct CompanionView: View {
                 }
             }
             .navigationTitle("도란도란 Photos")
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task {
+                    await eventKit.syncMetadataIfReady()
+                    await homeKit.syncMetadataIfReady()
+                }
+            }
         }
     }
 

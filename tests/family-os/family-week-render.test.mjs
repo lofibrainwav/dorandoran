@@ -128,7 +128,7 @@ async function renderWeek(mode = 'populated', { exposeChildren = false, exposeAp
     throw new Error(`Unmocked page boundary: ${specifier}`)
   }
   new Function('require', 'module', 'exports', compiled)(pageRequire, pageModule, pageModule.exports)
-  return renderToStaticMarkup(await pageModule.exports.default())
+  return renderToStaticMarkup(await pageModule.exports.default({}))
 }
 
 test('the real Family Week page renders every household fact and the all-day/subject labels', async () => {

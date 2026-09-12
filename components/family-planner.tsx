@@ -677,6 +677,23 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
               return <div key={day.date} className={`timebox-cell ${day.past ? 'is-past' : ''} ${day.today ? 'is-today' : ''}`}>{events.map((event) => <button key={event.id} className={`calendar-block block-${event.owner}`} onClick={() => selectEvent(event)}><span className="block-time">{event.continued || event.startMinute < period.start ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`} <i>▣</i></span><strong>{event.title}</strong><small>{eventOwnerLabel(event)}</small></button>)}{dayPlans.map((plan) => <article key={plan.id} className={`draft-block ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}{gap && !dayPlans.length ? <div className="gap-block"><span>＋</span><b>{gap.minutes}분의 여유</b><small>{minuteClock(gap.startMinute)}–{minuteClock(gap.endMinute)}</small><p>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</p></div> : !events.length && !dayPlans.length ? <span className="quiet-cell">{day.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</span> : null}</div>
             })}</div>)}
           </div></div>
+          <div className="mobile-week-list" aria-label="모바일 주간 캘린더">
+            {displayDays.map((day) => {
+              const timedEvents = day.events.filter((event) => !event.allDay)
+              const dayPlans = plans.filter((plan) => plan.date === day.date)
+              return <article className={`mobile-day-card ${day.today ? 'is-today' : ''}`} key={`mobile-${day.date}`}>
+                <header className="mobile-day-heading"><div><span>{day.weekday}</span><strong>{day.dayNumber}</strong></div><small>{day.date}</small></header>
+                {day.events.filter((event) => event.allDay).map((event) => <button key={event.id} className="mobile-all-day-event" onClick={() => selectEvent(event)}>{event.title}</button>)}
+                {day.notices.map((notice) => <p className="mobile-day-notice" key={`${day.date}-${notice.kind}-${notice.minutes}`}>△ {notice.kind === 'overlap' ? '겹치는 시간 확인' : `${notice.minutes}분 전환 · 확인`}</p>)}
+                <div className="mobile-day-events">
+                  {timedEvents.map((event) => <button key={event.id} className={`mobile-calendar-event block-${event.owner}`} onClick={() => selectEvent(event)}><span>{event.continued ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`}</span><strong>{event.title}</strong><small>{eventOwnerLabel(event)}{event.place ? ` · ${event.place}` : ''}</small></button>)}
+                  {dayPlans.map((plan) => <article key={plan.id} className={`mobile-calendar-plan ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}
+                  {!timedEvents.length && !dayPlans.length && day.gaps.length ? <div className="mobile-day-gap"><b>＋ {day.gaps[0].minutes}분의 여유</b><span>{minuteClock(day.gaps[0].startMinute)}–{minuteClock(day.gaps[0].endMinute)}</span><small>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</small></div> : null}
+                  {!timedEvents.length && !dayPlans.length && !day.gaps.length ? <p className="mobile-day-empty">{day.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</p> : null}
+                </div>
+              </article>
+            })}
+          </div>
           <p className="calendar-footnote">▣ 기존 Google Calendar 일정은 고정됩니다. 성인 scheduler/admin이 버튼을 눌렀을 때만 새 계획을 반영합니다. 여유 시간은 연결된 캘린더 기준이며 가족 모두의 가용성을 확정하지 않습니다.</p>
         </section>
       </div>

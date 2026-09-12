@@ -101,3 +101,4 @@
 .apple-pairing-code button{border:0;background:transparent;color:#527b5d;font-size:10px!important;font-weight:700}
 .apple-pairing-code small{grid-column:1 / -1;color:#819281;font-size:8px}
 .week-scroll{touch-action:pan-y}
+@media(max-width:760px){.family-planner{width:100%;max-width:100vw;min-width:0;overflow-x:hidden}.planner-shell{width:100%;min-width:0}}

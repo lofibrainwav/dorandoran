@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type TouchEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { FamilyGlobe } from './family-globe'
 import { DAY_PERIODS, minuteClock, orderedPlannerDays, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
@@ -104,7 +104,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   lifecycleViewer?: FamilyPlannerLifecycleViewer | null; memberLabels?: Record<string, string>; children?: ReactNode
 }) {
   const router = useRouter()
-  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  const swipeStart = useRef<{ x: number; y: number; pointerId: number } | null>(null)
   const [freshModel, setFreshModel] = useState<FamilyPlannerModel | null>(null)
   const [busy, setBusy] = useState(false)
   const model = freshModel ?? initialModel
@@ -146,20 +146,21 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [appleDigitalAtoms, setAppleDigitalAtoms] = useState<AppleDigitalAtomResponse | null>(null)
   const [dailyCapsule, setDailyCapsule] = useState<FamilyDailyCapsule | null>(null)
   const [dailyCapsuleState, setDailyCapsuleState] = useState<'idle' | 'loading' | 'connected' | 'not_connected' | 'unavailable'>('idle')
-  const onWeekTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    const touch = event.touches[0]
-    if (touch) swipeStart.current = { x: touch.clientX, y: touch.clientY }
+  const [mobileSelectedDate, setMobileSelectedDate] = useState<string | null>(null)
+  const onWeekPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'mouse') return
+    swipeStart.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId }
   }
-  const onWeekTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+  const onWeekPointerUp = (event: PointerEvent<HTMLElement>) => {
     const start = swipeStart.current
     swipeStart.current = null
-    const touch = event.changedTouches[0]
-    if (!start || !touch) return
-    const deltaX = touch.clientX - start.x
-    const deltaY = touch.clientY - start.y
+    if (!start || start.pointerId !== event.pointerId) return
+    const deltaX = event.clientX - start.x
+    const deltaY = event.clientY - start.y
     if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY)) return
     router.push(`/family?week=${shiftWeekStart(model.weekStart, deltaX > 0 ? -1 : 1)}`)
   }
+  const onWeekPointerCancel = () => { swipeStart.current = null }
   useEffect(() => {
     if (lifecycleViewer || resolvedLifecycleViewer) return
     let cancelled = false
@@ -307,6 +308,10 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const preparationGroups = [{ label: '준비', who: '함께 확인', items: ['필요한 준비물이 있는지 확인', '맡을 사람과 준비 시간 정하기'] }, { label: '이동', who: '이동 담당 확인', items: ['예정 장소와 출발 시각 확인', '앞 일정과의 이동 여유 확인'] }, { label: '가족', who: '서로 맞춰보기', items: ['다른 가족의 개인 일정 확인', '일정 뒤 휴식 시간 남기기'] }]
   const today = model.days.find((day) => day.today)
   const displayDays = useMemo(() => orderedPlannerDays(model.days), [model.days])
+  const mobileDay = displayDays.find((day) => day.date === mobileSelectedDate) ?? today ?? displayDays[0]
+  useEffect(() => {
+    setMobileSelectedDate(today?.date ?? displayDays[0]?.date ?? null)
+  }, [model.weekStart, today?.date, displayDays])
   const todayEvents = today?.events ?? []
   const nextWhen = next ? `${next.date} · ${minuteClock(next.startMinute)}–${minuteClock(next.endMinute)}` : '확인된 다음 일정 없음'
   const visibleDriveArtifactState = activeLifecycleViewer
@@ -661,13 +666,13 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         </div>
       </PlannerModal>
       <div className="planner-workspace">
-        <section className="week-panel" id="calendar" aria-label="이번 주 타임박스 플래너">
+        <section className="week-panel" id="calendar" aria-label="이번 주 타임박스 플래너" onPointerDown={onWeekPointerDown} onPointerUp={onWeekPointerUp} onPointerCancel={onWeekPointerCancel}>
           <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><div className="week-toolbar-actions"><button className="export-button" onClick={() => router.push(`/family?week=${shiftWeekStart(model.weekStart, -1)}`)} aria-label="이전 주 보기">‹ 이전 주</button><button className="export-button" onClick={() => router.push('/family')} aria-label="이번 주 보기">오늘 주</button><button className="export-button" onClick={() => router.push(`/family?week=${shiftWeekStart(model.weekStart, 1)}`)} aria-label="다음 주 보기">다음 주 ›</button><button className="memo-toolbar-button" onClick={() => setShowMemo(true)} aria-haspopup="dialog">✎ 메모{wishes.length ? ` ${wishes.length}` : ''}<span className="sr-only">빈 시간에 자동 배치</span></button><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button><button className="export-button" onClick={() => void publishToGoogleCalendar()} disabled={!plans.length || !model.known || !!collidingPlans.length || busy}>Google Calendar에 반영</button></div></div>
           <div className="week-summary"><span><i className="status-dot" />{model.known ? `${model.eventCount}개 실제 일정` : '일정 확인 필요'}</span><span>{plans.length}개 새 계획</span><span>{attention ? `${attention}곳 시간 조율 확인` : '일정 사이에 여유를 남겨요'}</span></div>
           <p role="status" aria-live="polite" className={message ? 'planner-message' : 'planner-message-empty'}>{message}</p>
           {collidingPlans.length ? <p className="planner-warning">⚠ 일정이 바뀌었거나 이미 지난 시간이 포함된 계획 {collidingPlans.length}개가 있습니다. 다시 배치해 주세요.</p> : null}
           {!model.known ? <p className="planner-warning">일정이 확인되지 않아 빈 시간으로 간주하지 않습니다. 연결을 확인하면 자동 배치할 수 있어요.</p> : null}
-          <div className="week-scroll" onTouchStart={onWeekTouchStart} onTouchEnd={onWeekTouchEnd}><div className="timebox-grid">
+          <div className="week-scroll"><div className="timebox-grid">
             <div className="grid-corner">TIME</div>{displayDays.map((day) => <div key={day.date} className={`day-heading ${day.today ? 'is-today' : ''} ${day.dayKind === 'sunday' ? 'is-sunday' : ''} ${day.dayKind === 'saturday' ? 'is-saturday' : ''}`}><span>{day.weekday}</span><strong>{day.dayNumber}</strong>{day.today ? <small>TODAY</small> : null}</div>)}
             <div className="period-label all-day-label">종일</div>{displayDays.map((day) => <div className="all-day-cell" key={`all-${day.date}`}>{day.events.filter((event) => event.allDay).map((event) => <button key={event.id} className="all-day-event" onClick={() => selectEvent(event)}>{event.title}</button>)}{day.notices.length ? <span className="day-notice">△ {day.notices.some((notice) => notice.kind === 'overlap') ? '겹치는 시간 확인' : `${day.notices[0].minutes}분 전환 · 확인`}</span> : null}</div>)}
             {DAY_PERIODS.map((period) => <div className="period-row" key={period.id}><div className="period-label"><span>{period.icon}</span><b>{period.label}</b><small>{minuteClock(period.start)}<br />{minuteClock(period.end)}</small></div>{displayDays.map((day) => {
@@ -677,6 +682,22 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
               return <div key={day.date} className={`timebox-cell ${day.past ? 'is-past' : ''} ${day.today ? 'is-today' : ''}`}>{events.map((event) => <button key={event.id} className={`calendar-block block-${event.owner}`} onClick={() => selectEvent(event)}><span className="block-time">{event.continued || event.startMinute < period.start ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`} <i>▣</i></span><strong>{event.title}</strong><small>{eventOwnerLabel(event)}</small></button>)}{dayPlans.map((plan) => <article key={plan.id} className={`draft-block ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}{gap && !dayPlans.length ? <div className="gap-block"><span>＋</span><b>{gap.minutes}분의 여유</b><small>{minuteClock(gap.startMinute)}–{minuteClock(gap.endMinute)}</small><p>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</p></div> : !events.length && !dayPlans.length ? <span className="quiet-cell">{day.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</span> : null}</div>
             })}</div>)}
           </div></div>
+          <div className="mobile-week-list" aria-label="모바일 주간 캘린더">
+            <nav className="mobile-day-strip" aria-label="이번 주 날짜 선택">
+              {displayDays.map((day) => <button type="button" key={day.date} className={day.date === mobileDay?.date ? 'is-selected' : ''} onClick={() => setMobileSelectedDate(day.date)} aria-current={day.date === mobileDay?.date ? 'date' : undefined}><span>{day.weekday}</span><strong>{day.dayNumber}</strong>{day.events.length ? <small>{day.events.length}</small> : null}</button>)}
+            </nav>
+            {mobileDay ? <article className={`mobile-day-card ${mobileDay.today ? 'is-today' : ''}`}>
+              <header className="mobile-day-heading"><div><span>{mobileDay.weekday}</span><strong>{mobileDay.dayNumber}</strong></div><small>{mobileDay.date}</small></header>
+              {mobileDay.events.filter((event) => event.allDay).map((event) => <button key={event.id} className="mobile-all-day-event" onClick={() => selectEvent(event)}>{event.title}</button>)}
+              {mobileDay.notices.map((notice) => <p className="mobile-day-notice" key={`${mobileDay.date}-${notice.kind}-${notice.minutes}`}>△ {notice.kind === 'overlap' ? '겹치는 시간 확인' : `${notice.minutes}분 전환 · 확인`}</p>)}
+              <div className="mobile-day-events">
+                {mobileDay.events.filter((event) => !event.allDay).map((event) => <button key={event.id} className={`mobile-calendar-event block-${event.owner}`} onClick={() => selectEvent(event)}><span>{event.continued ? '이어지는 일정' : `${minuteClock(event.startMinute)}–${minuteClock(event.endMinute)}`}</span><strong>{event.title}</strong><small>{eventOwnerLabel(event)}{event.place ? ` · ${event.place}` : ''}</small></button>)}
+                {plans.filter((plan) => plan.date === mobileDay.date).map((plan) => <article key={plan.id} className={`mobile-calendar-plan ${collision(plan) ? 'draft-conflict' : ''}`}><span>{minuteClock(plan.startMinute)}–{minuteClock(plan.startMinute + plan.minutes)} · 계획</span><strong>{plan.title}</strong><small>{plan.owner}</small><button aria-label={`${plan.title} 계획 삭제`} onClick={() => save({ ...saved, plans: plans.filter((p) => p.id !== plan.id) })}>×</button></article>)}
+                {!mobileDay.events.some((event) => !event.allDay) && !plans.some((plan) => plan.date === mobileDay.date) && mobileDay.gaps.length ? <div className="mobile-day-gap"><b>＋ {mobileDay.gaps[0].minutes}분의 여유</b><span>{minuteClock(mobileDay.gaps[0].startMinute)}–{minuteClock(mobileDay.gaps[0].endMinute)}</span><small>{wishes.length ? '메모를 자동 배치해 보세요' : '하고 싶은 일을 적어보세요'}</small></div> : null}
+                {!mobileDay.events.length && !plans.some((plan) => plan.date === mobileDay.date) && !mobileDay.gaps.length ? <p className="mobile-day-empty">{mobileDay.past ? '지나간 시간' : model.known ? '일정과 함께 조율' : '확인 필요'}</p> : null}
+              </div>
+            </article> : null}
+          </div>
           <p className="calendar-footnote">▣ 기존 Google Calendar 일정은 고정됩니다. 성인 scheduler/admin이 버튼을 눌렀을 때만 새 계획을 반영합니다. 여유 시간은 연결된 캘린더 기준이며 가족 모두의 가용성을 확정하지 않습니다.</p>
         </section>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type TouchEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { FamilyGlobe } from './family-globe'
 import { DAY_PERIODS, minuteClock, orderedPlannerDays, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
@@ -104,6 +104,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   lifecycleViewer?: FamilyPlannerLifecycleViewer | null; memberLabels?: Record<string, string>; children?: ReactNode
 }) {
   const router = useRouter()
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
   const [freshModel, setFreshModel] = useState<FamilyPlannerModel | null>(null)
   const [busy, setBusy] = useState(false)
   const model = freshModel ?? initialModel
@@ -145,6 +146,20 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [appleDigitalAtoms, setAppleDigitalAtoms] = useState<AppleDigitalAtomResponse | null>(null)
   const [dailyCapsule, setDailyCapsule] = useState<FamilyDailyCapsule | null>(null)
   const [dailyCapsuleState, setDailyCapsuleState] = useState<'idle' | 'loading' | 'connected' | 'not_connected' | 'unavailable'>('idle')
+  const onWeekTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (touch) swipeStart.current = { x: touch.clientX, y: touch.clientY }
+  }
+  const onWeekTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = swipeStart.current
+    swipeStart.current = null
+    const touch = event.changedTouches[0]
+    if (!start || !touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY)) return
+    router.push(`/family?week=${shiftWeekStart(model.weekStart, deltaX > 0 ? -1 : 1)}`)
+  }
   useEffect(() => {
     if (lifecycleViewer || resolvedLifecycleViewer) return
     let cancelled = false
@@ -652,7 +667,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
           <p role="status" aria-live="polite" className={message ? 'planner-message' : 'planner-message-empty'}>{message}</p>
           {collidingPlans.length ? <p className="planner-warning">⚠ 일정이 바뀌었거나 이미 지난 시간이 포함된 계획 {collidingPlans.length}개가 있습니다. 다시 배치해 주세요.</p> : null}
           {!model.known ? <p className="planner-warning">일정이 확인되지 않아 빈 시간으로 간주하지 않습니다. 연결을 확인하면 자동 배치할 수 있어요.</p> : null}
-          <div className="week-scroll"><div className="timebox-grid">
+          <div className="week-scroll" onTouchStart={onWeekTouchStart} onTouchEnd={onWeekTouchEnd}><div className="timebox-grid">
             <div className="grid-corner">TIME</div>{displayDays.map((day) => <div key={day.date} className={`day-heading ${day.today ? 'is-today' : ''} ${day.dayKind === 'sunday' ? 'is-sunday' : ''} ${day.dayKind === 'saturday' ? 'is-saturday' : ''}`}><span>{day.weekday}</span><strong>{day.dayNumber}</strong>{day.today ? <small>TODAY</small> : null}</div>)}
             <div className="period-label all-day-label">종일</div>{displayDays.map((day) => <div className="all-day-cell" key={`all-${day.date}`}>{day.events.filter((event) => event.allDay).map((event) => <button key={event.id} className="all-day-event" onClick={() => selectEvent(event)}>{event.title}</button>)}{day.notices.length ? <span className="day-notice">△ {day.notices.some((notice) => notice.kind === 'overlap') ? '겹치는 시간 확인' : `${day.notices[0].minutes}분 전환 · 확인`}</span> : null}</div>)}
             {DAY_PERIODS.map((period) => <div className="period-row" key={period.id}><div className="period-label"><span>{period.icon}</span><b>{period.label}</b><small>{minuteClock(period.start)}<br />{minuteClock(period.end)}</small></div>{displayDays.map((day) => {

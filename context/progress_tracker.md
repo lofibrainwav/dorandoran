@@ -22,8 +22,12 @@ Regression count is 522 tests. Unauthenticated `/` and `/family` still 307 → `
 - Legacy UI shell removed.
 - Verified `lib/family-os` and 98 regression tests imported from remote GREEN head.
 - Node 24.20.0 installed keg-only for this worktree.
-- HyoDo v4.14.0 pinned through `uvx` locally.
-- HyoDo audience profile: `vibe`.
+- HyoDo v4.19.3 pinned through `uvx` locally.
+- HyoDo audience profile: `engineer`.
+- Audience modes are invariant-quality lenses: `vibe`, `engineer`, and
+  `professional` all run the same configured gates; only explanation vocabulary
+  changes. Domain-specific truth-critical vocabulary remains pending the paired
+  HyoDo source-line release.
 - HyoDo gates: typecheck, build, tests, prod audit, lint.
 - HyoDo safe strict: GREEN.
 - HyoDo check strict-tests: GREEN, 5/5 observed.

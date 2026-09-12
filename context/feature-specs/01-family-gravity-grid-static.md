@@ -8,7 +8,7 @@ Goal: explain the product before adding Three.js/WebGPU.
 - connections appear only for real handoff, route, update, or decision needs
 - Chad is an orchestrator, not another family member
 
-## HyoDo 4.15 influence
+## HyoDo 4.19 influence
 - graph/backlink visual grammar supports later “why this changed” evidence drill-down
 - actor lineage remains a system transparency concept, not a family-person label
 - no composite family score

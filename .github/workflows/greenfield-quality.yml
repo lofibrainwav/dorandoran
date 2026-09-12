@@ -6,6 +6,8 @@ on:
     branches:
       - main
       - "greenfield/**"
+      - "feature/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,20 +34,23 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: HyoDo quality gate
-        uses: lofibrainwav/HyoDo/.github/actions/hyodo@v4.14.0
+        uses: lofibrainwav/HyoDo/.github/actions/hyodo@v4.19.3
         with:
           python-version: "3.12"
           args: "--strict-tests --audience engineer"
 
+      - name: Verify HyoDo version
+        run: hyodo --version
+
       - name: HyoDo safety scan
         run: hyodo safe --strict --audience engineer
 
-  hyodo-415-shadow:
-    name: HyoDo 4.15 source shadow
+  hyodo-current-source-shadow:
+    name: HyoDo current source shadow
     continue-on-error: true
     runs-on: ubuntu-latest
     env:
-      HYODO_415_SHA: 34d024df891a5cd0ea2437537d4fdd4178d512b8
+      HYODO_CURRENT_SHA: b5a984fc758ff7826422047f263fe4f5b0c988bc
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,8 +74,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install HyoDo 4.15 source line
-        run: python -m pip install "git+https://github.com/lofibrainwav/HyoDo.git@${HYODO_415_SHA}"
+      - name: Install HyoDo current source line
+        run: python -m pip install "git+https://github.com/lofibrainwav/HyoDo.git@${HYODO_CURRENT_SHA}"
+
+      - name: Verify HyoDo source identity
+        run: hyodo --version
 
       - name: Shadow quality check
         run: hyodo check --strict-tests --audience engineer

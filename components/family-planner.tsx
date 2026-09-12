@@ -9,6 +9,7 @@ import type { PlannerRecommendation } from '@/lib/family-os/planner-recommendati
 import type { HouseholdHome } from '@/lib/family-os/household-home'
 import type { FamilyDailyCapsule } from '@/lib/family-os/daily-capsule'
 import { appendPlannerChatProposal, isPlannerSchedulingRequest } from '@/lib/family-os/chat-planner-intent'
+import { isDeterministicChatReadRequest } from '@/lib/family-os/chat-read-intent'
 import { ApplePhotoPairingPanel } from './apple-photo-pairing-panel'
 
 type Saved = { memo: string; plans: PlannedTimebox[]; durations: Record<string, number> }
@@ -405,6 +406,8 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       } catch {
         reply = 'Gmail을 확인하지 못했습니다. 실패를 빈 메일함으로 바꾸지 않았습니다.'
       }
+    } else if (isDeterministicChatReadRequest(trimmed)) {
+      reply = readOnlyChatReply(trimmed, model, next, todayEvents, lifecycleWishes, pendingCandidates)
     } else {
       try {
         const contextSummary = [

@@ -13,6 +13,14 @@ test('today is highlighted without rotating the Sunday-first calendar order', ()
   assert.equal(orderedPlannerDays(model.days).findIndex((day) => day.today), 5)
 })
 
+test('planner can render the next week explicitly so the 13th is reachable', () => {
+  const model = buildFamilyPlanner({ ...input, now: new Date('2026-09-11T12:00:00-07:00'), weekStartDate: '2026-09-13', observations: [] })
+  assert.equal(model.weekStart, '2026-09-13')
+  assert.deepEqual(model.days.map((day) => day.date), [
+    '2026-09-13', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-19',
+  ])
+})
+
 test('rest survives time-band boundaries and explicit durations are never shortened', () => {
   const model = buildFamilyPlanner({ ...input, observations: [] })
   const existing = [{ id: 'prior', title: 'Prior', date: '2026-09-08', startMinute: 480, minutes: 240, owner: 'Together' }]

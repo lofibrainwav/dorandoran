@@ -1,5 +1,5 @@
 import type { ContextObservation } from './universal-context.ts'
-import { weekWindowFromLocalDate } from './live-family-week-source.ts'
+import { weekWindowFromLocalDate, weekWindowFromLocalWeekStart } from './live-family-week-source.ts'
 
 export interface WeekDayItemProjection {
   id: string
@@ -66,8 +66,11 @@ export function projectWeekDays(input: {
   observations: ContextObservation[]
   now: Date
   timeZone: string
+  weekStartDate?: string
 }): WeekDaysProjection {
-  const window = weekWindowFromLocalDate(input.now, input.timeZone)
+  const window = input.weekStartDate
+    ? weekWindowFromLocalWeekStart(input.weekStartDate, input.timeZone)
+    : weekWindowFromLocalDate(input.now, input.timeZone)
   const windowStartMs = new Date(window.start).getTime()
   const windowEndMs = new Date(window.end).getTime()
   const todayKey = localDateKey(input.now.toISOString(), input.timeZone)

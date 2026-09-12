@@ -5,7 +5,9 @@ import {
   projectFamilyOperatingPerson,
   resolveCalendarEventSubject,
   resolveOperationalFamilyCalendar,
+  resolveScheduledPlace,
   weekWindowFromLocalDate,
+  weekWindowFromLocalWeekStart,
   type ContextObservation,
   type FamilyOperatingPersonReadModel,
   type GoogleCalendarApiEventPayload,
@@ -47,6 +49,7 @@ export interface PrivateOperationalFamilyCalendarResult {
 }
 
 function householdObservation(input: {
+  env: Record<string, string | undefined>
   config: LocalCalendarSourceConfig
   payload: GoogleCalendarApiEventPayload
   observedAt: string
@@ -67,6 +70,12 @@ function householdObservation(input: {
     !/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(date).toISOString().slice(0, 10) !== date)) return null
   const evidenceRef = normalized.evidence[0]?.id
   if (!evidenceRef || !normalized.start) return null
+  let resolvedPlace
+  try {
+    resolvedPlace = resolveScheduledPlace(input.env, normalized.location)
+  } catch {
+    return null
+  }
   return normalizeAdapterOutput(`calendar:${input.config.sourceKey}`, [{
     id: `context:${evidenceRef}`,
     kind: normalized.allDay ? 'schedule-all-day' : 'schedule',
@@ -74,7 +83,7 @@ function householdObservation(input: {
       who: { personIds: input.subjectId ? [input.subjectId] : [] },
       what: { label: normalized.title, ref: normalized.id },
       when: { start: normalized.start, ...(normalized.end ? { end: normalized.end } : {}), timeZone: input.timeZone },
-      ...(normalized.location ? { where: { label: normalized.location } } : {}),
+      ...(normalized.location ? { where: { label: normalized.location, ...(resolvedPlace?.coordinates ? { coordinates: resolvedPlace.coordinates } : {}) } } : {}),
     },
     sourceRef: evidenceRef,
     observedAt: input.observedAt,
@@ -110,6 +119,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
   label: string
   now: Date
   timeZone: string
+  weekStartDate?: string
   modules?: SpecialistModuleSummary[]
   readEvents?: OperationalFamilyCalendarReadEvents
   readWebEvents?: OperationalFamilyWebCalendarReadEvents
@@ -151,7 +161,9 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
     }
   }
 
-  const canonicalWindow = weekWindowFromLocalDate(input.now, input.timeZone)
+  const canonicalWindow = input.weekStartDate
+    ? weekWindowFromLocalWeekStart(input.weekStartDate, input.timeZone)
+    : weekWindowFromLocalDate(input.now, input.timeZone)
   const window = { start: canonicalWindow.start, end: canonicalWindow.end }
   let payloads: GoogleCalendarApiEventPayload[]
   let source: PrivateOperationalFamilyCalendarResult['source']
@@ -206,7 +218,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       recurringEventId: payload.recurringEventId,
       summary: payload.summary,
     }, rules)
-    const fact = householdObservation({ config: observationConfig, payload, observedAt, timeZone: input.timeZone, subjectId })
+    const fact = householdObservation({ env, config: observationConfig, payload, observedAt, timeZone: input.timeZone, subjectId })
     if (!fact) {
       // A skipped malformed event would make an incomplete week look complete.
       return {
@@ -233,6 +245,7 @@ export async function loadPrivateOperationalFamilyCalendarPerson(input: {
       [payload],
       observedAt,
       input.timeZone,
+      env,
     ))
     eventCount += 1
   }

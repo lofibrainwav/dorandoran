@@ -1,5 +1,5 @@
 import type { ContextObservation } from './universal-context.ts'
-import { weekWindowFromLocalDate } from './live-family-week-source.ts'
+import { weekWindowFromLocalDate, weekWindowFromLocalWeekStart } from './live-family-week-source.ts'
 
 export const DAY_PERIODS = [
   { id: 'morning', label: '아침', english: 'Morning', start: 360, end: 720, icon: '☀' },
@@ -35,8 +35,10 @@ export function minuteClock(minute: number): string {
 }
 
 /** Calendar gaps are opportunities to discuss, never proof that every person is available. */
-export function buildFamilyPlanner(input: { observations: ContextObservation[]; now: Date; timeZone: string; known: boolean; childPersonId: string | null }): FamilyPlannerModel {
-  const { weekStartDate } = weekWindowFromLocalDate(input.now, input.timeZone)
+export function buildFamilyPlanner(input: { observations: ContextObservation[]; now: Date; timeZone: string; known: boolean; childPersonId: string | null; weekStartDate?: string }): FamilyPlannerModel {
+  const { weekStartDate } = input.weekStartDate
+    ? weekWindowFromLocalWeekStart(input.weekStartDate, input.timeZone)
+    : weekWindowFromLocalDate(input.now, input.timeZone)
   const today = localParts(input.now.toISOString(), input.timeZone)
   const seen = new Set<string>()
   const days = Array.from({ length: 7 }, (_, index): PlannerDay => {

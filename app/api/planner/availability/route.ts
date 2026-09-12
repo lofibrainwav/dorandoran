@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server'
-import { parseHouseholdDisplayNames, parseHouseholdMembership, resolveHouseholdTimeZone, resolveUniqueChildPersonId } from '@/lib/family-os'
+import { parseHouseholdDisplayNames, parseHouseholdMembership, resolveHouseholdTimeZone, resolveUniqueChildPersonId, weekWindowFromLocalDate, weekWindowFromLocalWeekStart } from '@/lib/family-os'
 import { buildFamilyPlanner } from '@/lib/family-os/family-planner'
 import { HOUSEHOLD_SESSION_COOKIE, resolveHouseholdSessionMember } from '@/lib/server/google-household-session'
 import { loadPrivateOperationalFamilyCalendarPerson } from '@/lib/server/private-operational-family-calendar-source'
@@ -26,17 +26,21 @@ export async function GET(request: NextRequest) {
     if (!member) return Response.json({ error: 'AUTH_REQUIRED' }, { status: 401, headers })
     const now = new Date()
     const timeZone = resolveHouseholdTimeZone(process.env)
+    const requestedWeek = request.nextUrl?.searchParams?.get('week')?.trim()
+    const weekStartDate = requestedWeek
+      ? weekWindowFromLocalWeekStart(requestedWeek, timeZone).weekStartDate
+      : weekWindowFromLocalDate(now, timeZone).weekStartDate
     const childPersonId = resolveUniqueChildPersonId(membership)
     const privateEnabled = privateFamilySurfaceEnabled()
     const modules = [{ id: 'schedule', label: 'Schedule' }]
     const label = childPersonId ? childLabel(membership, childPersonId) : null
     const [operational, local] = await Promise.all([
-      childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: label!, now, timeZone, modules }) : null,
-      privateEnabled && childPersonId ? loadPrivateCalendarOperatingPerson({ personId: childPersonId, label: label!, now, timeZone, modules }) : null,
+      childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: label!, now, timeZone, weekStartDate, modules }) : null,
+      privateEnabled && childPersonId ? loadPrivateCalendarOperatingPerson({ personId: childPersonId, label: label!, now, timeZone, weekStartDate, modules }) : null,
     ])
     const schedule = selectScheduleResult(operational, local)
     const model = buildFamilyPlanner({ observations: schedule?.householdObservations ?? [], now, timeZone,
-      known: schedule?.sourceHealth === 'green', childPersonId })
+      known: schedule?.sourceHealth === 'green', childPersonId, weekStartDate })
     return Response.json(model, { headers })
   } catch {
     return Response.json({ error: 'CALENDAR_UNAVAILABLE' }, { status: 503, headers })

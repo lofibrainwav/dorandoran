@@ -1,4 +1,4 @@
 schema = "hyodo.config/v1"
 
 [audience]
-profile = "vibe"
+profile = "engineer"

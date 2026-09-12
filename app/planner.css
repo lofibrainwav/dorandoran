@@ -100,3 +100,4 @@
 .apple-pairing-code code{font-size:10px;word-break:break-all;color:#315d50}
 .apple-pairing-code button{border:0;background:transparent;color:#527b5d;font-size:10px!important;font-weight:700}
 .apple-pairing-code small{grid-column:1 / -1;color:#819281;font-size:8px}
+.week-scroll{touch-action:pan-y}

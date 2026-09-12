@@ -49,7 +49,7 @@ function householdTimeZone() {
   }
 }
 
-export default async function FamilyWeekPage({ searchParams }: { searchParams?: Promise<{ week?: string }> } = {}) {
+export default async function FamilyWeekPage({ searchParams }: { searchParams?: Promise<{ week?: string }> }) {
   const privateEnabled = privateFamilySurfaceEnabled()
   const now = new Date()
   const timeZone = householdTimeZone()

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { FamilyGlobe } from './family-globe'
-import { DAY_PERIODS, minuteClock, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
+import { DAY_PERIODS, minuteClock, orderedPlannerDays, parsePlannerMemo, schedulePlannerWishes, exportTimeboxes, type FamilyPlannerModel, type PlannedTimebox, type PlannerEvent, type PlannerWish } from '@/lib/family-os/family-planner'
 import { lifecycleTasksToPlannerWishes, mergePlannerWishes, LIFECYCLE_WISH_ID_PREFIX, type LifecycleTaskForPlanner } from '@/lib/family-os/lifecycle-planner-bridge'
 import type { PlannerRecommendation } from '@/lib/family-os/planner-recommendations'
 import type { HouseholdHome } from '@/lib/family-os/household-home'
@@ -23,6 +24,12 @@ function readSaved(raw: string): Saved {
     if (typeof value.memo !== 'string' || !Array.isArray(value.plans) || !value.durations || typeof value.durations !== 'object') return EMPTY
     return { memo: value.memo.slice(0, 10000), durations: value.durations, plans: value.plans.filter((p: PlannedTimebox) => typeof p.id === 'string' && typeof p.title === 'string' && typeof p.owner === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isInteger(p.startMinute) && p.startMinute >= 360 && Number.isInteger(p.minutes) && p.minutes > 0 && p.startMinute + p.minutes <= 1260).slice(0, 50) }
   } catch { return EMPTY }
+}
+
+function shiftWeekStart(weekStart: string, weeks: number): string {
+  const date = new Date(`${weekStart}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + weeks * 7)
+  return date.toISOString().slice(0, 10)
 }
 
 export interface FamilyPlannerLifecycleViewer { personId: string; access: 'adult' | 'child' }
@@ -96,6 +103,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   model: FamilyPlannerModel; home: HouseholdHome; appleStatus: string; learningStatus: string
   lifecycleViewer?: FamilyPlannerLifecycleViewer | null; memberLabels?: Record<string, string>; children?: ReactNode
 }) {
+  const router = useRouter()
   const [freshModel, setFreshModel] = useState<FamilyPlannerModel | null>(null)
   const [busy, setBusy] = useState(false)
   const model = freshModel ?? initialModel
@@ -283,10 +291,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const activeEvent = selected ?? next
   const preparationGroups = [{ label: '준비', who: '함께 확인', items: ['필요한 준비물이 있는지 확인', '맡을 사람과 준비 시간 정하기'] }, { label: '이동', who: '이동 담당 확인', items: ['예정 장소와 출발 시각 확인', '앞 일정과의 이동 여유 확인'] }, { label: '가족', who: '서로 맞춰보기', items: ['다른 가족의 개인 일정 확인', '일정 뒤 휴식 시간 남기기'] }]
   const today = model.days.find((day) => day.today)
-  const displayDays = useMemo(() => {
-    const todayIndex = model.days.findIndex((day) => day.today)
-    return todayIndex > 0 ? [...model.days.slice(todayIndex), ...model.days.slice(0, todayIndex)] : model.days
-  }, [model.days])
+  const displayDays = useMemo(() => orderedPlannerDays(model.days), [model.days])
   const todayEvents = today?.events ?? []
   const nextWhen = next ? `${next.date} · ${minuteClock(next.startMinute)}–${minuteClock(next.endMinute)}` : '확인된 다음 일정 없음'
   const visibleDriveArtifactState = activeLifecycleViewer
@@ -454,7 +459,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
     setBusy(true)
     setMessage('기존 Google 일정을 다시 확인하고 있어요…')
     try {
-      const response = await fetch('/api/planner/availability', { cache: 'no-store', signal: AbortSignal.timeout(20000) })
+      const response = await fetch(`/api/planner/availability?week=${encodeURIComponent(model.weekStart)}`, { cache: 'no-store', signal: AbortSignal.timeout(20000) })
       if (!response.ok || response.redirected) throw new Error('UNAVAILABLE')
       const latest: FamilyPlannerModel = await response.json()
       if (!Array.isArray(latest.days) || latest.days.length !== 7) throw new Error('UNAVAILABLE')
@@ -642,7 +647,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
       </PlannerModal>
       <div className="planner-workspace">
         <section className="week-panel" id="calendar" aria-label="이번 주 타임박스 플래너">
-          <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><div className="week-toolbar-actions"><button className="memo-toolbar-button" onClick={() => setShowMemo(true)} aria-haspopup="dialog">✎ 메모{wishes.length ? ` ${wishes.length}` : ''}<span className="sr-only">빈 시간에 자동 배치</span></button><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button><button className="export-button" onClick={() => void publishToGoogleCalendar()} disabled={!plans.length || !model.known || !!collidingPlans.length || busy}>Google Calendar에 반영</button></div></div>
+          <div className="week-toolbar"><div><p className="eyebrow">OUR WEEK</p><h2>이번 주 캘린더 <span>{dateRange}</span></h2></div><div className="week-toolbar-actions"><button className="export-button" onClick={() => router.push(`/family?week=${shiftWeekStart(model.weekStart, -1)}`)} aria-label="이전 주 보기">‹ 이전 주</button><button className="export-button" onClick={() => router.push('/family')} aria-label="이번 주 보기">오늘 주</button><button className="export-button" onClick={() => router.push(`/family?week=${shiftWeekStart(model.weekStart, 1)}`)} aria-label="다음 주 보기">다음 주 ›</button><button className="memo-toolbar-button" onClick={() => setShowMemo(true)} aria-haspopup="dialog">✎ 메모{wishes.length ? ` ${wishes.length}` : ''}<span className="sr-only">빈 시간에 자동 배치</span></button><button className="export-button" onClick={download} disabled={!plans.length || !model.known || !!collidingPlans.length}>계획 내보내기 ↗</button><button className="export-button" onClick={() => void publishToGoogleCalendar()} disabled={!plans.length || !model.known || !!collidingPlans.length || busy}>Google Calendar에 반영</button></div></div>
           <div className="week-summary"><span><i className="status-dot" />{model.known ? `${model.eventCount}개 실제 일정` : '일정 확인 필요'}</span><span>{plans.length}개 새 계획</span><span>{attention ? `${attention}곳 시간 조율 확인` : '일정 사이에 여유를 남겨요'}</span></div>
           <p role="status" aria-live="polite" className={message ? 'planner-message' : 'planner-message-empty'}>{message}</p>
           {collidingPlans.length ? <p className="planner-warning">⚠ 일정이 바뀌었거나 이미 지난 시간이 포함된 계획 {collidingPlans.length}개가 있습니다. 다시 배치해 주세요.</p> : null}

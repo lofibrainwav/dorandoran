@@ -92,6 +92,12 @@ export interface LocalWeekWindow {
   end: Date
   weekStartDate: string
 }
+
+function validLocalDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(`${value}T12:00:00Z`)
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+}
 interface CalendarDateParts {
   year: number
   month: number
@@ -171,5 +177,21 @@ export function weekWindowFromLocalDate(now: Date, timeZone: string): LocalWeekW
     start: zonedMidnightUtc(weekStart, timeZone),
     end: zonedMidnightUtc(weekEnd, timeZone),
     weekStartDate: localDateKey(weekStart),
+  }
+}
+
+/** Resolve an explicit Sunday-first local week without using the current date. */
+export function weekWindowFromLocalWeekStart(weekStartDate: string, timeZone: string): LocalWeekWindow {
+  if (!validLocalDate(weekStartDate)) throw new Error('INVALID_WEEK_START_DATE')
+  const start = new Date(`${weekStartDate}T12:00:00Z`)
+  if (start.getUTCDay() !== 0) throw new Error('WEEK_START_MUST_BE_SUNDAY')
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 7)
+  const startParts = { year: start.getUTCFullYear(), month: start.getUTCMonth() + 1, day: start.getUTCDate() }
+  const endParts = { year: end.getUTCFullYear(), month: end.getUTCMonth() + 1, day: end.getUTCDate() }
+  return {
+    start: zonedMidnightUtc(startParts, timeZone),
+    end: zonedMidnightUtc(endParts, timeZone),
+    weekStartDate,
   }
 }

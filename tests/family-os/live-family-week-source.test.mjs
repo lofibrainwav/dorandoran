@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveLocalCalendarRuntimeConfig, weekWindowFromLocalDate } from '../../lib/family-os/index.ts'
+import { resolveLocalCalendarRuntimeConfig, weekWindowFromLocalDate, weekWindowFromLocalWeekStart } from '../../lib/family-os/index.ts'
 
 test('missing local live config falls back instead of inventing credentials', () => {
   assert.equal(resolveLocalCalendarRuntimeConfig({}), null)
@@ -24,4 +24,12 @@ test('family week ends at next Sunday boundary, not eight days later', () => {
   assert.equal(window.start.toISOString(), '2026-09-06T07:00:00.000Z')
   assert.equal(window.end.toISOString(), '2026-09-13T07:00:00.000Z')
   assert.equal((window.end.getTime() - window.start.getTime()) / 86400000, 7)
+})
+
+test('explicit next week resolves from Sunday 13 without using the current date', () => {
+  const window = weekWindowFromLocalWeekStart('2026-09-13', 'America/Los_Angeles')
+  assert.equal(window.weekStartDate, '2026-09-13')
+  assert.equal(window.start.toISOString(), '2026-09-13T07:00:00.000Z')
+  assert.equal(window.end.toISOString(), '2026-09-20T07:00:00.000Z')
+  assert.throws(() => weekWindowFromLocalWeekStart('2026-09-14', 'America/Los_Angeles'), /WEEK_START_MUST_BE_SUNDAY/)
 })

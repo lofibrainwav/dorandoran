@@ -2,7 +2,7 @@ import { FamilyPlanner } from '@/components/family-planner'
 import { FamilyOperatingHero } from '@/components/family-operating-hero'
 import { LifecycleLaneBridge } from '@/components/lifecycle-lane-bridge'
 import { cookies } from 'next/headers'
-import { parseHouseholdDisplayNames, parseHouseholdMembership, projectOperatingPresence, resolveHouseholdHome, resolveHouseholdTimeZone, resolveUniqueChildPersonId, type HouseholdMember } from '@/lib/family-os'
+import { parseHouseholdDisplayNames, parseHouseholdMembership, projectOperatingPresence, resolveHouseholdHome, resolveHouseholdTimeZone, resolveUniqueChildPersonId, weekWindowFromLocalDate, weekWindowFromLocalWeekStart, type HouseholdMember } from '@/lib/family-os'
 import { buildFamilyPlanner } from '@/lib/family-os/family-planner'
 import { HOUSEHOLD_SESSION_COOKIE, resolveHouseholdSessionMember } from '@/lib/server/google-household-session'
 import { privateFamilySurfaceEnabled } from '@/lib/server/private-family-surface'
@@ -49,10 +49,19 @@ function householdTimeZone() {
   }
 }
 
-export default async function FamilyWeekPage() {
+export default async function FamilyWeekPage({ searchParams }: { searchParams?: Promise<{ week?: string }> } = {}) {
   const privateEnabled = privateFamilySurfaceEnabled()
   const now = new Date()
   const timeZone = householdTimeZone()
+  const requestedWeek = (await searchParams)?.week?.trim()
+  let weekStartDate: string | undefined
+  try {
+    weekStartDate = requestedWeek
+      ? weekWindowFromLocalWeekStart(requestedWeek, timeZone).weekStartDate
+      : weekWindowFromLocalDate(now, timeZone).weekStartDate
+  } catch {
+    weekStartDate = weekWindowFromLocalDate(now, timeZone).weekStartDate
+  }
   const home = householdHome()
   const childPersonId = householdChildPersonId()
   const membership = householdMembers()
@@ -65,9 +74,9 @@ export default async function FamilyWeekPage() {
     ? loadPrivatePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
     : loadGoogleDrivePhotoSnapshot({ now, maxAgeMs: 24 * 60 * 60 * 1000 })
   const [operational, [local, temporal, photos, applePhotoMetadata], learningBase, approvedReleases, lifecycleViewerMember] = await Promise.all([
-    childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: memberLabels[childPersonId] ?? lifecycleLaneLabel(childPersonId), now, timeZone, modules }) : Promise.resolve(null),
+    childPersonId ? loadPrivateOperationalFamilyCalendarPerson({ personId: childPersonId, label: memberLabels[childPersonId] ?? lifecycleLaneLabel(childPersonId), now, timeZone, weekStartDate, modules }) : Promise.resolve(null),
     Promise.all([
-      privateEnabled && calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, modules }) : Promise.resolve(null),
+      privateEnabled && calendarPersonId ? loadPrivateCalendarOperatingPerson({ personId: calendarPersonId, label: memberLabels[calendarPersonId] ?? lifecycleLaneLabel(calendarPersonId), now, timeZone, weekStartDate, modules }) : Promise.resolve(null),
       privateEnabled && calendarPersonId ? loadPrivateCalendarTemporalGrids({ personId: calendarPersonId, now, timeZone }) : Promise.resolve(null),
       photoSnapshot,
       loadApplePhotoMetadataProjection({ now, maxAgeMs: 24 * 60 * 60 * 1000 }),
@@ -86,7 +95,7 @@ export default async function FamilyWeekPage() {
   if (schedule) schedule.readModel.modules = [...schedule.readModel.modules, learning]
   const model = buildFamilyPlanner({
     observations: schedule?.householdObservations ?? [], now, timeZone,
-    known: schedule?.sourceHealth === 'green', childPersonId,
+    known: schedule?.sourceHealth === 'green', childPersonId, weekStartDate,
   })
   const appleMetadataLive = applePhotoMetadata?.status === 'live'
   const appleJourney = appleMetadataLive ? applePhotoMetadata.experience : photos?.result?.experience

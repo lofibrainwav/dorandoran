@@ -4,7 +4,9 @@ import {
   normalizeGoogleCalendarApiEvent,
   projectFamilyOperatingPerson,
   resolveLocalCalendarSourceRegistry,
+  resolveScheduledPlace,
   weekWindowFromLocalDate,
+  weekWindowFromLocalWeekStart,
   type ContextObservation,
   type FamilyOperatingPersonReadModel,
   type GoogleCalendarApiEventPayload,
@@ -35,6 +37,7 @@ export function calendarPayloadsToObservations(
   payloads: GoogleCalendarApiEventPayload[],
   observedAt: string,
   timeZone: string,
+  env: Record<string, string | undefined> = process.env,
 ) {
   return payloads.flatMap((payload) => {
     if (!payload.start?.dateTime || !payload.end?.dateTime) return []
@@ -48,7 +51,7 @@ export function calendarPayloadsToObservations(
         who: { personIds: [...config.subjectIds] },
         what: { label: normalized.title, ref: normalized.id },
         when: { start: normalized.start, end: normalized.end, timeZone },
-        ...(normalized.location ? { where: { label: normalized.location } } : {}),
+        ...(normalized.location ? { where: { label: normalized.location, ...(resolveScheduledPlace(env, normalized.location)?.coordinates ? { coordinates: resolveScheduledPlace(env, normalized.location)?.coordinates } : {}) } } : {}),
       },
       sourceRef: evidenceRef,
       observedAt,
@@ -65,6 +68,7 @@ export async function loadPrivateCalendarOperatingPerson(input: {
   label: string
   now: Date
   timeZone: string
+  weekStartDate?: string
   modules?: SpecialistModuleSummary[]
   readEvents?: PrivateCalendarReadEvents
 }): Promise<PrivateCalendarOperatingResult | null> {
@@ -73,7 +77,9 @@ export async function loadPrivateCalendarOperatingPerson(input: {
   const relevantSources = registry.sources.filter((source) => source.subjectIds.includes(input.personId))
   if (registry.mode === 'none' || (relevantSources.length === 0 && registry.incompleteSourceKeys.length === 0)) return null
 
-  const window = weekWindowFromLocalDate(input.now, input.timeZone)
+  const window = input.weekStartDate
+    ? weekWindowFromLocalWeekStart(input.weekStartDate, input.timeZone)
+    : weekWindowFromLocalDate(input.now, input.timeZone)
   const readEvents = input.readEvents ?? readGoogleCalendarSource
   const loadedSourceKeys: string[] = []
   const failedSourceKeys = [...registry.incompleteSourceKeys]
@@ -84,7 +90,7 @@ export async function loadPrivateCalendarOperatingPerson(input: {
     try {
       const payloads = await readEvents(source, window)
       const observedAt = new Date().toISOString()
-      observations.push(...calendarPayloadsToObservations(source, payloads, observedAt, input.timeZone))
+      observations.push(...calendarPayloadsToObservations(source, payloads, observedAt, input.timeZone, env))
       eventCount += payloads.filter((item) => item.start?.dateTime && item.end?.dateTime).length
       loadedSourceKeys.push(source.sourceKey)
     } catch {

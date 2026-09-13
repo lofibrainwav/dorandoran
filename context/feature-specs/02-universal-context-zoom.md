@@ -26,4 +26,4 @@ Source → Adapter → ContextObservation → 6W1H → evidence/authority → Fa
 - all legacy Family OS tests remain green
 - provider-neutral contract tests are green
 - TypeScript, lint, build, audit, HyoDo blocking gates are green
-- HyoDo 4.15 source-line stays shadow-only until a published release
+- HyoDo current source-line stays shadow-only until a published release with parity

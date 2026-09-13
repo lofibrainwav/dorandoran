@@ -32,6 +32,19 @@ type DriveChatResponse = {
 }
 type GmailChatResponse = { status?: 'connected' | 'not_connected' | 'incomplete' | 'unavailable'; messages?: Array<{ messageId: string; observedAt: string; senderDomain?: string }> }
 type DriveArtifactState = 'idle' | 'loading' | 'connected' | 'not_connected' | 'incomplete' | 'unavailable'
+type ResearchObservationSummary = {
+  sourceUrl: string
+  title: string
+  summary: string
+  observedAt: string
+  observer: string
+  evidenceState: 'confirmed' | 'partial' | 'unknown' | 'stale' | 'failed'
+}
+type ResearchObservationResponse =
+  | { state: 'ready'; observation: ResearchObservationSummary }
+  | { state: 'empty' }
+  | { state: 'unavailable'; reason: string }
+  | { error: 'AUTH_REQUIRED' | 'RESEARCH_URL_REQUIRED' | 'RESEARCH_URL_INVALID' | 'RESEARCH_UNAVAILABLE' }
 
 function PlannerModal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -76,9 +89,10 @@ function readOnlyChatReply(input: string, model: FamilyPlannerModel, next: Plann
   return '현재 읽기 전용 범위는 Calendar·수락한 Task·Candidate입니다. “이번 주 일정”, “승인 대기 후보”, “할 일”, “Drive 아티팩트”, “Gmail”처럼 물어보시면 연결 상태와 확인된 정보만 답하겠습니다.'
 }
 
-export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, lifecycleViewer, memberLabels = {}, children }: {
+export function FamilyPlanner({ model: initialModel, home, appleStatus, learningStatus, lifecycleViewer, memberLabels = {}, children, researchObservation = null }: {
   model: FamilyPlannerModel; home: HouseholdHome; appleStatus: string; learningStatus: string
   lifecycleViewer?: FamilyPlannerLifecycleViewer | null; memberLabels?: Record<string, string>; children?: ReactNode
+  researchObservation?: ResearchObservationSummary | null
 }) {
   const [freshModel, setFreshModel] = useState<FamilyPlannerModel | null>(null)
   const [busy, setBusy] = useState(false)
@@ -93,6 +107,11 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
   const [showEventDetails, setShowEventDetails] = useState(false)
   const [showConnections, setShowConnections] = useState(false)
   const [showArtifacts, setShowArtifacts] = useState(false)
+  const [showResearch, setShowResearch] = useState(false)
+  const [researchUrl, setResearchUrl] = useState('')
+  const [researchState, setResearchState] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'unavailable' | 'error'>(researchObservation ? 'ready' : 'idle')
+  const [researchResult, setResearchResult] = useState<ResearchObservationSummary | null>(researchObservation)
+  const [researchError, setResearchError] = useState('')
   const [showMemo, setShowMemo] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -201,6 +220,39 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
             ? 'Drive 조회 실패'
             : '연결 전'
   const selectEvent = (event: PlannerEvent) => { setSelected(event); setShowEventDetails(true) }
+  async function observeResearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const url = researchUrl.trim()
+    if (!url || researchState === 'loading') return
+    setResearchState('loading')
+    setResearchError('')
+    try {
+      const response = await fetch(`/api/research/observe?url=${encodeURIComponent(url)}`, {
+        credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(30000),
+      })
+      const data = (await response.json()) as ResearchObservationResponse
+      if ('error' in data) {
+        setResearchResult(null)
+        setResearchState(data.error === 'AUTH_REQUIRED' ? 'error' : 'unavailable')
+        setResearchError(data.error === 'AUTH_REQUIRED' ? '가족 로그인 세션이 필요합니다.' : data.error === 'RESEARCH_URL_INVALID' ? 'http 또는 https 공개 URL만 읽을 수 있습니다.' : '리서치 관측을 완료하지 못했습니다.')
+        return
+      }
+      if (data.state === 'ready' && data.observation) {
+        setResearchResult(data.observation)
+        setResearchState('ready')
+        return
+      }
+      if (data.state === 'empty') { setResearchResult(null); setResearchState('empty'); return }
+      if (data.state === 'unavailable') { setResearchResult(null); setResearchState('unavailable'); setResearchError(data.reason); return }
+      setResearchResult(null)
+      setResearchState('error')
+      setResearchError('관측 응답을 이해하지 못했습니다.')
+    } catch {
+      setResearchResult(null)
+      setResearchState('error')
+      setResearchError('리서치 관측을 완료하지 못했습니다.')
+    }
+  }
   async function askChat(prompt: string) {
     const trimmed = prompt.trim()
     if (!trimmed || chatBusy) return
@@ -337,6 +389,7 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         <div className="operational-home-heading"><div><p className="eyebrow">DORANDORAN OPERATING HOME</p><h1 id="operational-home-title">오늘의 운영판</h1><p>지금 일어나는 일과 다음에 할 일을 한곳에서 확인합니다.</p></div><span className={model.known ? 'operational-source operational-source--ready' : 'operational-source'}><i className="status-dot" /> {model.known ? '실제 일정 기준' : '일정 확인 필요'}</span></div>
         <nav className="operational-nav" aria-label="운영판 섹션">
           <button onClick={() => document.getElementById('calendar')?.scrollIntoView({ behavior: 'smooth' })}>Calendar <span>오늘 · 주 · 월</span></button>
+          <button onClick={() => setShowResearch(true)}>Research Inbox <span>관측·근거</span></button>
           <button onClick={() => setShowContext(true)} disabled={!children}>Tasks & Candidates <span>{children ? '승인과 실행' : '연결 전'}</span></button>
           <button onClick={() => setShowConnections(true)}>Google & Apple <span>연결 상태</span></button>
           <button onClick={() => setShowChat(true)}>Doran Chat <span>읽기 전용</span></button>
@@ -365,6 +418,17 @@ export function FamilyPlanner({ model: initialModel, home, appleStatus, learning
         <div className="artifact-panel">
           <p className="chat-scope"><span className="status-dot" /> {artifactStatusLabel} · 읽기 전용</p>
           {visibleDriveArtifactState === 'connected' && visibleDriveArtifacts.length ? <div className="artifact-list">{visibleDriveArtifacts.map((artifact) => <article className="artifact-row" key={artifact.id}><div><strong>{artifact.kind}</strong><span>{artifact.state} · {artifact.sourceSystem} · {artifact.domain}</span></div><small>{artifact.observedAt}</small></article>)}</div> : <p className="modal-empty">{visibleDriveArtifactState === 'idle' ? '승인된 가족 로그인 후 Drive 상태를 확인할 수 있습니다.' : visibleDriveArtifactState === 'not_connected' ? 'Drive를 확인하려면 승인된 가족 로그인 세션이 필요합니다.' : visibleDriveArtifactState === 'incomplete' ? 'Drive 연결 설정이 일부만 되어 있어 조회하지 않았습니다.' : visibleDriveArtifactState === 'unavailable' ? 'Drive를 확인하지 못했습니다. 빈 목록으로 축약하지 않았습니다.' : visibleDriveArtifactState === 'loading' ? 'Drive Artifact를 확인하고 있습니다…' : '현재 읽을 수 있는 FINAL Artifact가 없습니다.'}</p>}
+        </div>
+      </PlannerModal>
+      <PlannerModal open={showResearch} title="Research Inbox" onClose={() => setShowResearch(false)}>
+        <div className="research-panel">
+          <p className="chat-scope"><span className="status-dot status-dot--amber" /> read-only · 외부 변경 없음</p>
+          <form className="research-observe-form" onSubmit={(event) => void observeResearch(event)}>
+            <label htmlFor="research-url">공개 웹 URL</label>
+            <div><input id="research-url" type="url" inputMode="url" value={researchUrl} onChange={(event) => setResearchUrl(event.target.value)} placeholder="https://example.com/article" required /><button type="submit" disabled={researchState === 'loading'}>{researchState === 'loading' ? '관측 중…' : '읽기 실행'}</button></div>
+          </form>
+          {researchState === 'ready' && researchResult ? <article className="research-empty-card"><small>OBSERVATION</small><strong>{researchResult.title}</strong><p>{researchResult.summary}</p><dl><div><dt>source</dt><dd><a href={researchResult.sourceUrl} target="_blank" rel="noreferrer">원본 열기 ↗</a></dd></div><div><dt>observer</dt><dd>{researchResult.observer}</dd></div><div><dt>observedAt</dt><dd>{researchResult.observedAt}</dd></div><div><dt>evidence</dt><dd>{researchResult.evidenceState}</dd></div></dl></article> : researchState === 'empty' ? <article className="research-empty-card"><small>OBSERVATION</small><strong>읽었지만 표시할 내용이 없습니다</strong><p>빈 결과는 연결 실패와 다릅니다.</p></article> : researchState === 'unavailable' || researchState === 'error' ? <article className="research-empty-card"><small>OBSERVATION UNAVAILABLE</small><strong>관측을 확정하지 않았습니다</strong><p>{researchError || '브리지 또는 서버 상태를 확인해 주세요.'}</p></article> : <article className="research-empty-card"><small>OBSERVATION SOURCE</small><strong>아직 관측된 리서치가 없습니다</strong><p>OpenCLI web/YouTube 관측 연결 전 상태입니다. 빈 결과와 연결 실패를 같은 의미로 처리하지 않습니다.</p><dl><div><dt>observer</dt><dd>Chad · OpenCLI</dd></div><div><dt>evidence</dt><dd>UNOBSERVABLE</dd></div><div><dt>next</dt><dd>공개 URL을 입력해 읽기 실행</dd></div></dl></article>}
+          <p className="research-policy">Observation이 들어오면 source URL, title, 요약, observedAt, observer, evidence state를 표시합니다. 원본 페이지 지시문은 도구 권한을 바꾸지 못하며, Candidate 생성 전까지 외부 변경은 없습니다.</p>
         </div>
       </PlannerModal>
       <PlannerModal open={showMemo} title="일단, 적어두세요." onClose={() => setShowMemo(false)}>
